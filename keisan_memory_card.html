@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>メモリー計算ゲーム</title>
+    <!-- Tailwind CSS CDNを読み込み -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Interフォントを使用 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        /* カスタムスタイルとTailwindの組み合わせ */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* 薄い青系の背景 */
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* 上部から始める */
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* カードの基本設定 */
+        .card {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem; /* スマホで読みやすいサイズ */
+            font-weight: 600;
+            color: #ffffff;
+            cursor: pointer;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.5s ease-in-out, box-shadow 0.3s;
+            transform-style: preserve-3d;
+            perspective: 1000px;
+            user-select: none; /* テキスト選択を防止 */
+            position: relative; /* 子要素のposition: absoluteの基準 */
+        }
+
+        /* カードのコンテナ（グリッドアイテム） */
+        .card-container {
+            aspect-ratio: 1 / 1; /* 正方形を維持 */
+        }
+
+        /* カードの表 (表面) と裏 (裏面) */
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden; /* 裏側を見せない */
+            border-radius: 12px;
+            padding: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* カードの表面 (計算式が表示される面) - 最初に見える面 */
+        .card-front {
+            background-color: #ffffff; /* 白 */
+            color: #1f2937; /* 濃いグレーの文字 */
+            border: 3px solid #60a5fa;
+            font-size: 1.5rem;
+            transform: rotateY(0deg); /* 初期状態 */
+        }
+
+        /* カードの裏面 (答えが表示される面) */
+        .card-back {
+            background-color: #3b82f6; /* 青 */
+            color: #ffffff;
+            font-size: 2rem; /* 答えの文字を大きく */
+            transform: rotateY(180deg); /* 裏返す準備 */
+        }
+
+        /* カードがめくられた状態 */
+        .card-flipped {
+            transform: rotateY(180deg);
+        }
+
+        /* マッチしたカードのスタイル */
+        .card-matched .card-back {
+            background-color: #10b981; /* エメラルドグリーン */
+            border-color: #059669;
+            color: #ffffff;
+        }
+
+        /* ボタンのスタイル */
+        .game-button {
+            transition: all 0.15s ease-in-out;
+        }
+        .game-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4);
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8">
+
+    <div id="game-container" class="w-full max-w-4xl">
+        <!-- ヘッダーとステータス表示 -->
+        <header class="text-center mb-6">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-800 mb-2">🧠 計算メモリーゲーム 🧠</h1>
+            <p class="text-gray-600">同じ答えになる計算式をペアにしてカードをすべて消そう！</p>
+            
+            <!-- 難易度選択 -->
+            <div class="mt-4 p-4 bg-white rounded-xl shadow-lg border border-gray-200">
+                <p class="text-sm font-bold text-gray-700 mb-2">難易度を選択：</p>
+                <div id="difficulty-selector" class="flex justify-center flex-wrap gap-4 text-sm font-semibold">
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input type="radio" name="difficulty" value="beginner" checked class="form-radio text-blue-600 h-4 w-4" onchange="initGame()">
+                        <span class="ml-2 text-gray-700">初級 (60秒)</span>
+                    </label>
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input type="radio" name="difficulty" value="intermediate" class="form-radio text-yellow-600 h-4 w-4" onchange="initGame()">
+                        <span class="ml-2 text-gray-700">中級 (30秒)</span>
+                    </label>
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input type="radio" name="difficulty" value="expert" class="form-radio text-red-600 h-4 w-4" onchange="initGame()">
+                        <span class="ml-2 text-gray-700">上級 (10秒)</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- ステータス表示 -->
+            <div id="status" class="flex justify-center space-x-4 mt-4 text-lg font-semibold flex-wrap gap-4">
+                <div class="p-2 bg-white rounded-lg shadow-md border-2 border-green-500">
+                    得点: <span id="points" class="text-green-600 font-extrabold text-xl">0</span>
+                </div>
+                <div class="p-2 bg-white rounded-lg shadow-md">
+                    ペア数: <span id="score" class="text-blue-600">0</span>
+                </div>
+                <div class="p-2 bg-white rounded-lg shadow-md">
+                    試行回数: <span id="attempts" class="text-purple-600">0</span>
+                </div>
+                <div class="p-2 bg-white rounded-lg shadow-md bg-red-100 border-2 border-red-400">
+                    残り時間: <span id="timer" class="text-red-600 font-extrabold">00:00</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- ゲームボード -->
+        <div id="game-board" class="grid grid-cols-5 gap-3 sm:gap-4 p-4 bg-white rounded-xl shadow-2xl transition-all duration-300">
+            <!-- カードはJavaScriptで挿入されます -->
+        </div>
+
+        <!-- コントロールとメッセージ -->
+        <div class="mt-8 flex flex-col items-center">
+            <button id="reset-button" class="game-button px-6 py-3 bg-blue-600 text-white font-bold rounded-full shadow-lg hover:bg-blue-700 active:bg-blue-800">
+                🔄 新しいゲームを始める
+            </button>
+
+            <div id="message-box" class="mt-6 w-full max-w-sm p-4 text-center bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded-lg shadow-md hidden transition-all duration-300">
+                <!-- メッセージが表示されます -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // グローバル変数
+        const board = document.getElementById('game-board');
+        const scoreElement = document.getElementById('score');
+        const attemptsElement = document.getElementById('attempts');
+        const timerElement = document.getElementById('timer');
+        const pointsElement = document.getElementById('points'); // 新しい得点要素
+        const resetButton = document.getElementById('reset-button');
+        const messageBox = document.getElementById('message-box');
+        
+        // タイマー関連の定数と変数
+        const TIME_LIMITS = {
+            beginner: 60,
+            intermediate: 30,
+            expert: 10
+        };
+
+        // ポイント関連の定数
+        const BASE_MATCH_SCORE = 100;
+        const BONUS_MULTIPLIER = {
+            beginner: 1, // 100 + 100 = 200
+            intermediate: 3, // 100 + 300 = 400
+            expert: 5    // 100 + 500 = 600
+        };
+
+        let timerId = null;
+        let timeLeft = 0;
+        let totalPoints = 0; // 新しい合計得点変数
+
+        let cards = []; // 全てのカードデータ
+        let flippedCards = []; // 現在めくられているカード
+        let matchedPairs = 0; // 獲得したペアの数
+        let attempts = 0; // 試行回数
+        let lockBoard = false; // カード操作ロックフラグ
+
+        // ----------------------------------------------------
+        // 1. カードデータの動的生成
+        // ----------------------------------------------------
+
+        /**
+         * 与えられた答えに対して、重複しない計算式を生成する
+         * @param {number} answer - 計算の答え
+         * @param {Set<string>} formulaSet - 使用済みの計算式を格納するSet
+         * @returns {string | null} 生成された計算式、または失敗した場合はnull
+         */
+        function generateFormula(answer, formulaSet) {
+            let formula = null;
+            let attempts = 0;
+
+            // 50回試行して、ユニークな計算式を見つける
+            while (attempts < 50) {
+                attempts++;
+                const type = Math.floor(Math.random() * 4); // 0: +, 1: -, 2: ×, 3: ÷
+                
+                let tempFormula = '';
+
+                if (type === 0) { // 足し算 (A + B = Answer)
+                    const num1 = Math.floor(Math.random() * (answer - 1)) + 1;
+                    const num2 = answer - num1;
+                    tempFormula = `${num1} + ${num2}`;
+                } else if (type === 1) { // 引き算 (A - B = Answer)
+                    const num2 = Math.floor(Math.random() * 10) + 1; // B = 1から10
+                    const num1 = answer + num2;
+                    tempFormula = `${num1} - ${num2}`;
+                } else if (type === 2) { // 掛け算 (A × B = Answer)
+                    let num1 = 0;
+                    let num2 = 0;
+                    
+                    // Answerの因数を見つける
+                    for (let i = 2; i <= Math.sqrt(answer); i++) {
+                        if (answer % i === 0) {
+                            // 小さい方の因数をランダムに選ぶ
+                            if (Math.random() < 0.5) {
+                                num1 = i;
+                                num2 = answer / i;
+                            } else {
+                                num1 = answer / i;
+                                num2 = i;
+                            }
+                            break;
+                        }
+                    }
+                    
+                    if (num1 === 0 && answer > 1 && answer <= 25) { // 素数または1桁の答えの場合、1 x Answerを使う
+                        num1 = 1;
+                        num2 = answer;
+                    }
+                    
+                    if (num1 !== 0) {
+                        tempFormula = `${num1} × ${num2}`;
+                    } else {
+                        continue; // 因数分解が難しい場合はスキップ
+                    }
+
+                } else if (type === 3) { // 割り算 (A ÷ B = Answer)
+                    const num2 = Math.floor(Math.random() * 5) + 2; // B = 2から6
+                    const num1 = answer * num2;
+                    tempFormula = `${num1} ÷ ${num2}`;
+                }
+
+                // 計算式がユニークであることを確認
+                if (tempFormula !== '' && !formulaSet.has(tempFormula)) {
+                    formula = tempFormula;
+                    formulaSet.add(formula);
+                    return formula;
+                }
+            }
+            return null; // 50回試行しても見つからなかった場合
+        }
+
+        /**
+         * ランダムな答えとそれに対応する計算式ペアを生成する
+         * @param {number} numPairs - 生成するペアの数 (カード総数は numPairs * 2)
+         * @returns {Array<Object>} 計算式と答えのペアの配列
+         */
+        function generateCardPairs(numPairs = 5) {
+            const minAnswer = 5;
+            const maxAnswer = 25;
+            const allPairs = [];
+            const uniqueAnswers = new Set();
+            const formulaSet = new Set(); 
+            
+            // 必要な数だけユニークな答えを生成する
+            while (uniqueAnswers.size < numPairs) {
+                const answer = Math.floor(Math.random() * (maxAnswer - minAnswer + 1)) + minAnswer;
+                if (answer > 1) { // 答えは1より大きくする
+                    uniqueAnswers.add(answer);
+                }
+            }
+            
+            // 各答えに対して2つの異なる計算式を生成する
+            uniqueAnswers.forEach(answer => {
+                let formulasForAnswer = [];
+                let count = 0;
+
+                while (count < 2) {
+                    const formula = generateFormula(answer, formulaSet);
+                    
+                    // 生成された計算式が有効で、かつこの答えに対してまだ使われていないことを確認
+                    if (formula && formulasForAnswer.indexOf(formula) === -1) {
+                        formulasForAnswer.push(formula);
+                        count++;
+                    } else if (formula === null) {
+                        // 生成に失敗した場合、この答えでの試行を諦め、次の答えに進む
+                        console.warn(`Failed to generate distinct formulas for answer: ${answer}. Retrying generation of pairs.`);
+                        return; 
+                    }
+                } 
+                
+                // 2つの異なる計算式が生成できた場合、ペアとして追加
+                if (formulasForAnswer.length === 2) {
+                    allPairs.push({ formula: formulasForAnswer[0], answer: answer });
+                    allPairs.push({ formula: formulasForAnswer[1], answer: answer });
+                }
+            });
+            
+            // カード総数が期待通りでない場合は再帰的に再試行
+            if (allPairs.length !== numPairs * 2) {
+                return generateCardPairs(numPairs);
+            }
+
+            return allPairs;
+        }
+
+
+        // カードをシャッフルするフィッシャー・イェーツ・アルゴリズム
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        // ----------------------------------------------------
+        // 2. UIの生成と描画
+        // ----------------------------------------------------
+
+        // カードUIを生成し、ボードに描画
+        function renderBoard() {
+            board.innerHTML = ''; // ボードをクリア
+            
+            // 動的にカードデータを生成 (5ペア = 10枚のカード)
+            const generatedPairs = generateCardPairs(5);
+
+            let cardIdCounter = 0;
+            cards = [];
+
+            generatedPairs.forEach(pair => {
+                cards.push({
+                    id: cardIdCounter++, // カード固有のID
+                    displayFormula: pair.formula,
+                    answerValue: pair.answer, // マッチングに使う値
+                    isFlipped: false,
+                    isMatched: false
+                });
+            });
+
+            shuffleArray(cards);
+            
+            // 10枚のカードなので、5x2グリッドを使用
+            board.className = 'grid grid-cols-5 gap-3 sm:gap-4 p-4 bg-white rounded-xl shadow-2xl transition-all duration-300';
+
+
+            cards.forEach((card, index) => {
+                const container = document.createElement('div');
+                container.classList.add('card-container');
+                container.dataset.index = index;
+
+                container.innerHTML = `
+                    <div class="card" onclick="handleCardClick(${index})">
+                        <!-- 表面: 計算式 (常に表示) -->
+                        <div class="card-face card-front text-xl sm:text-2xl font-extrabold">${card.displayFormula}</div>
+                        <!-- 裏面: 答えの数値 (めくると表示) -->
+                        <div class="card-face card-back">${card.answerValue}</div>
+                    </div>
+                `;
+                board.appendChild(container);
+            });
+        }
+
+        // ----------------------------------------------------
+        // 3. タイマーロジック
+        // ----------------------------------------------------
+
+        /**
+         * タイマー表示を更新する
+         */
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            // 時間が少なくなったら強調表示
+            if (timeLeft <= 10 && timeLeft > 0) {
+                timerElement.classList.add('text-4xl', 'animate-pulse');
+            } else {
+                timerElement.classList.remove('text-4xl', 'animate-pulse');
+            }
+        }
+
+        /**
+         * タイマーを開始する
+         */
+        function startTimer() {
+            if (timerId) clearInterval(timerId); // 既存のタイマーを停止
+            
+            timerId = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+
+                if (timeLeft <= 0) {
+                    stopTimer();
+                    gameOver(false); // タイムオーバーでゲーム終了
+                }
+            }, 1000);
+        }
+
+        /**
+         * タイマーを停止する
+         */
+        function stopTimer() {
+            if (timerId) {
+                clearInterval(timerId);
+                timerId = null;
+            }
+        }
+
+        // ----------------------------------------------------
+        // 4. スコアリングロジック
+        // ----------------------------------------------------
+
+        /**
+         * 現在の難易度に基づいて、マッチ成功時の獲得ポイントを計算する
+         * @returns {number} 獲得ポイント
+         */
+        function getMatchScore() {
+            const selectedDifficulty = document.querySelector('input[name="difficulty"]:checked').value;
+            const bonus = BASE_MATCH_SCORE * BONUS_MULTIPLIER[selectedDifficulty];
+            
+            // 例: 初級(100) + 100 = 200, 上級(100) + 500 = 600
+            return BASE_MATCH_SCORE + bonus;
+        }
+
+
+        // ----------------------------------------------------
+        // 5. ゲームロジック
+        // ----------------------------------------------------
+
+        // カードクリック時の処理
+        window.handleCardClick = function(index) {
+            if (lockBoard || timeLeft <= 0) return;
+            const card = cards[index];
+
+            // すでにめくられているか、マッチしているカードは無視
+            if (card.isFlipped || card.isMatched) return;
+
+            // カードをめくる
+            card.isFlipped = true;
+            const cardElement = board.querySelector(`[data-index="${index}"] .card`);
+            cardElement.classList.add('card-flipped');
+
+            flippedCards.push(card);
+
+            if (flippedCards.length === 2) {
+                lockBoard = true;
+                attempts++;
+                attemptsElement.textContent = attempts;
+                checkForMatch();
+            }
+        }
+
+        // ペアチェック
+        function checkForMatch() {
+            const [card1, card2] = flippedCards;
+
+            // 同じカードは引けないため、IDが異なることと、裏面の答えが一致することをチェック
+            const isMatch = (card1.id !== card2.id) && (card1.answerValue === card2.answerValue);
+
+            if (isMatch) {
+                handleMatch();
+            } else {
+                // 違った場合は1秒後に裏返す
+                setTimeout(handleMismatch, 1000);
+            }
+        }
+
+        // ペアが成功した場合
+        function handleMatch() {
+            const [card1, card2] = flippedCards;
+
+            // 得点を加算
+            const awardedPoints = getMatchScore();
+            totalPoints += awardedPoints;
+            pointsElement.textContent = totalPoints;
+
+            // マッチ状態にする
+            card1.isMatched = true;
+            card2.isMatched = true;
+
+            // UIを更新
+            const cardElement1 = board.querySelector(`[data-index="${cards.indexOf(card1)}"] .card`);
+            const cardElement2 = board.querySelector(`[data-index="${cards.indexOf(card2)}"] .card`);
+
+            // マッチアニメーション
+            cardElement1.classList.add('card-matched', 'scale-105');
+            cardElement2.classList.add('card-matched', 'scale-105');
+            
+            setTimeout(() => {
+                cardElement1.classList.remove('scale-105');
+                cardElement2.classList.remove('scale-105');
+            }, 300);
+
+            matchedPairs++;
+            scoreElement.textContent = matchedPairs;
+
+            // リセット
+            resetTurn();
+
+            // ゲーム終了チェック
+            if (matchedPairs === cards.length / 2) { // 10枚なので 5ペア
+                gameOver(true);
+            }
+        }
+
+        // ペアが失敗した場合
+        function handleMismatch() {
+            const [card1, card2] = flippedCards;
+
+            // カードを裏返す
+            card1.isFlipped = false;
+            card2.isFlipped = false;
+
+            const cardElement1 = board.querySelector(`[data-index="${cards.indexOf(card1)}"] .card`);
+            const cardElement2 = board.querySelector(`[data-index="${cards.indexOf(card2)}"] .card`);
+
+            cardElement1.classList.remove('card-flipped');
+            cardElement2.classList.remove('card-flipped');
+
+            // リセット
+            resetTurn();
+        }
+
+        // ターンをリセット
+        function resetTurn() {
+            // flippedCards = []; の代わりに使用
+            flippedCards.length = 0; 
+            lockBoard = false; // ボードのロックを解除
+        }
+
+        /**
+         * ゲーム終了処理
+         * @param {boolean} win - 勝利 (true) または タイムオーバー (false)
+         */
+        function gameOver(win = true) {
+            stopTimer(); // タイマーを停止
+
+            if (win) {
+                messageBox.innerHTML = `
+                    🎉 全てのペアを見つけました！ 🎉
+                    <br>
+                    最終得点: <span class="text-green-800 font-extrabold text-xl">${totalPoints} ポイント</span>
+                    <br>
+                    試行回数 ${attempts} 回でコンプリートしました！
+                `;
+                messageBox.classList.remove('hidden', 'bg-yellow-100', 'border-yellow-500', 'text-yellow-800', 'bg-red-100', 'border-red-500', 'text-red-800');
+                messageBox.classList.add('bg-green-100', 'border-green-500', 'text-green-800');
+            } else {
+                // タイムオーバー
+                messageBox.innerHTML = `
+                    ⏰ タイムオーバー！ 😭
+                    <br>
+                    獲得得点: <span class="text-red-800 font-extrabold text-xl">${totalPoints} ポイント</span>
+                    <br>
+                    残念、時間切れです。もう一度挑戦してみましょう！
+                `;
+                messageBox.classList.remove('hidden', 'bg-green-100', 'border-green-500', 'text-green-800', 'bg-yellow-100', 'border-yellow-500', 'text-yellow-800');
+                messageBox.classList.add('bg-red-100', 'border-red-500', 'text-red-800');
+            }
+        }
+
+
+        // ----------------------------------------------------
+        // 6. 初期化とイベントリスナー
+        // ----------------------------------------------------
+
+        // ゲームの初期化
+        function initGame() {
+            // メッセージボックスをリセット
+            messageBox.classList.add('hidden');
+            messageBox.classList.remove('bg-green-100', 'border-green-500', 'text-green-800', 'bg-red-100', 'border-red-500', 'text-red-800');
+            messageBox.classList.add('bg-yellow-100', 'border-yellow-500', 'text-yellow-800');
+            
+            // ステータスをリセット
+            flippedCards = [];
+            matchedPairs = 0;
+            attempts = 0;
+            totalPoints = 0; // 得点をリセット
+            lockBoard = false;
+            
+            scoreElement.textContent = matchedPairs;
+            attemptsElement.textContent = attempts;
+            pointsElement.textContent = totalPoints; // UIを更新
+
+            // 難易度に基づいたタイマー設定
+            const selectedDifficulty = document.querySelector('input[name="difficulty"]:checked').value;
+            timeLeft = TIME_LIMITS[selectedDifficulty];
+            updateTimerDisplay();
+            stopTimer(); // タイマーを確実に停止
+
+            renderBoard(); // ボードを再描画（新しい計算式を生成）
+            
+            startTimer(); // タイマーを開始
+        }
+
+        // リセットボタンのイベントリスナー
+        resetButton.addEventListener('click', initGame);
+
+        // ページロード時にゲームを開始
+        window.onload = initGame;
+    </script>
+</body>
+</html>

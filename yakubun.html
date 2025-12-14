@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>約分アドベンチャー</title>
+    <!-- Tailwind CSSを読み込み -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* カスタムスタイル */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fc;
+        }
+        .fraction-display {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 4rem;
+            font-weight: 700;
+            margin: 2rem 0;
+            min-height: 100px;
+        }
+        .fraction-line {
+            width: 100%;
+            height: 4px;
+            background-color: #3b82f6; /* Blue 500 */
+            margin: 0.5rem 0;
+        }
+        .numerator, .denominator {
+            padding: 0 1rem;
+            transition: color 0.3s;
+        }
+        .is-reduced {
+            color: #10b981; /* Green 500 */
+        }
+        /* ラジオボタンのカスタムスタイル (Tailwindで不足している部分を補完) */
+        .form-radio {
+            appearance: none;
+            display: inline-block;
+            vertical-align: middle;
+            background-origin: border-box;
+            user-select: none;
+            flex-shrink: 0;
+            border-radius: 100%;
+            border-width: 2px;
+            border-color: #d1d5db; /* gray-300 */
+            transition: all 0.15s ease-in-out;
+        }
+        .form-radio:checked {
+            background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3ccircle cx='8' cy='8' r='3'/%3e%3c/svg%3e");
+            border-color: #2563eb; /* blue-600 */
+            background-color: #2563eb; /* blue-600 */
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div id="game-container" class="w-full max-w-lg bg-white shadow-2xl rounded-xl p-8 transition-all duration-300">
+        <h1 class="text-3xl font-bold text-center text-blue-700 mb-6">🚀 約分アドベンチャー</h1>
+        
+        <!-- ゲーム情報パネル -->
+        <div class="flex justify-between items-center mb-6 text-lg font-medium">
+            <div id="score-display" class="bg-yellow-100 text-yellow-800 px-4 py-2 rounded-lg shadow-inner">スコア: 0</div>
+            <div id="timer-display" class="bg-red-100 text-red-800 px-4 py-2 rounded-lg shadow-inner">残り時間: 30</div>
+        </div>
+
+        <!-- 難易度選択 (ラジオボタンは常に有効) -->
+        <div class="mb-6">
+            <label class="block text-sm font-medium text-gray-700 mb-2 text-center">難易度選択:</label>
+            <div id="difficulty-options" class="flex flex-wrap justify-center gap-4 p-3 bg-gray-100 rounded-lg shadow-inner">
+                <label class="inline-flex items-center p-2 rounded-lg bg-white hover:bg-blue-50 transition duration-150 cursor-pointer shadow-sm">
+                    <input type="radio" name="difficulty" value="beginner" class="form-radio text-blue-600 h-5 w-5" checked>
+                    <span class="ml-2 text-gray-700">初級 (1桁)</span>
+                </label>
+                <label class="inline-flex items-center p-2 rounded-lg bg-white hover:bg-blue-50 transition duration-150 cursor-pointer shadow-sm">
+                    <input type="radio" name="difficulty" value="intermediate" class="form-radio text-blue-600 h-5 w-5">
+                    <span class="ml-2 text-gray-700">中級 (1桁/2桁)</span>
+                </label>
+                <label class="inline-flex items-center p-2 rounded-lg bg-white hover:bg-blue-50 transition duration-150 cursor-pointer shadow-sm">
+                    <input type="radio" name="difficulty" value="advanced" class="form-radio text-blue-600 h-5 w-5">
+                    <span class="ml-2 text-gray-700">上級 (2桁)</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- メッセージエリア -->
+        <div id="message-area" class="h-10 text-center text-xl font-semibold mb-4 text-gray-700">準備OK！</div>
+
+        <!-- 分数表示エリア -->
+        <div id="fraction-area" class="flex justify-center items-center">
+            <div class="fraction-display border-2 border-blue-300 rounded-lg p-4 shadow-lg bg-blue-50">
+                <span id="numerator-display" class="numerator">0</span>
+                <div class="fraction-line"></div>
+                <span id="denominator-display" class="denominator">0</span>
+            </div>
+        </div>
+        
+        <!-- 入力と操作エリア -->
+        <div id="input-area" class="mt-8 flex flex-col space-y-4">
+            <label for="divisor-input" class="text-lg font-medium text-gray-600">公約数（割り切れる数）を入力してください:</label>
+            <input type="number" id="divisor-input" placeholder="例: 2 または 4" 
+                   class="w-full p-3 border-2 border-blue-400 rounded-lg focus:ring-4 focus:ring-blue-300 transition duration-150 text-xl text-center"
+                   min="2" disabled>
+            
+            <button id="submit-button" 
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-md transition duration-300 ease-in-out disabled:opacity-50"
+                    disabled>
+                約分実行！
+            </button>
+            
+            <!-- リタイアボタンを追加 -->
+            <button id="retire-button" 
+                    class="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 rounded-lg shadow-md transition duration-300 ease-in-out hidden disabled:opacity-50">
+                リタイア（ゲーム終了）
+            </button>
+
+            <button id="start-button" 
+                    class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-lg shadow-md transition duration-300 ease-in-out">
+                ゲームスタート
+            </button>
+        </div>
+
+        <!-- リザルトモーダル (非表示) -->
+        <div id="result-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50">
+            <div class="bg-white p-8 rounded-xl shadow-2xl text-center w-full max-w-sm">
+                <h2 id="modal-title" class="text-3xl font-bold text-blue-600 mb-4">ゲーム終了！</h2>
+                <p id="final-score" class="text-2xl font-semibold mb-6">最終スコア: 0</p>
+                <!-- ボタンのテキストを「もう一度プレイ」から「準備OK」のように変えることも可能だが、一旦は処理のみ変更 -->
+                <button id="restart-button" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md">
+                    もう一度プレイ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // グローバル変数
+        let currentNumerator = 0;
+        let currentDenominator = 0;
+        let score = 0;
+        let timeLeft = 30; // ゲーム時間 (秒)
+        let gameInterval = null;
+        let gameRunning = false;
+        let difficultyLevel = 'beginner'; // 初期難易度をラジオボタンの初期選択に合わせる
+        
+        // DOM要素の取得
+        const numDisplay = document.getElementById('numerator-display');
+        const denDisplay = document.getElementById('denominator-display');
+        const scoreDisplay = document.getElementById('score-display');
+        const timerDisplay = document.getElementById('timer-display');
+        const messageArea = document.getElementById('message-area');
+        const divisorInput = document.getElementById('divisor-input');
+        const submitButton = document.getElementById('submit-button');
+        const startButton = document.getElementById('start-button');
+        const retireButton = document.getElementById('retire-button'); // リタイアボタンを取得
+        const difficultyOptions = document.getElementById('difficulty-options'); // ラジオボタンコンテナを取得
+        const resultModal = document.getElementById('result-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const finalScore = document.getElementById('final-score');
+        const restartButton = document.getElementById('restart-button');
+
+        /**
+         * 最大公約数 (GCD) をユークリッドの互除法で計算する
+         * @param {number} a 
+         * @param {number} b 
+         * @returns {number} 最大公約数
+         */
+        function gcd(a, b) {
+            return b === 0 ? a : gcd(b, a % b);
+        }
+
+        /**
+         * 新しい分数を生成する (必ず公約数 G > 1 を持つようにロジックを修正)
+         */
+        function generateNewFraction() {
+            let nPrime, dPrime; // 元となる分数（乗算される前）
+            let commonDivisorG; // 必ず存在する公約数 G
+            let nMaxLimit, dMaxLimit; // 最終的な分子・分母の最大値
+
+            // 難易度設定に応じた最終的な上限を決定
+            switch (difficultyLevel) {
+                case 'beginner':
+                    nMaxLimit = 9;
+                    dMaxLimit = 9;
+                    commonDivisorG = Math.floor(Math.random() * (5 - 2 + 1)) + 2; // G: 2-5の範囲で公約数を決定
+                    break;
+                case 'intermediate':
+                    nMaxLimit = 9; // 分子1桁
+                    dMaxLimit = 99; // 分母2桁
+                    commonDivisorG = Math.floor(Math.random() * (9 - 2 + 1)) + 2; // G: 2-9の範囲で公約数を決定
+                    break;
+                case 'advanced':
+                    nMaxLimit = 99;
+                    dMaxLimit = 99;
+                    commonDivisorG = Math.floor(Math.random() * (12 - 2 + 1)) + 2; // G: 2-12の範囲で公約数を決定
+                    break;
+                default:
+                    nMaxLimit = 9;
+                    dMaxLimit = 9;
+                    commonDivisorG = 2;
+                    break;
+            }
+
+            // Gで割った後の、分子(n')と分母(d')の最大値
+            const nPrimeMax = Math.floor(nMaxLimit / commonDivisorG);
+            const dPrimeMax = Math.floor(dMaxLimit / commonDivisorG);
+
+            // 最小値は常に1（Gを乗算しても2以上の公約数Gが残るようにするため）
+            const nPrimeMin = 1;
+            const dPrimeMin = 1;
+
+            // N < D かつ N' と D' が範囲内に収まることを保証するまでループ
+            do {
+                // n' と d' を範囲内でランダムに生成
+                nPrime = Math.floor(Math.random() * (nPrimeMax - nPrimeMin + 1)) + nPrimeMin;
+                dPrime = Math.floor(Math.random() * (dPrimeMax - dPrimeMin + 1)) + dPrimeMin;
+
+                // N' < D' であることを保証する
+                if (nPrime >= dPrime) {
+                    continue; // N' >= D' の場合は再生成
+                }
+                
+            // ループを続ける条件：N'とD'が有効な範囲内で、N' < D' が満たされている
+            } while (nPrime < nPrimeMin || dPrime < dPrimeMin || nPrime >= dPrime);
+
+            // 最終的な分数 (n = n' * G, d = d' * G)
+            currentNumerator = nPrime * commonDivisorG;
+            currentDenominator = dPrime * commonDivisorG;
+
+            updateFractionDisplay();
+            messageArea.textContent = `さあ約分だ！公約数を見つけよう！`;
+        }
+        
+        /**
+         * 分数表示を更新する
+         */
+        function updateFractionDisplay() {
+            numDisplay.textContent = currentNumerator;
+            denDisplay.textContent = currentDenominator;
+            
+            // 既約分数かどうかチェック
+            const isReduced = gcd(currentNumerator, currentDenominator) === 1;
+            
+            if (isReduced) {
+                numDisplay.classList.add('is-reduced');
+                denDisplay.classList.add('is-reduced');
+            } else {
+                numDisplay.classList.remove('is-reduced');
+                denDisplay.classList.remove('is-reduced');
+            }
+        }
+
+        /**
+         * スコアを更新し、表示を反映する
+         * @param {number} points 加算するポイント
+         */
+        function updateScore(points) {
+            score += points;
+            scoreDisplay.textContent = `スコア: ${score}`;
+        }
+
+        /**
+         * ユーザーの入力（公約数）をチェックし、約分を実行する
+         */
+        function checkAndReduce() {
+            if (!gameRunning) return;
+
+            const divisor = parseInt(divisorInput.value, 10);
+            divisorInput.value = ''; // 入力欄をクリア
+            divisorInput.focus(); // 再度フォーカス
+
+            if (isNaN(divisor) || divisor < 2) {
+                messageArea.textContent = "2以上の有効な数を入力してください。";
+                return;
+            }
+
+            // 割り切れるかチェック
+            if (currentNumerator % divisor === 0 && currentDenominator % divisor === 0) {
+                
+                // 約分前の分数でGCDを計算する（ボーナス判定のため）
+                const originalGcd = gcd(currentNumerator, currentDenominator);
+
+                // 約分実行
+                currentNumerator /= divisor;
+                currentDenominator /= divisor;
+                updateFractionDisplay();
+
+                
+                let points = divisor * 10; // 公約数が大きいほど高得点
+
+                // divisorが元の分数の最大公約数だった場合
+                if (divisor === originalGcd) {
+                    points += 50; // 最大公約数ボーナス
+                    messageArea.textContent = `すごい！最大公約数(${divisor})で一発約分！ (+${points}pt)`;
+                } else {
+                    messageArea.textContent = `約分成功！次はもっと大きな数で割れるかな？ (+${points}pt)`;
+                }
+                
+                updateScore(points);
+
+                // 既約分数になったかチェック
+                if (gcd(currentNumerator, currentDenominator) === 1) {
+                    messageArea.textContent = "既約分数になりました！次の問題へ！";
+                    updateScore(100); // 問題クリアボーナス
+                    setTimeout(generateNewFraction, 1500); // 1.5秒後に次の問題へ
+                }
+
+            } else {
+                messageArea.textContent = `${divisor}では割れません。もう一度考えよう。`;
+                // 間違えた場合のペナルティ
+                updateScore(-10);
+            }
+        }
+        
+        /**
+         * ゲームを初期化し、タイマーと問題生成を開始する
+         */
+        function startGame() {
+            if (gameRunning) return;
+            
+            score = 0;
+            timeLeft = 30; // 30秒にリセット
+            gameRunning = true;
+            
+            // UIの初期化
+            scoreDisplay.textContent = `スコア: ${score}`;
+            timerDisplay.textContent = `残り時間: ${timeLeft}`;
+            resultModal.classList.add('hidden');
+            resultModal.classList.remove('flex');
+            startButton.classList.add('hidden');
+            retireButton.classList.remove('hidden'); // リタイアボタンを表示
+            submitButton.disabled = false;
+            divisorInput.disabled = false;
+            
+            divisorInput.value = '';
+            divisorInput.focus();
+
+            // 最初の問題生成
+            generateNewFraction();
+
+            // タイマー開始
+            gameInterval = setInterval(() => {
+                timeLeft--;
+                timerDisplay.textContent = `残り時間: ${timeLeft}`;
+
+                if (timeLeft <= 10) {
+                    timerDisplay.classList.add('bg-red-500', 'text-white');
+                    timerDisplay.classList.remove('bg-red-100', 'text-red-800');
+                }
+
+                if (timeLeft <= 0) {
+                    endGame(false); // 時間切れで終了
+                }
+            }, 1000);
+        }
+        
+        /**
+         * ゲームの状態をリセットし、スタート前の待機状態に戻す（「もう一度プレイ」用）
+         */
+        function resetGame() {
+            // 進行中のタイマーがあれば停止
+            clearInterval(gameInterval);
+            gameRunning = false;
+            
+            // 状態を初期化
+            currentNumerator = 0;
+            currentDenominator = 0;
+            score = 0;
+            timeLeft = 30;
+
+            // UIをスタート前の状態に戻す
+            updateScore(0); // スコア表示を0にリセット
+            timerDisplay.textContent = `残り時間: ${timeLeft}`;
+            timerDisplay.classList.remove('bg-red-500', 'text-white');
+            timerDisplay.classList.add('bg-red-100', 'text-red-800');
+
+            numDisplay.textContent = 0;
+            denDisplay.textContent = 0;
+            numDisplay.classList.remove('is-reduced');
+            denDisplay.classList.remove('is-reduced');
+
+            messageArea.textContent = "準備OK！「ゲームスタート」を押してね！"; // メッセージを調整
+            divisorInput.value = '';
+
+            submitButton.disabled = true;
+            divisorInput.disabled = true;
+
+            // ボタンの切り替え: スタートボタンを表示し、リタイアボタンを非表示
+            startButton.classList.remove('hidden'); 
+            retireButton.classList.add('hidden');    
+            
+            // モーダルを非表示
+            resultModal.classList.add('hidden');
+            resultModal.classList.remove('flex');
+        }
+
+        /**
+         * ゲームを終了する
+         * @param {boolean} isRetire ユーザーがリタイアボタンを押した場合は true
+         */
+        function endGame(isRetire = false) {
+            clearInterval(gameInterval);
+            gameRunning = false;
+            
+            // UIの更新
+            submitButton.disabled = true;
+            divisorInput.disabled = true;
+            
+            // タイマー表示をリセット
+            timerDisplay.classList.remove('bg-red-500', 'text-white');
+            timerDisplay.classList.add('bg-red-100', 'text-red-800');
+            
+            // リザルトモーダル表示
+            if (isRetire) {
+                modalTitle.textContent = "リタイアしました";
+            } else {
+                modalTitle.textContent = "ゲーム終了！"; // 時間切れの場合
+            }
+            
+            finalScore.textContent = `最終スコア: ${score}点`;
+            resultModal.classList.remove('hidden');
+            resultModal.classList.add('flex');
+        }
+
+        /**
+         * 難易度選択が変更されたときの処理（ラジオボタン対応）
+         */
+        function handleDifficultyChange(event) {
+            const selectedRadio = event.target.closest('input[name="difficulty"]');
+            if (selectedRadio) {
+                difficultyLevel = selectedRadio.value;
+                // 選択されたオプションのテキストを取得
+                const selectedText = selectedRadio.nextElementSibling.textContent;
+                
+                // ゲーム実行中でも、難易度を変更したことをメッセージで伝える
+                if (gameRunning) {
+                    messageArea.textContent = `難易度が「${selectedText}」に変更されました。次の問題から適用されます。`;
+                } else {
+                    messageArea.textContent = `難易度が「${selectedText}」に設定されました。`;
+                }
+            }
+        }
+
+
+        // イベントリスナーの設定
+        startButton.addEventListener('click', startGame);
+        // ★修正点: 「もう一度プレイ」ボタンでゲームをリセット状態に戻す
+        restartButton.addEventListener('click', resetGame); 
+        submitButton.addEventListener('click', checkAndReduce);
+        difficultyOptions.addEventListener('change', handleDifficultyChange); // ラジオボタンコンテナにリスナーを設定
+        
+        // リタイア機能のイベントリスナー
+        retireButton.addEventListener('click', () => {
+            if (gameRunning) {
+                endGame(true); // リタイアで終了
+            }
+        });
+
+        divisorInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                checkAndReduce();
+            }
+        });
+
+        // 初期表示
+        resetGame(); // アプリロード時にリセット関数を呼び、初期待機状態にする
+
+        // 初期の選択状態に合わせて難易度レベルを設定
+        const initialSelected = document.querySelector('input[name="difficulty"]:checked');
+        if (initialSelected) {
+            difficultyLevel = initialSelected.value;
+            // メッセージは resetGame で設定済みのため、ここではスキップ
+        }
+    </script>
+</body>
+</html>
