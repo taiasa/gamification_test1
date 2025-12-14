@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>算数ブロック崩し</title>
+    <!-- Tailwind CSS CDNの読み込み -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* カスタムスタイル */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        #gameCanvas {
+            border: 2px solid #4a90e2;
+            background-color: #161b22;
+            display: block;
+            margin: 0 auto;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            padding: 1rem;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+            border-radius: 12px;
+            background-color: #1e242a;
+        }
+        .button-primary {
+            background-color: #4a90e2;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            transition: background-color 0.2s;
+            flex-grow: 1; /* ボタンが等しい幅になるように調整 */
+            min-width: 80px;
+        }
+        .button-primary:hover {
+            background-color: #3b7cdb;
+        }
+        /* モーダル表示時の背景オーバーレイ */
+        #quizModalOverlay {
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 10;
+        }
+        /* ブロックのテキストを中央に配置するためのCSS */
+        .brick-text {
+            color: white; /* ブロック内の文字色 */
+            font-weight: bold;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container flex flex-col items-center">
+        <h1 class="text-3xl font-bold text-white mb-4">算数ブロック崩し</h1>
+        <canvas id="gameCanvas" width="500" height="400" class="rounded-lg shadow-xl"></canvas>
+
+        <div id="controls" class="w-full flex flex-col items-center mt-4 p-3 bg-gray-700 rounded-lg">
+            <!-- 難易度選択 -->
+            <div id="difficulty-selection" class="flex flex-wrap justify-center items-center space-x-4 mb-3">
+                <span class="text-white text-md">難易度:</span>
+                <label class="text-white flex items-center text-sm">
+                    <input type="radio" name="difficulty" value="easy" checked class="form-radio text-green-500 mr-1">
+                    初級
+                </label>
+                <label class="text-white flex items-center text-sm">
+                    <input type="radio" name="difficulty" value="medium" class="form-radio text-yellow-500 mr-1">
+                    中級
+                </label>
+                <label class="text-white flex items-center text-sm">
+                    <input type="radio" name="difficulty" value="hard" class="form-radio text-red-500 mr-1">
+                    上級
+                </label>
+                <label class="text-white flex items-center text-sm">
+                    <input type="radio" name="difficulty" value="super_hard" class="form-radio text-purple-500 mr-1">
+                    超級
+                </label>
+            </div>
+
+            <!-- スコアとボタン -->
+            <div class="flex items-center space-x-4 w-full justify-between sm:justify-center mb-3">
+                <div class="text-white text-lg">スコア: <span id="scoreDisplay" class="font-mono text-yellow-400">0</span></div>
+            </div>
+
+            <!-- 操作ボタン -->
+            <div class="flex space-x-2 w-full justify-center">
+                <button id="retryButton" class="button-primary bg-yellow-600 hover:bg-yellow-700">リトライ</button>
+                <button id="cheatSpeedResetButton" class="button-primary bg-red-600 hover:bg-red-700 text-sm">スピードリセット</button>
+                <button id="startButton" class="button-primary">ゲーム開始</button>
+            </div>
+        </div>
+        
+        <!-- パワーアップ状態表示 -->
+        <div id="powerUpStatus" class="mt-2 text-center text-lg text-green-400 h-6"></div>
+
+        <!-- 算数クイズモーダル (ゲーム一時停止中に表示) -->
+        <div id="quizModalOverlay" class="fixed inset-0 hidden items-center justify-center">
+            <div id="quizModal" class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-sm text-center border-t-4 border-yellow-500">
+                <h2 class="text-2xl font-bold text-white mb-4">算数クイズ！</h2>
+                <p id="quizProblem" class="text-3xl font-extrabold text-yellow-300 mb-6">$12 + 34$</p>
+                <input type="number" id="quizAnswerInput" placeholder="答えを入力"
+                       class="w-full p-3 mb-4 text-center text-gray-900 bg-white rounded-md border-2 border-gray-300 focus:border-blue-500 focus:outline-none"
+                       autocomplete="off">
+                <button id="submitAnswerButton" class="button-primary w-full">解答</button>
+                <p id="quizMessage" class="text-red-400 mt-3 h-5"></p>
+            </div>
+        </div>
+
+        <!-- ゲームオーバー/クリアモーダル -->
+        <div id="gameEndModalOverlay" class="fixed inset-0 hidden items-center justify-center">
+            <div id="gameEndModal" class="bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-sm text-center border-t-4 border-red-500">
+                <h2 id="gameEndTitle" class="text-3xl font-bold text-white mb-4"></h2>
+                <!-- スコアに応じたメッセージを表示する要素を追加 -->
+                <p id="scoreMessage" class="text-lg text-gray-300 mb-4"></p>
+                <p class="text-xl text-white mb-6">最終スコア: <span id="finalScoreDisplay" class="font-mono text-yellow-400">0</span></p>
+                <button id="restartButton" class="button-primary w-full bg-green-500 hover:bg-green-600">もう一度プレイ</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // グローバル変数と定数の設定
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // ボール速度のレベル定義
+        const speedLevels = {
+            easy: 1.5,   // 初級 (遅い)
+            medium: 2.5, // 中級 (普通)
+            hard: 4,     // 上級 (速い)
+            super_hard: 5.5 // 超級 (超速い)
+        };
+        
+        // 垂直方向の速度の最低比率 (総速度に対して)
+        const MIN_VERTICAL_SPEED_FACTOR = 0.6; // |dy|/Speed >= 0.6 を保証 (約37度以上の角度)
+
+        // パドル初期幅の定数
+        const PADDLE_INITIAL_WIDTH = 75; 
+
+        // パワーアップ関連の定数と変数
+        const POWERUP_DURATION = 10000; // 10秒 (ミリ秒)
+        let currentPowerUpTimer = null;
+        let originalPaddleWidth = PADDLE_INITIAL_WIDTH; 
+        let originalBallSpeed;
+
+        // ゲームの状態管理
+        let gameActive = false;
+        let gamePaused = true;
+        let score = 0;
+        let maxBricks = 0;
+        let bricksLeft = 0;
+
+        // パドル、ボール、ブロックの定義
+        const paddle = {
+            height: 10,
+            width: PADDLE_INITIAL_WIDTH,
+            x: (canvas.width - PADDLE_INITIAL_WIDTH) / 2,
+            dx: 5,
+            color: '#4a90e2' // 青
+        };
+
+        const ball = {
+            radius: 5,
+            x: canvas.width / 2,
+            y: canvas.height - 30,
+            dx: 2, // 速度はresetGameで上書きされます
+            dy: -2, // 速度はresetGameで上書きされます
+            color: '#f6ad55' // オレンジ
+        };
+
+        // グリッド配置用の初期設定 (バラバラ配置では上書きされます)
+        const gridInfo = {
+            rows: 5,
+            cols: 8,
+            width: 60,
+            height: 20,
+            padding: 5,
+            offsetX: 20,
+            offsetY: 20,
+            colors: ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6'] // 赤、オレンジ、緑、青、紫
+        };
+
+        // ブロックの配列 (フラット配列に統一)
+        let bricks = [];
+        // 現在、ボールが衝突した、または衝突する予定のブロック
+        let currentTargetBrick = null;
+
+        // DOM要素
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const startButton = document.getElementById('startButton');
+        const retryButton = document.getElementById('retryButton'); // リトライボタン
+        const cheatSpeedResetButton = document.getElementById('cheatSpeedResetButton'); // スピードリセットボタン
+        const quizModalOverlay = document.getElementById('quizModalOverlay');
+        const quizProblemText = document.getElementById('quizProblem');
+        const quizAnswerInput = document.getElementById('quizAnswerInput');
+        const submitAnswerButton = document.getElementById('submitAnswerButton');
+        const quizMessage = document.getElementById('quizMessage');
+        const gameEndModalOverlay = document.getElementById('gameEndModalOverlay');
+        const gameEndTitle = document.getElementById('gameEndTitle');
+        const finalScoreDisplay = document.getElementById('finalScoreDisplay');
+        const scoreMessage = document.getElementById('scoreMessage'); // スコアメッセージ表示要素
+        const restartButton = document.getElementById('restartButton');
+        const powerUpStatus = document.getElementById('powerUpStatus');
+        const difficultySelection = document.getElementById('difficulty-selection'); // 難易度選択コンテナ
+
+
+        /**
+         * 算数の問題と答えを生成する
+         */
+        function generateProblem() {
+            let num1, num2, operation, problem, answer;
+
+            // ランダムに演算子を選択 (0: +, 1: -, 2: ×, 3: ÷)
+            operation = Math.floor(Math.random() * 4); 
+
+            if (operation === 0) {
+                // たし算: 10から99までの数 (2桁+2桁)
+                num1 = Math.floor(Math.random() * 90) + 10;
+                num2 = Math.floor(Math.random() * 90) + 10;
+                problem = `${num1} + ${num2}`;
+                answer = num1 + num2;
+            } else if (operation === 1) {
+                // ひき算: 結果が正になるようにする (10から99の範囲)
+                num1 = Math.floor(Math.random() * 90) + 10;
+                num2 = Math.floor(Math.random() * (num1 - 10)) + 10; 
+                problem = `${num1} - ${num2}`;
+                answer = num1 - num2;
+            } else if (operation === 2) {
+                // かけ算: 2から12の範囲の数を使用 (九九から少し広めの範囲)
+                num1 = Math.floor(Math.random() * 11) + 2; // 2から12
+                num2 = Math.floor(Math.random() * 11) + 2; // 2から12
+                problem = `${num1} × ${num2}`;
+                answer = num1 * num2;
+            } else { // operation === 3
+                // わり算: 割り切れる問題のみ (答えと割る数は2から12の範囲)
+                let quotient = Math.floor(Math.random() * 11) + 2; // 答え (2から12)
+                num2 = Math.floor(Math.random() * 11) + 2; // 割る数 (2から12)
+                num1 = quotient * num2; // 割られる数
+                problem = `${num1} ÷ ${num2}`;
+                answer = quotient;
+            }
+
+            return { problem, answer };
+        }
+
+        /**
+         * 配列をシャッフルするユーティリティ関数
+         */
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        /**
+         * ブロック配列を初期化（問題付き、特殊ブロック含む）
+         * @param {string} difficulty 選択された難易度
+         */
+        function createBricks(difficulty) {
+            bricks = [];
+            let totalBricks = 0;
+            const powerUpTypes = ['paddle_boost', 'slow_ball'];
+            const BRICK_PADDING = 5; // グリッド/バラバラ両方の配置の隙間に使用
+
+            if (difficulty === 'super_hard') {
+                // --- 超級 (バラバラ配置) ---
+                const SCATTER_COUNT = 55; // 目標ブロック数
+                const BRICK_WIDTH = 50;   // バラバラモードでの幅
+                const BRICK_HEIGHT = 20;
+                const MIN_Y = gridInfo.offsetY;
+                const MAX_Y = canvas.height / 2.5; // 画面の上1/3程度に配置
+                const MIN_X = 10;
+                const MAX_X = canvas.width - BRICK_WIDTH - 10;
+                
+                const existingPositions = []; 
+
+                // 衝突チェック関数 (配置時の重なり防止用)
+                const isOverlapping = (x, y) => {
+                    for (const pos of existingPositions) {
+                        // 1.5は配置の安全マージン
+                        if (
+                            x < pos.x + BRICK_WIDTH + BRICK_PADDING * 1.5 && 
+                            x + BRICK_WIDTH + BRICK_PADDING * 1.5 > pos.x &&
+                            y < pos.y + BRICK_HEIGHT + BRICK_PADDING * 1.5 &&
+                            y + BRICK_HEIGHT + BRICK_PADDING * 1.5 > pos.y
+                        ) {
+                            return true;
+                        }
+                    }
+                    return false;
+                };
+
+                for (let i = 0; i < SCATTER_COUNT * 3 && totalBricks < SCATTER_COUNT; i++) { // 最大試行回数
+                    // ランダムな位置
+                    const x = Math.floor(Math.random() * (MAX_X - MIN_X)) + MIN_X;
+                    const y = Math.floor(Math.random() * (MAX_Y - MIN_Y)) + MIN_Y;
+
+                    if (isOverlapping(x, y)) continue;
+                    
+                    // パワーアップブロックの確率 (約10%)
+                    let type = Math.random() < 0.1 ? powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)] : 'none';
+                    let display, problemData;
+                    let color;
+
+                    if (type !== 'none') {
+                        color = '#FFD700'; // 金色
+                        display = type === 'paddle_boost' ? 'P+' : 'S-';
+                        problemData = { problem: '', answer: 0 };
+                    } else {
+                        problemData = generateProblem();
+                        // ランダムな色を選択
+                        color = gridInfo.colors[Math.floor(Math.random() * gridInfo.colors.length)]; 
+                        display = problemData.problem;
+                    }
+
+                    bricks.push({
+                        x,
+                        y,
+                        width: BRICK_WIDTH,
+                        height: BRICK_HEIGHT,
+                        status: 1, 
+                        color: color,
+                        problem: problemData.problem,
+                        answer: problemData.answer,
+                        type: type, 
+                        display: display,
+                        reflect: null 
+                    });
+                    existingPositions.push({x, y});
+                    totalBricks++;
+                }
+
+            } else {
+                // --- 初級/中級/上級 (グリッド配置) ---
+                const GRID_WIDTH = gridInfo.width;
+                const GRID_HEIGHT = gridInfo.height;
+                const TOTAL_ROWS = gridInfo.rows;
+                const TOTAL_COLS = gridInfo.cols;
+                
+                // 行ごとに特殊ブロックの位置 (列インデックス) を決定する
+                const specialBrickPositions = []; // 例: [[0, 3], [1, 4], ...]
+
+                for (let r = 0; r < TOTAL_ROWS; r++) {
+                    const positions = Array.from({ length: TOTAL_COLS }, (_, i) => i); // [0, 1, 2, ..., 7]
+                    shuffleArray(positions);
+                    
+                    // 行ごとに特殊ブロックの数をランダムに1個または2個に決定
+                    const specialCount = Math.random() < 0.5 ? 1 : 2; 
+                    
+                    // その行の最初の specialCount 個を特殊ブロックの位置とする
+                    specialBrickPositions.push(positions.slice(0, specialCount));
+                }
+
+
+                for (let c = 0; c < TOTAL_COLS; c++) {
+                    for (let r = 0; r < TOTAL_ROWS; r++) {
+                        const x = c * (GRID_WIDTH + gridInfo.padding) + gridInfo.offsetX;
+                        const y = r * (GRID_HEIGHT + gridInfo.padding) + gridInfo.offsetY;
+                        
+                        // この列が特殊ブロックの位置かチェック
+                        const isSpecial = specialBrickPositions[r].includes(c);
+
+                        let type = 'none';
+                        let display = '';
+                        let problemData = { problem: '', answer: 0 };
+                        let color;
+
+                        if (isSpecial) {
+                            // 2種類のパワーアップをランダムに割り当て
+                            type = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
+                            color = '#FFD700'; // 金色
+                            display = type === 'paddle_boost' ? 'P+' : 'S-';
+                        } else {
+                            problemData = generateProblem();
+                            color = gridInfo.colors[r % gridInfo.colors.length];
+                            display = problemData.problem;
+                        }
+
+                        bricks.push({ // フラット配列に格納
+                            x,
+                            y,
+                            width: GRID_WIDTH,
+                            height: GRID_HEIGHT,
+                            status: 1, 
+                            color: color,
+                            problem: problemData.problem,
+                            answer: problemData.answer,
+                            type: type, 
+                            display: display,
+                            reflect: null 
+                        });
+                        totalBricks++;
+                    }
+                }
+            }
+
+            maxBricks = totalBricks;
+            bricksLeft = totalBricks;
+        }
+
+        /**
+         * パドルを描画
+         */
+        function drawPaddle() {
+            ctx.beginPath();
+            ctx.rect(paddle.x, canvas.height - paddle.height, paddle.width, paddle.height);
+            ctx.fillStyle = paddle.color;
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        /**
+         * ボールを描画
+         */
+        function drawBall() {
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fillStyle = ball.color;
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        /**
+         * ブロックを描画 (フラット配列に対応)
+         */
+        function drawBricks() {
+            for (const b of bricks) {
+                if (b.status === 1) {
+                    ctx.beginPath();
+                    // ブロックオブジェクトの width と height を使用
+                    ctx.rect(b.x, b.y, b.width, b.height); 
+                    ctx.fillStyle = b.color;
+                    ctx.fill();
+                    ctx.closePath();
+
+                    // 問題文またはパワーアップ記号を描画
+                    ctx.fillStyle = b.type === 'none' ? 'white' : 'black'; 
+                    ctx.font = '12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    // ブロックオブジェクトの width と height を使用
+                    ctx.fillText(b.display, b.x + b.width / 2, b.y + b.height / 2);
+                }
+            }
+        }
+
+        /**
+         * パドルの移動
+         */
+        function movePaddle() {
+            if (!gameActive || gamePaused) return;
+
+            // ここでは境界チェックのみ
+            if (paddle.x < 0) {
+                paddle.x = 0;
+            } else if (paddle.x + paddle.width > canvas.width) {
+                paddle.x = canvas.width - paddle.width;
+            }
+        }
+
+        /**
+         * ボール速度に垂直方向のバイアスを適用し、総速度を維持する
+         */
+        function applyVerticalBiasToBall() {
+            const currentSpeed = Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy);
+            
+            if (currentSpeed < 0.5 || currentSpeed === 0) return;
+
+            // 垂直速度の絶対値の最低閾値
+            const minDyMagnitude = currentSpeed * MIN_VERTICAL_SPEED_FACTOR;
+
+            if (Math.abs(ball.dy) < minDyMagnitude) {
+                // 垂直速度が浅すぎる場合、垂直速度を最低閾値まで引き上げる
+                const newDyMagnitude = minDyMagnitude;
+                
+                // 総速度(currentSpeed)を維持するために新しい水平速度を計算
+                const newDxMagnitude = Math.sqrt(currentSpeed * currentSpeed - newDyMagnitude * newDyMagnitude);
+
+                // 速度を更新 (方向は維持)
+                ball.dy = Math.sign(ball.dy) * newDyMagnitude;
+                ball.dx = Math.sign(ball.dx) * newDxMagnitude;
+            }
+        }
+
+
+        /**
+         * ボールの移動と壁との衝突判定
+         */
+        function moveBall() {
+            if (!gameActive || gamePaused) return;
+
+            ball.x += ball.dx;
+            ball.y += ball.dy;
+
+            // 壁の衝突判定 (左右)
+            if (ball.x + ball.radius > canvas.width) {
+                ball.dx *= -1;
+                ball.x = canvas.width - ball.radius; 
+            } else if (ball.x - ball.radius < 0) {
+                ball.dx *= -1;
+                ball.x = ball.radius; 
+            }
+
+            // 壁の衝突判定 (上)
+            if (ball.y - ball.radius < 0) {
+                ball.dy *= -1;
+                ball.y = ball.radius;
+            }
+
+            // 壁の衝突判定 (下 - ゲームオーバー)
+            if (ball.y + ball.radius > canvas.height) {
+                endGame('ゲームオーバー...');
+                return;
+            }
+
+            // パドルとの衝突判定
+            if (
+                ball.x - ball.radius < paddle.x + paddle.width &&
+                ball.x + ball.radius > paddle.x &&
+                ball.y + ball.radius > canvas.height - paddle.height
+            ) {
+                const relativeX = ball.x - (paddle.x + paddle.width / 2);
+                const currentSpeed = Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy);
+                
+                // 反射角度の調整
+                ball.dx = relativeX * 0.07; 
+                ball.dy = -Math.abs(ball.dy); 
+
+                // 速度の総和を元のスピードに調整して維持
+                const newSpeed = Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy);
+                const speedFactor = currentSpeed / newSpeed;
+                ball.dx *= speedFactor;
+                ball.dy *= speedFactor;
+
+                // パドル反射後も垂直バイアスを適用
+                applyVerticalBiasToBall();
+            }
+
+            // ブロックとの衝突判定
+            checkBrickCollision();
+        }
+
+        /**
+         * ブロックとの衝突判定とクイズ処理 (フラット配列に対応)
+         */
+        function checkBrickCollision() {
+            for (let i = 0; i < bricks.length; i++) {
+                const b = bricks[i];
+
+                if (b.status === 1) {
+                    // AABB衝突判定 (b.width と b.height を使用)
+                    if (
+                        ball.x + ball.radius > b.x &&
+                        ball.x - ball.radius < b.x + b.width &&
+                        ball.y + ball.radius > b.y &&
+                        ball.y - ball.radius < b.y + b.height
+                    ) {
+                        // 衝突を検出したらゲームを一時停止
+                        gamePaused = true;
+                        currentTargetBrick = b;
+
+                        // 特殊ブロックの場合はクイズなしで即座にパワーアップ処理へ
+                        if (b.type !== 'none') {
+                            applyPowerUp(b.type);
+                            
+                            // ブロック破壊
+                            currentTargetBrick.status = 0;
+                            score += 20; 
+                            bricksLeft--;
+                            updateScore();
+                            
+                            // ボールの反射方向を決定
+                            reflectBall(b);
+                            applyVerticalBiasToBall();
+                            
+                            currentTargetBrick = null; 
+                            gamePaused = false; // ゲーム再開
+                            
+                            if (bricksLeft === 0) {
+                                endGame('ゲームクリア！おめでとう！');
+                            }
+                            return; 
+                        }
+
+                        // 通常ブロックの場合はクイズを表示
+                        showQuiz(b.problem);
+
+                        // ボールの反射方向を決定（一時停止前に記録）
+                        reflectBall(b, true); 
+                        
+                        return; // 一つの衝突で処理を終了
+                    }
+                }
+            }
+        }
+        
+        /**
+         * ボールを反射させ、反射方向をブロックに記録する
+         */
+        function reflectBall(brick, recordOnly = false) {
+             // 縦方向の反射（ブロックの上下に当たった場合）を優先
+            if (ball.y < brick.y || ball.y > brick.y + brick.height) {
+                brick.reflect = 'y';
+                if (!recordOnly) ball.dy *= -1;
+            }
+            // 横方向の反射（ブロックの左右に当たった場合）
+            else if (ball.x < brick.x || ball.x > brick.x + brick.width) {
+                brick.reflect = 'x';
+                if (!recordOnly) ball.dx *= -1;
+            } else {
+                // デフォルトで縦方向
+                brick.reflect = 'y';
+                if (!recordOnly) ball.dy *= -1;
+            }
+        }
+
+
+        /**
+         * クイズモーダルを表示
+         */
+        function showQuiz(problem) {
+            quizProblemText.textContent = problem;
+            quizAnswerInput.value = ''; 
+            quizMessage.textContent = ''; 
+            quizModalOverlay.classList.remove('hidden', 'opacity-0');
+            quizModalOverlay.classList.add('flex', 'opacity-100');
+            quizAnswerInput.focus();
+        }
+
+        /**
+         * クイズの答えを検証し、ゲームを再開
+         */
+        function submitQuizAnswer() {
+            if (!currentTargetBrick) return;
+
+            const userAnswer = parseInt(quizAnswerInput.value, 10);
+            const correctAnswer = currentTargetBrick.answer;
+
+            if (userAnswer === correctAnswer) {
+                // 正解
+                quizMessage.textContent = '正解！ブロックを破壊しました！';
+                quizMessage.classList.remove('text-red-400');
+                quizMessage.classList.add('text-green-400');
+
+                // 0.5秒後にブロック破壊処理とゲーム再開
+                setTimeout(() => {
+                    // ブロック破壊
+                    currentTargetBrick.status = 0;
+                    score += 10;
+                    bricksLeft--;
+                    updateScore();
+
+                    // ボールの反射
+                    if (currentTargetBrick.reflect === 'y') {
+                        ball.dy *= -1;
+                    } else {
+                        ball.dx *= -1;
+                    }
+
+                    // 垂直方向への動きを強める調整
+                    applyVerticalBiasToBall();
+
+                    // クイズモーダルを閉じる
+                    quizModalOverlay.classList.remove('flex', 'opacity-100');
+                    quizModalOverlay.classList.add('hidden', 'opacity-0');
+                    currentTargetBrick = null; // ターゲットをリセット
+                    gamePaused = false; // ゲーム再開
+                    draw(); 
+
+                    // ゲームクリア判定
+                    if (bricksLeft === 0) {
+                        endGame('ゲームクリア！おめでとう！');
+                    }
+                }, 500);
+
+            } else {
+                // 不正解
+                quizMessage.textContent = '不正解です。ブロックは壊れませんでした。';
+                quizMessage.classList.remove('text-green-400');
+                quizMessage.classList.add('text-red-400');
+
+                // 0.5秒後にゲーム再開
+                setTimeout(() => {
+                    // ボールの反射（不正解でもボールは跳ね返る）
+                    if (currentTargetBrick.reflect === 'y') {
+                        ball.dy *= -1;
+                    } else {
+                        ball.dx *= -1;
+                    }
+
+                    // 垂直方向への動きを強める調整
+                    applyVerticalBiasToBall();
+
+                    // クイズモーダルを閉じる
+                    quizModalOverlay.classList.remove('flex', 'opacity-100');
+                    quizModalOverlay.classList.add('hidden', 'opacity-0');
+                    currentTargetBrick = null; // ターゲットをリセット
+                    gamePaused = false; // ゲーム再開
+                    draw(); 
+                }, 500);
+            }
+        }
+        
+        /**
+         * パワーアップ効果を発動
+         */
+        function applyPowerUp(type) {
+            clearTimeout(currentPowerUpTimer);
+            resetPowerUp(); 
+            
+            let statusText = '';
+            
+            if (type === 'paddle_boost') {
+                paddle.width = originalPaddleWidth * 2;
+                statusText = '🚀 パドル拡大 (10秒)';
+            } else if (type === 'slow_ball') {
+                ball.dx *= 0.5; 
+                ball.dy *= 0.5; 
+                statusText = '🐢 ボール減速 (10秒)';
+            }
+            
+            powerUpStatus.textContent = statusText;
+
+            currentPowerUpTimer = setTimeout(() => {
+                resetPowerUp();
+                powerUpStatus.textContent = '';
+            }, POWERUP_DURATION);
+        }
+
+        /**
+         * パワーアップ効果をリセット
+         */
+        function resetPowerUp() {
+            paddle.width = originalPaddleWidth; 
+
+            const currentSpeed = Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy);
+            if (currentSpeed !== 0 && currentSpeed !== originalBallSpeed) {
+                const ratio = originalBallSpeed / currentSpeed;
+                ball.dx *= ratio;
+                ball.dy *= ratio;
+            }
+            
+            powerUpStatus.textContent = '';
+            clearTimeout(currentPowerUpTimer);
+            currentPowerUpTimer = null;
+        }
+
+
+        /**
+         * スコアを更新
+         */
+        function updateScore() {
+            scoreDisplay.textContent = score;
+        }
+
+        /**
+         * スコアに基づいたメッセージを取得
+         */
+        function getScoreMessage(finalScore) {
+            if (finalScore >= 300) {
+                return '🎉 驚異的！算数の神！あなたはマスターです！';
+            } else if (finalScore >= 200) {
+                return '🌟 素晴らしい！プロ級の計算力とテクニック！';
+            } else if (finalScore >= 150) {
+                return '🏆 上級者レベル！あと少しでプロの領域です！';
+            } else if (finalScore >= 100) {
+                return '👍 なかなかやりますね！平均を上回る実力です。';
+            } else {
+                return '😊 まずまずのスタート！次は二桁を目指しましょう。';
+            }
+        }
+
+        /**
+         * ゲームオーバーまたはゲームクリアの処理
+         */
+        function endGame(title) {
+            gameActive = false;
+            gamePaused = true;
+            resetPowerUp(); 
+            
+            gameEndTitle.textContent = title;
+            finalScoreDisplay.textContent = score;
+            // スコアに基づいたメッセージを設定
+            scoreMessage.textContent = getScoreMessage(score); 
+
+            gameEndModalOverlay.classList.remove('hidden', 'opacity-0');
+            gameEndModalOverlay.classList.add('flex', 'opacity-100');
+        }
+
+        /**
+         * ゲームを初期状態に戻す
+         * @param {boolean} fullReset スコア、ゲーム状態、UIを完全にリセットするかどうか
+         */
+        function resetGame(fullReset = false) {
+            const difficulty = document.querySelector('input[name="difficulty"]:checked').value;
+            
+            // 難易度に応じたブロック作成
+            createBricks(difficulty);
+
+            // 難易度に応じた速度を取得
+            const speed = speedLevels[difficulty] || speedLevels.medium; 
+
+            // 初期速度を保存
+            originalBallSpeed = speed;
+
+            // ボールとパドルの位置をリセット
+            paddle.x = (canvas.width - paddle.width) / 2;
+            ball.x = canvas.width / 2;
+            ball.y = canvas.height - 30;
+            ball.dx = (Math.random() > 0.5 ? 1 : -1) * speed; 
+            ball.dy = -speed;
+
+            // 初期のボールの角度にも垂直方向のバイアスを適用
+            applyVerticalBiasToBall();
+
+            // フルリセットの場合のみ、スコアとUIをリセット
+            if (fullReset) {
+                score = 0;
+                updateScore();
+                resetPowerUp(); 
+
+                quizModalOverlay.classList.remove('flex', 'opacity-100'); 
+                quizModalOverlay.classList.add('hidden', 'opacity-0');
+
+                gameEndModalOverlay.classList.remove('flex', 'opacity-100');
+                gameEndModalOverlay.classList.add('hidden', 'opacity-0');
+                startButton.textContent = 'ゲーム開始';
+                startButton.disabled = false;
+                gamePaused = true;
+                gameActive = true;
+            }
+        }
+
+
+        /**
+         * メインの描画関数
+         */
+        function draw() {
+            // 背景をクリア
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#161b22';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawBricks();
+            drawPaddle();
+            drawBall();
+
+            if (gameActive && !gamePaused) {
+                movePaddle();
+                moveBall();
+                requestAnimationFrame(draw);
+            } else if (gameActive && gamePaused) {
+                 requestAnimationFrame(draw);
+            }
+        }
+
+        // --- イベントリスナー ---
+
+        // キー入力によるパドル制御
+        document.addEventListener('keydown', (e) => {
+            if (gameActive && !gamePaused) {
+                if (e.key === 'ArrowRight') {
+                    paddle.x = Math.min(paddle.x + paddle.dx * 8, canvas.width - paddle.width);
+                } else if (e.key === 'ArrowLeft') {
+                    paddle.x = Math.max(paddle.x - paddle.dx * 8, 0);
+                }
+            }
+        });
+        
+        // タッチ操作によるパドル制御 (モバイル対応)
+        let lastTouchX = null;
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                lastTouchX = e.touches[0].clientX;
+            }
+        });
+        canvas.addEventListener('touchmove', (e) => {
+            if (gameActive && !gamePaused && e.touches.length === 1 && lastTouchX !== null) {
+                const currentTouchX = e.touches[0].clientX;
+                const deltaX = currentTouchX - lastTouchX;
+                
+                paddle.x += deltaX * 1.5; 
+                
+                if (paddle.x < 0) {
+                    paddle.x = 0;
+                } else if (paddle.x + paddle.width > canvas.width) {
+                    paddle.x = canvas.width - paddle.width;
+                }
+                
+                lastTouchX = currentTouchX;
+            }
+        });
+        canvas.addEventListener('touchend', () => {
+            lastTouchX = null;
+        });
+
+
+        // 難易度変更イベントリスナー (ラジオボタン)
+        difficultySelection.addEventListener('change', (e) => {
+            // 難易度が変更されたら、ゲームを強制的に初期化し、開始待ち状態に戻す
+            // resetGame(true)はスコア、ブロック、速度、UIをリセットします。
+            resetGame(true); 
+            
+            // UIを「ゲーム開始」の状態に戻す
+            startButton.textContent = 'ゲーム開始';
+            startButton.disabled = false;
+            
+            draw(); // 新しいブロック配置を表示
+        });
+
+
+        // スタートボタン
+        startButton.addEventListener('click', () => {
+            if (!gameActive || bricksLeft === 0) {
+                // 初回スタートまたはゲームクリア後のリセット (フルリセット)
+                resetGame(true);
+                gameActive = true;
+            }
+            gamePaused = false;
+            startButton.textContent = 'プレイ中...';
+            startButton.disabled = true;
+            draw();
+        });
+
+        // リトライボタン (ゲーム途中でのリセット)
+        retryButton.addEventListener('click', () => {
+            if (gameActive) {
+                // フルリセット
+                resetGame(true);
+                startButton.textContent = 'ゲーム開始';
+                startButton.disabled = false;
+                draw();
+            }
+        });
+
+        // スピードリセットボタン (チート機能)
+        cheatSpeedResetButton.addEventListener('click', () => {
+            if (!gameActive) {
+                return;
+            }
+            
+            const currentSpeed = Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy);
+            if (currentSpeed !== 0 && currentSpeed !== originalBallSpeed) {
+                const ratio = originalBallSpeed / currentSpeed;
+                ball.dx *= ratio;
+                ball.dy *= ratio;
+                
+                clearTimeout(currentPowerUpTimer);
+                currentPowerUpTimer = null;
+                powerUpStatus.textContent = '🚨 スピードがリセットされました 🚨';
+                
+                setTimeout(() => {
+                    if (powerUpStatus.textContent === '🚨 スピードがリセットされました 🚨') {
+                        powerUpStatus.textContent = '';
+                    }
+                }, 2000);
+            }
+        });
+
+        // クイズの解答ボタン
+        submitAnswerButton.addEventListener('click', submitQuizAnswer);
+
+        // クイズ入力フィールドでEnterキーを押したとき
+        quizAnswerInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                submitQuizAnswer();
+            }
+        });
+
+        // リスタートボタン (ゲームオーバー/クリア後)
+        restartButton.addEventListener('click', () => {
+            resetGame(true); // フルリセット
+            startButton.textContent = 'ゲーム開始';
+            startButton.disabled = false;
+        });
+
+        // 初期描画
+        resetGame(false); // 初期表示のためのブロック配置
+        draw();
+
+    </script>
+</body>
+</html>
