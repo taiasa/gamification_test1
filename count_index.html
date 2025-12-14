@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>反応速度テスト</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* フォント設定と中央配置のためのカスタムスタイル */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* 薄いグレーの背景 */
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+        }
+        #game-area {
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        #game-area:active {
+            transform: scale(0.98); /* タップ時のフィードバック */
+        }
+        /* 初期状態の赤色 */
+        .status-start {
+            background-color: #ef4444; /* red-500 */
+        }
+        /* 待ち状態の灰色 */
+        .status-wait {
+            background-color: #9ca3af; /* gray-400 */
+        }
+        /* クリック可能な緑色 */
+        .status-go {
+            background-color: #10b981; /* emerald-500 */
+        }
+        /* 結果表示用の青色 */
+        .status-result {
+            background-color: #3b82f6; /* blue-500 */
+        }
+        .text-shadow {
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+<div class="w-full max-w-lg mx-auto bg-white p-6 rounded-2xl shadow-2xl">
+    <h1 class="text-4xl font-bold text-center mb-6 text-gray-800">反応速度テスト</h1>
+
+    <!-- ゲームエリア -->
+    <div id="game-area" 
+         class="status-start w-full aspect-square flex flex-col justify-center items-center rounded-xl p-8 text-white text-center shadow-lg hover:shadow-xl transition-all duration-300">
+        <p id="message" class="text-3xl sm:text-4xl font-extrabold mb-2 text-shadow">クリックして開始</p>
+        <p id="time-display" class="text-xl sm:text-2xl font-semibold opacity-80 text-shadow"></p>
+    </div>
+
+    <!-- 説明とハイスコア表示 -->
+    <div class="mt-6 p-4 bg-gray-100 rounded-lg shadow-inner">
+        <p class="text-sm text-gray-600 mb-2">ルール: 画面が赤から緑に変わったら、すぐにクリックしてください。</p>
+        <p id="high-score" class="text-lg font-bold text-gray-700">ハイスコア: -</p>
+    </div>
+</div>
+
+<script>
+    // グローバル変数
+    let gameStatus = 'start'; // 'start', 'waiting', 'go', 'result'
+    let timerId = null; // setTimeoutのID
+    let startTime = null; // 緑に変わった時刻 (Go!)
+    let highScore = localStorage.getItem('reactionHighScore') || Infinity; // ハイスコアをlocalStorageから取得
+
+    // DOM要素
+    const gameArea = document.getElementById('game-area');
+    const messageDisplay = document.getElementById('message');
+    const timeDisplay = document.getElementById('time-display');
+    const highScoreDisplay = document.getElementById('high-score');
+
+    /**
+     * ハイスコアの表示を更新します。
+     */
+    function updateHighScoreDisplay() {
+        if (highScore === Infinity || isNaN(highScore)) {
+            highScoreDisplay.textContent = 'ハイスコア: -';
+        } else {
+            highScoreDisplay.textContent = `ハイスコア: ${highScore} ミリ秒`;
+        }
+    }
+
+    /**
+     * スコアを更新し、ハイスコアを保存します。
+     * @param {number} newTime - 達成した反応時間（ミリ秒）
+     */
+    function saveScore(newTime) {
+        if (newTime < highScore) {
+            highScore = newTime;
+            localStorage.setItem('reactionHighScore', highScore);
+            // ハイスコア更新の視覚的なフィードバック
+            messageDisplay.textContent = '新記録達成！🎉';
+        }
+        updateHighScoreDisplay();
+    }
+
+    /**
+     * ゲームエリアのスタイルとメッセージを更新します。
+     * @param {string} newStatus - 'start', 'waiting', 'go', 'result' のいずれか
+     * @param {string} message - メインメッセージ
+     * @param {string} timeText - サブメッセージ（時間表示など）
+     */
+    function updateUI(newStatus, message, timeText = '') {
+        gameStatus = newStatus;
+        gameArea.className = 'w-full aspect-square flex flex-col justify-center items-center rounded-xl p-8 text-white text-center shadow-lg hover:shadow-xl transition-all duration-300';
+        
+        // ステータスに基づいてクラスを切り替える
+        if (newStatus === 'start') {
+            gameArea.classList.add('status-start');
+        } else if (newStatus === 'waiting') {
+            gameArea.classList.add('status-wait');
+        } else if (newStatus === 'go') {
+            gameArea.classList.add('status-go');
+        } else if (newStatus === 'result') {
+            gameArea.classList.add('status-result');
+        }
+
+        messageDisplay.textContent = message;
+        timeDisplay.textContent = timeText;
+    }
+
+    /**
+     * クリックして開始状態に戻します。
+     */
+    function startState() {
+        // タイマーをクリア
+        if (timerId !== null) {
+            clearTimeout(timerId);
+            timerId = null;
+        }
+        startTime = null;
+        updateUI('start', 'クリックして開始', '');
+    }
+
+    /**
+     * 待ち状態（ランダムな遅延）に入ります。
+     */
+    function waitingState() {
+        updateUI('waiting', '待って...');
+        
+        // 1秒から4秒のランダムな遅延を設定 (1000ms ~ 4000ms)
+        const delay = Math.random() * 3000 + 1000; 
+
+        timerId = setTimeout(goState, delay);
+    }
+
+    /**
+     * クリック可能状態（Go!）に入ります。
+     */
+    function goState() {
+        updateUI('go', 'クリック！');
+        startTime = performance.now(); // 緑に変わった正確な時刻を記録
+    }
+
+    /**
+     * 早すぎた場合の処理を実行します。
+     */
+    function falseStartState() {
+        // タイマーをクリア
+        if (timerId !== null) {
+            clearTimeout(timerId);
+            timerId = null;
+        }
+        startTime = null;
+        updateUI('start', '早すぎます！', 'もう一度クリックして再挑戦');
+    }
+
+    /**
+     * メインのクリックハンドラ
+     */
+    gameArea.addEventListener('click', () => {
+        const now = performance.now();
+
+        if (gameStatus === 'start' || gameStatus === 'result') {
+            // ステータスが「開始」または「結果表示」の場合、待ち状態に移行
+            waitingState();
+        } 
+        else if (gameStatus === 'waiting') {
+            // ステータスが「待ち」の間にクリックした場合（フライング）
+            falseStartState();
+        } 
+        else if (gameStatus === 'go') {
+            // ステータスが「Go!」の場合、反応時間を計算して結果表示
+            if (startTime !== null) {
+                const reactionTime = Math.round(now - startTime);
+                updateUI('result', `${reactionTime} ミリ秒`, 'クリックして再挑戦');
+                saveScore(reactionTime);
+            }
+            startState(); // 結果を表示した後、次のクリックで再開できるように状態をリセット
+        }
+    });
+
+    // 初回ロード時
+    window.onload = () => {
+        startState();
+        updateHighScoreDisplay();
+    };
+
+</script>
+
+</body>
+</html>
