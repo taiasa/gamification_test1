@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>かけ算からわり算へ！穴埋め計算ゲーム</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js CDN for simple sound effects -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    <style>
+        /* 日本語表示に適したフォントを設定 */
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #f0f4f8;
+            min-height: 100vh;
+        }
+        /* 問題の数字を大きく、見やすく */
+        #problem-display {
+            font-size: 4rem;
+            font-weight: 700;
+            color: #1e3a8a; /* Blue-900 */
+        }
+        /* 入力フィールドのフォーカス時のスタイル */
+        #answer-input:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.5);
+        }
+        /* ボタンのホバーエフェクト */
+        .btn-primary {
+            transition: all 0.15s ease-in-out;
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        /* エラー時の揺れアニメーション */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
+        .shake-error {
+            animation: shake 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center p-4">
+
+    <div id="app" class="w-full max-w-lg bg-white p-6 md:p-10 rounded-2xl shadow-2xl space-y-6">
+        <h1 class="text-3xl font-bold text-center text-gray-800">九九 → わり算 ゲーム</h1>
+
+        <!-- ステータスエリア -->
+        <div class="flex justify-between items-center text-lg font-semibold border-b pb-3">
+            <div class="flex items-center space-x-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="text-gray-600">残り時間:</span>
+                <span id="timer" class="text-red-600">--</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="text-gray-600">スコア:</span>
+                <span id="score" class="text-green-600">0</span>
+            </div>
+        </div>
+
+        <!-- メッセージエリア -->
+        <div id="message-area" class="text-center p-4 rounded-lg bg-yellow-100 text-yellow-800 font-medium">
+            スタートボタンを押して、九九を使った計算に挑戦しよう！
+        </div>
+
+        <!-- 問題表示エリア -->
+        <div class="text-center py-8">
+            <div id="problem-display" class="select-none">
+                □ × □ = □
+            </div>
+        </div>
+
+        <!-- 入力とボタン -->
+        <div class="flex flex-col space-y-4">
+            <input type="number" id="answer-input" placeholder="ここに答えを入力"
+                   class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-2xl text-center focus:outline-none"
+                   min="1" max="9" disabled>
+
+            <button id="start-button" class="btn-primary w-full bg-blue-600 text-white font-bold py-3 rounded-xl text-xl shadow-lg hover:bg-blue-700">
+                スタート
+            </button>
+
+            <button id="submit-button" class="btn-primary w-full bg-green-600 text-white font-bold py-3 rounded-xl text-xl shadow-lg hover:bg-green-700 hidden" disabled>
+                解答する
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        // グローバル変数
+        let score = 0;
+        let timeRemaining = 60; // 60秒
+        let timerInterval;
+        let gameRunning = false;
+        let correctFactor; // 正しい答え（□に入る数）
+
+        // DOM要素
+        const timerEl = document.getElementById('timer');
+        const scoreEl = document.getElementById('score');
+        const problemEl = document.getElementById('problem-display');
+        const answerInput = document.getElementById('answer-input');
+        const messageArea = document.getElementById('message-area');
+        const startButton = document.getElementById('start-button');
+        const submitButton = document.getElementById('submit-button');
+
+        // Tone.jsを使った効果音のセットアップ
+        let correctSynth, incorrectSynth;
+
+        if (Tone) {
+            // 正解音: シンプルなベル
+            correctSynth = new Tone.MembraneSynth().toDestination();
+            // 不正解音: 低いノイズ
+            incorrectSynth = new Tone.NoiseSynth({
+                noise: { type: 'white' },
+                envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
+            }).toDestination();
+        } else {
+            console.error("Tone.jsが見つかりません。音声フィードバックは無効になります。");
+        }
+
+        /**
+         * メッセージエリアにフィードバックを表示します。
+         * @param {string} text - 表示するテキスト
+         * @param {string} type - 'success', 'error', 'info' のいずれか
+         */
+        function showMessage(text, type = 'info') {
+            let bgColor, textColor;
+            switch (type) {
+                case 'success':
+                    bgColor = 'bg-green-100';
+                    textColor = 'text-green-800';
+                    break;
+                case 'error':
+                    bgColor = 'bg-red-100';
+                    textColor = 'text-red-800';
+                    break;
+                case 'info':
+                default:
+                    bgColor = 'bg-yellow-100';
+                    textColor = 'text-yellow-800';
+                    break;
+            }
+            messageArea.className = `text-center p-4 rounded-lg font-medium transition-all duration-300 ${bgColor} ${textColor}`;
+            messageArea.textContent = text;
+        }
+
+        /**
+         * 1〜9のランダムな整数を生成します。
+         * @returns {number} 1から9までの整数
+         */
+        function getRandomKukuNumber() {
+            return Math.floor(Math.random() * 9) + 1;
+        }
+
+        /**
+         * 新しい問題（A × □ = C）を生成して表示します。
+         */
+        function generateProblem() {
+            // A (最初の因数) と B (穴埋めの因数) を1〜9でランダムに生成
+            const factorA = getRandomKukuNumber();
+            const factorB = getRandomKukuNumber();
+            const productC = factorA * factorB;
+
+            // 正しい答えを保存
+            correctFactor = factorB;
+
+            // 問題を 'A × □ = C' の形式で表示
+            problemEl.innerHTML = `<span>${factorA}</span> <span class="mx-4">×</span> <span class="text-red-500">□</span> <span class="mx-4">=</span> <span>${productC}</span>`;
+
+            // 入力フィールドをリセットし、フォーカス
+            answerInput.value = '';
+            answerInput.focus();
+        }
+
+        /**
+         * 制限時間を更新し、0になったらゲームを終了します。
+         */
+        function updateTimer() {
+            timeRemaining--;
+            timerEl.textContent = timeRemaining;
+
+            if (timeRemaining <= 0) {
+                endGame();
+            }
+        }
+
+        /**
+         * ゲームを開始します。
+         */
+        function startGame() {
+            if (gameRunning) return;
+
+            score = 0;
+            timeRemaining = 60;
+            gameRunning = true;
+            scoreEl.textContent = score;
+            timerEl.textContent = timeRemaining;
+
+            // タイマーの開始
+            clearInterval(timerInterval);
+            timerInterval = setInterval(updateTimer, 1000);
+
+            // UIの切り替え
+            startButton.classList.add('hidden');
+            submitButton.classList.remove('hidden');
+            answerInput.disabled = false;
+            submitButton.disabled = false;
+
+            showMessage('よーい、スタート！制限時間内にたくさん解こう！', 'info');
+            generateProblem();
+        }
+
+        /**
+         * ゲームを終了し、結果を表示します。
+         */
+        function endGame() {
+            gameRunning = false;
+            clearInterval(timerInterval);
+
+            // UIの切り替え
+            startButton.classList.remove('hidden');
+            submitButton.classList.add('hidden');
+            answerInput.disabled = true;
+            submitButton.disabled = true;
+            // 問題表示を「□ × □ = □」にリセット
+            problemEl.innerHTML = '□ × □ = □'; 
+
+            // 終了メッセージ
+            let finalMessage;
+            if (score >= 30) {
+                finalMessage = `🏆 終了！スコアは${score}点でした！驚異的なスピードです！`;
+            } else if (score >= 15) {
+                finalMessage = `😄 終了！スコアは${score}点でした。素晴らしい出来です！`;
+            } else {
+                finalMessage = `💪 終了！スコアは${score}点です。次はもっと集中して頑張ろう！`;
+            }
+            showMessage(finalMessage, 'info');
+        }
+
+        /**
+         * ユーザーの回答をチェックし、次のステップに進みます。
+         */
+        function checkAnswer() {
+            if (!gameRunning) return;
+
+            const userAnswer = parseInt(answerInput.value, 10);
+            
+            // デバッグログ
+            console.log(`[checkAnswer] User Input: ${answerInput.value}, Parsed: ${userAnswer}, Correct Answer: ${correctFactor}`);
+
+
+            // 1. 回答が1〜9の範囲内か、または数字かチェック
+            if (isNaN(userAnswer) || userAnswer < 1 || userAnswer > 9) {
+                console.log('[checkAnswer] ERROR: Input out of range (1-9).');
+                showMessage('答えは1から9の数字で入力してください！', 'error');
+                // 無効な入力の場合、入力をクリアし、同じ問題に再挑戦できるようにフォーカスを戻す
+                answerInput.value = '';
+                answerInput.focus();
+                return; // ここで処理を終了し、再挑戦を促す
+            }
+
+            // 2. 正誤判定
+            const isCorrect = userAnswer === correctFactor;
+            const timeBonus = 3; // 正解時、残り時間が3秒以下ならボーナス
+
+            if (isCorrect) {
+                console.log('[checkAnswer] CORRECT PATH EXECUTED.');
+                // 正解の処理
+                score++;
+                scoreEl.textContent = score;
+
+                // 効果音
+                if(correctSynth) correctSynth.triggerAttackRelease("C5", "8n");
+
+                // フィードバックメッセージ
+                let feedbackText;
+                if (timeRemaining <= timeBonus) {
+                    // スコアが高い場合や時間が少ない場合、より強調
+                    feedbackText = '🎉 超速正解！残りわずかでボーナス獲得！';
+                } else if (answerInput.dataset.responseTime && (Date.now() - parseInt(answerInput.dataset.responseTime) < 2000)) {
+                     feedbackText = '👍 正解！素晴らしいスピード！';
+                } else {
+                    feedbackText = '😊 正解！次へ進もう！';
+                }
+                showMessage(feedbackText, 'success');
+
+                // 次の問題へ
+                setTimeout(generateProblem, 500); // 0.5秒後に次の問題を出す
+                answerInput.dataset.responseTime = Date.now(); // 応答時間記録の開始
+            } else {
+                // 不正解の処理 (ペナルティなし)
+                console.log('[checkAnswer] INCORRECT PATH EXECUTED. No time penalty applied.');
+                
+                // === 以前の時間ペナルティの行を削除/コメントアウト ===
+                // timeRemaining = Math.max(0, timeRemaining - 3);
+                // timerEl.textContent = timeRemaining;
+                // ===============================================
+
+                // 効果音
+                if(incorrectSynth) incorrectSynth.triggerAttackRelease("A3", "16n");
+
+                // メッセージ表示
+                showMessage('❌ 残念！違うよ。再チャレンジ！', 'error');
+                
+                // 視覚的なフィードバックを追加 (揺れ)
+                messageArea.classList.add('shake-error');
+                setTimeout(() => {
+                    messageArea.classList.remove('shake-error');
+                }, 300);
+
+                // 不正解の場合、問題は変えず、入力だけリセット
+                answerInput.value = '';
+                answerInput.focus();
+            }
+        }
+
+        // イベントリスナーの設定
+        document.addEventListener('DOMContentLoaded', () => {
+            // スタートボタン
+            startButton.addEventListener('click', startGame);
+
+            // 解答ボタン
+            submitButton.addEventListener('click', checkAnswer);
+
+            // 入力フィールドでEnterキーを押した時
+            answerInput.addEventListener('keydown', (e) => {
+                // ゲームが動いている、かつEnterキーが押された場合
+                if (gameRunning && e.key === 'Enter') {
+                    e.preventDefault(); // デフォルトのEnter動作（フォーム送信など）を防ぐ
+                    checkAnswer();
+                }
+            });
+        });
+
+    </script>
+</body>
+</html>
