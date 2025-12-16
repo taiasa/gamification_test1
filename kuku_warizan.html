@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>かけ算からわり算へ！穴埋め計算ゲーム</title>
+    <title>九九からわり算ゲーム</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Tone.js CDN for simple sound effects -->
@@ -12,17 +12,19 @@
         /* 日本語表示に適したフォントを設定 */
         body {
             font-family: 'Inter', 'Noto Sans JP', sans-serif;
-            background-color: #f0f4f8;
+            background-color: #e0f2fe; /* Light Blue Background */
             min-height: 100vh;
         }
-        /* 問題の数字を大きく、見やすく */
+        /* 問題の数字を調整してより目立つように */
         #problem-display {
-            font-size: 4rem;
-            font-weight: 700;
-            color: #1e3a8a; /* Blue-900 */
+            font-size: 2.5rem; /* 3.5rem から 2.5rem に変更し、余りありでも一行に収まりやすくする */
+            font-weight: 800;
+            color: #4f46e5; /* Indigo-600 */
+            line-height: 1.2;
+            transition: transform 0.1s ease-out;
         }
         /* 入力フィールドのフォーカス時のスタイル */
-        #answer-input:focus {
+        .input-field:focus {
             border-color: #2563eb;
             box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.5);
         }
@@ -31,8 +33,8 @@
             transition: all 0.15s ease-in-out;
         }
         .btn-primary:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px); /* より目立つホバー効果 */
+            box-shadow: 0 6px 10px -2px rgba(0, 0, 0, 0.2);
         }
         /* エラー時の揺れアニメーション */
         @keyframes shake {
@@ -43,38 +45,63 @@
         .shake-error {
             animation: shake 0.3s ease-in-out;
         }
+        /* スコアの成功アニメーション */
+        @keyframes score-pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); } /* green-500 */
+            50% { transform: scale(1.1); box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+        .score-animation {
+            animation: score-pulse 0.4s ease-out;
+        }
     </style>
 </head>
 <body class="flex items-center justify-center p-4">
 
-    <div id="app" class="w-full max-w-lg bg-white p-6 md:p-10 rounded-2xl shadow-2xl space-y-6">
-        <h1 class="text-3xl font-bold text-center text-gray-800">九九 → わり算 ゲーム</h1>
+    <div id="app" class="w-full max-w-lg bg-white p-6 md:p-10 rounded-3xl shadow-2xl border-4 border-blue-200 space-y-6">
+        <h1 class="text-4xl font-extrabold text-center text-gray-800">九九からわり算ゲーム</h1>
+
+        <!-- モード選択エリア -->
+        <div class="flex flex-wrap justify-center gap-3 p-3 bg-blue-50 rounded-xl shadow-inner">
+            <label class="flex items-center space-x-2 cursor-pointer">
+                <input type="radio" name="game-mode" id="kuku-mode" value="kuku" checked class="form-radio text-blue-600 h-5 w-5">
+                <span class="text-gray-700 font-bold">九九モード</span>
+            </label>
+            <label class="flex items-center space-x-2 cursor-pointer">
+                <input type="radio" name="game-mode" id="warizan-mode" value="warizan" class="form-radio text-blue-600 h-5 w-5">
+                <span class="text-gray-700 font-bold">わり算モード</span>
+            </label>
+            <label class="flex items-center space-x-2 cursor-pointer">
+                <input type="radio" name="game-mode" id="amari-mode" value="amari" class="form-radio text-blue-600 h-5 w-5">
+                <span class="text-gray-700 font-bold">わり算（余りあり）モード</span>
+            </label>
+        </div>
 
         <!-- ステータスエリア -->
-        <div class="flex justify-between items-center text-lg font-semibold border-b pb-3">
+        <div class="flex justify-between items-center text-xl font-extrabold border-b-4 border-gray-100 pb-3">
             <div class="flex items-center space-x-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <span class="text-gray-600">残り時間:</span>
-                <span id="timer" class="text-red-600">--</span>
+                <span id="timer" class="text-red-600 text-2xl font-black">--</span>
             </div>
             <div class="flex items-center space-x-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <span class="text-gray-600">スコア:</span>
-                <span id="score" class="text-green-600">0</span>
+                <span id="score" class="text-green-600 text-2xl font-black">0</span>
             </div>
         </div>
 
         <!-- メッセージエリア -->
-        <div id="message-area" class="text-center p-4 rounded-lg bg-yellow-100 text-yellow-800 font-medium">
-            スタートボタンを押して、九九を使った計算に挑戦しよう！
+        <div id="message-area" class="text-center p-4 rounded-xl bg-yellow-100 text-yellow-800 font-bold border-2 border-yellow-300">
+            スタートボタンを押して、□をうめよう！
         </div>
 
         <!-- 問題表示エリア -->
-        <div class="text-center py-8">
+        <div class="text-center py-12 bg-indigo-50 rounded-xl shadow-inner">
             <div id="problem-display" class="select-none">
                 □ × □ = □
             </div>
@@ -82,17 +109,44 @@
 
         <!-- 入力とボタン -->
         <div class="flex flex-col space-y-4">
-            <input type="number" id="answer-input" placeholder="ここに答えを入力"
-                   class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-2xl text-center focus:outline-none"
+            <!-- 単一回答用（九九/わり算モード） -->
+            <input type="number" id="single-answer-input" placeholder="答えを入力 (1-9)"
+                   class="input-field w-full px-4 py-4 border-4 border-gray-300 rounded-xl text-3xl text-center focus:outline-none focus:border-blue-500"
                    min="1" max="9" disabled>
 
-            <button id="start-button" class="btn-primary w-full bg-blue-600 text-white font-bold py-3 rounded-xl text-xl shadow-lg hover:bg-blue-700">
-                スタート
+            <!-- 複数回答用（余りありわり算モード） -->
+            <div id="amari-inputs-container" class="flex space-x-4 hidden">
+                <div class="flex-1">
+                    <label for="quotient-input" class="block text-sm font-bold text-gray-700 text-center mb-1">商</label>
+                    <input type="number" id="quotient-input" placeholder="商" 
+                           class="input-field w-full px-4 py-4 border-4 border-gray-300 rounded-xl text-3xl text-center focus:outline-none focus:border-blue-500"
+                           min="0" max="9" disabled>
+                </div>
+                <div class="flex-1">
+                    <label for="remainder-input" class="block text-sm font-bold text-gray-700 text-center mb-1">余り</label>
+                    <input type="number" id="remainder-input" placeholder="余り" 
+                           class="input-field w-full px-4 py-4 border-4 border-gray-300 rounded-xl text-3xl text-center focus:outline-none focus:border-blue-500"
+                           min="0" max="8" disabled>
+                </div>
+            </div>
+
+            <button id="start-button" class="btn-primary w-full bg-blue-600 text-white font-black py-4 rounded-xl text-2xl shadow-xl hover:bg-blue-700">
+                🚀 スタート
             </button>
 
-            <button id="submit-button" class="btn-primary w-full bg-green-600 text-white font-bold py-3 rounded-xl text-xl shadow-lg hover:bg-green-700 hidden" disabled>
-                解答する
+            <button id="submit-button" class="btn-primary w-full bg-green-600 text-white font-black py-4 rounded-xl text-2xl shadow-xl hover:bg-green-700 hidden" disabled>
+                ✅ 解答する
             </button>
+            
+            <!-- 追加: ストップ/リトライボタンエリア -->
+            <div id="control-buttons" class="flex space-x-4">
+                <button id="stop-button" class="btn-primary flex-1 bg-yellow-500 text-white font-bold py-3 rounded-xl text-xl shadow-lg hover:bg-yellow-600" disabled>
+                    ⏸️ ストップ
+                </button>
+                <button id="retry-button" class="btn-primary flex-1 bg-red-500 text-white font-bold py-3 rounded-xl text-xl shadow-lg hover:bg-red-600" disabled>
+                    🔄 リトライ
+                </button>
+            </div>
         </div>
 
     </div>
@@ -103,31 +157,67 @@
         let timeRemaining = 60; // 60秒
         let timerInterval;
         let gameRunning = false;
-        let correctFactor; // 正しい答え（□に入る数）
+        let gamePaused = false;
+        let correctFactor;
+        let gameMode = 'kuku';
 
         // DOM要素
         const timerEl = document.getElementById('timer');
         const scoreEl = document.getElementById('score');
         const problemEl = document.getElementById('problem-display');
-        const answerInput = document.getElementById('answer-input');
         const messageArea = document.getElementById('message-area');
         const startButton = document.getElementById('start-button');
         const submitButton = document.getElementById('submit-button');
+        const stopButton = document.getElementById('stop-button');
+        const retryButton = document.getElementById('retry-button');
+
+        // 入力要素
+        const singleAnswerInput = document.getElementById('single-answer-input');
+        const amariInputsContainer = document.getElementById('amari-inputs-container');
+        const quotientInput = document.getElementById('quotient-input');
+        const remainderInput = document.getElementById('remainder-input');
+
+        // モード選択要素
+        const kukuModeRadio = document.getElementById('kuku-mode');
+        const warizanModeRadio = document.getElementById('warizan-mode');
+        const amariModeRadio = document.getElementById('amari-mode');
 
         // Tone.jsを使った効果音のセットアップ
-        let correctSynth, incorrectSynth;
+        let correctSynth, incorrectSynth, gameStartSynth, gameEndSynth;
+        
+        try {
+            if (Tone) {
+                // 正解音: Playful chime using a PolySynth for multiple notes
+                correctSynth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "sine" },
+                    envelope: { attack: 0.01, decay: 0.1, sustain: 0.05, release: 0.3 }
+                }).toDestination();
 
-        if (Tone) {
-            // 正解音: シンプルなベル
-            correctSynth = new Tone.MembraneSynth().toDestination();
-            // 不正解音: 低いノイズ
-            incorrectSynth = new Tone.NoiseSynth({
-                noise: { type: 'white' },
-                envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
-            }).toDestination();
-        } else {
-            console.error("Tone.jsが見つかりません。音声フィードバックは無効になります。");
+                // 不正解音: Low, sharp, percussive sound
+                incorrectSynth = new Tone.MembraneSynth({
+                    pitchDecay: 0.01,
+                    octaves: 1,
+                    envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 0.1 },
+                    volume: -10
+                }).toDestination();
+
+                // ゲーム開始音
+                gameStartSynth = new Tone.Synth({
+                    oscillator: { type: "triangle" },
+                    envelope: { attack: 0.05, decay: 0.2, sustain: 0.1, release: 0.4 }
+                }).toDestination();
+                
+                // ゲーム終了音
+                gameEndSynth = new Tone.FMSynth({
+                    envelope: { attack: 0.01, decay: 0.5, sustain: 0.01, release: 1 },
+                    volume: -8
+                }).toDestination();
+                
+            }
+        } catch(e) {
+            console.warn("Tone.js could not initialize immediately.");
         }
+
 
         /**
          * メッセージエリアにフィードバックを表示します。
@@ -135,23 +225,26 @@
          * @param {string} type - 'success', 'error', 'info' のいずれか
          */
         function showMessage(text, type = 'info') {
-            let bgColor, textColor;
+            let bgColor, textColor, borderColor;
             switch (type) {
                 case 'success':
                     bgColor = 'bg-green-100';
                     textColor = 'text-green-800';
+                    borderColor = 'border-green-300';
                     break;
                 case 'error':
                     bgColor = 'bg-red-100';
                     textColor = 'text-red-800';
+                    borderColor = 'border-red-300';
                     break;
                 case 'info':
                 default:
                     bgColor = 'bg-yellow-100';
                     textColor = 'text-yellow-800';
+                    borderColor = 'border-yellow-300';
                     break;
             }
-            messageArea.className = `text-center p-4 rounded-lg font-medium transition-all duration-300 ${bgColor} ${textColor}`;
+            messageArea.className = `text-center p-4 rounded-xl font-bold transition-all duration-300 border-2 ${bgColor} ${textColor} ${borderColor}`;
             messageArea.textContent = text;
         }
 
@@ -164,29 +257,81 @@
         }
 
         /**
-         * 新しい問題（A × □ = C）を生成して表示します。
+         * モードに基づいて入力フィールドの表示を切り替えます。
+         * @param {string} mode - 'kuku', 'warizan', 'amari'
+         * @param {boolean} disabled - 入力フィールドを無効にするかどうか
+         */
+        function switchInputMode(mode, disabled) {
+            if (mode === 'amari') {
+                singleAnswerInput.classList.add('hidden');
+                amariInputsContainer.classList.remove('hidden');
+                quotientInput.disabled = disabled;
+                remainderInput.disabled = disabled;
+                if (!disabled) quotientInput.focus();
+            } else {
+                singleAnswerInput.classList.remove('hidden');
+                amariInputsContainer.classList.add('hidden');
+                singleAnswerInput.disabled = disabled;
+                if (!disabled) singleAnswerInput.focus();
+            }
+            // ゲーム開始前はプレースホルダーのテキストを「余り」に更新する
+            if (mode === 'amari') {
+                remainderInput.placeholder = "余り";
+            } else {
+                remainderInput.placeholder = "あまり"; 
+            }
+        }
+
+
+        /**
+         * 新しい問題（A × □ = C、C ÷ A = □、または A ÷ B = □ 余り △）を生成して表示します。
          */
         function generateProblem() {
-            // A (最初の因数) と B (穴埋めの因数) を1〜9でランダムに生成
-            const factorA = getRandomKukuNumber();
-            const factorB = getRandomKukuNumber();
-            const productC = factorA * factorB;
+            // 入力フィールドをクリア
+            singleAnswerInput.value = '';
+            quotientInput.value = '';
+            remainderInput.value = '';
 
-            // 正しい答えを保存
-            correctFactor = factorB;
+            if (gameMode === 'amari') {
+                // A ÷ B = Q 余り R
+                const divisorB = Math.floor(Math.random() * 8) + 2; // 割る数 B (2-9)
+                const quotientQ = getRandomKukuNumber(); // 商 Q (1-9)
+                const remainderR = Math.floor(Math.random() * (divisorB - 1)) + 1; // 余り R (1 to B-1)
 
-            // 問題を 'A × □ = C' の形式で表示
-            problemEl.innerHTML = `<span>${factorA}</span> <span class="mx-4">×</span> <span class="text-red-500">□</span> <span class="mx-4">=</span> <span>${productC}</span>`;
+                const dividendA = divisorB * quotientQ + remainderR; // 割られる数 A
 
-            // 入力フィールドをリセットし、フォーカス
-            answerInput.value = '';
-            answerInput.focus();
+                correctFactor = { quotient: quotientQ, remainder: remainderR };
+
+                problemEl.innerHTML = `<span>${dividendA}</span> <span class="mx-2">÷</span> <span>${divisorB}</span> <span class="mx-2">=</span> <span class="text-red-500">□</span> <span class="text-lg mx-1">余り</span> <span class="text-red-500">△</span>`;
+                
+                quotientInput.focus();
+
+            } else {
+                // 九九/わり算モード
+                const factorA = getRandomKukuNumber();
+                const factorB = getRandomKukuNumber(); // これが常に答え
+                const productC = factorA * factorB;
+
+                correctFactor = factorB;
+
+                if (gameMode === 'kuku') {
+                    // 九九モード: A × □ = C
+                    problemEl.innerHTML = `<span>${factorA}</span> <span class="mx-2">×</span> <span class="text-red-500">□</span> <span class="mx-2">=</span> <span>${productC}</span>`;
+                } else {
+                    // わり算モード: C ÷ A = □
+                    problemEl.innerHTML = `<span>${productC}</span> <span class="mx-2">÷</span> <span>${factorA}</span> <span class="mx-2">=</span> <span class="text-red-500">□</span>`;
+                }
+
+                singleAnswerInput.focus();
+            }
         }
 
         /**
          * 制限時間を更新し、0になったらゲームを終了します。
          */
         function updateTimer() {
+            if (gamePaused) return;
+
             timeRemaining--;
             timerEl.textContent = timeRemaining;
 
@@ -204,8 +349,16 @@
             score = 0;
             timeRemaining = 60;
             gameRunning = true;
+            gamePaused = false;
             scoreEl.textContent = score;
             timerEl.textContent = timeRemaining;
+            scoreEl.classList.remove('score-animation'); // アニメーションをリセット
+
+            // 効果音: ゲームスタート
+            if (gameStartSynth) {
+                gameStartSynth.triggerAttackRelease("G4", "8n", "+0", 0.3);
+                gameStartSynth.triggerAttackRelease("C5", "8n", "+0.1", 0.3);
+            }
 
             // タイマーの開始
             clearInterval(timerInterval);
@@ -214,10 +367,14 @@
             // UIの切り替え
             startButton.classList.add('hidden');
             submitButton.classList.remove('hidden');
-            answerInput.disabled = false;
-            submitButton.disabled = false;
+            
+            stopButton.disabled = false;
+            retryButton.disabled = false;
+            stopButton.textContent = '⏸️ ストップ';
+            
+            switchInputMode(gameMode, false); // 入力を有効化
 
-            showMessage('よーい、スタート！制限時間内にたくさん解こう！', 'info');
+            showMessage(`よーい、スタート！${gameMode === 'kuku' ? '九九' : gameMode === 'warizan' ? 'わり算' : '余りありわり算'}モードで頑張ろう！`, 'info');
             generateProblem();
         }
 
@@ -228,12 +385,22 @@
             gameRunning = false;
             clearInterval(timerInterval);
 
+            // 効果音: ゲーム終了
+            if (gameEndSynth) {
+                gameEndSynth.triggerAttackRelease("F3", "4n", "+0", 0.5);
+                gameEndSynth.triggerAttackRelease("C3", "4n", "+0.2", 0.5);
+            }
+
             // UIの切り替え
             startButton.classList.remove('hidden');
             submitButton.classList.add('hidden');
-            answerInput.disabled = true;
-            submitButton.disabled = true;
-            // 問題表示を「□ × □ = □」にリセット
+            
+            stopButton.disabled = true;
+            retryButton.disabled = true;
+            stopButton.textContent = '⏸️ ストップ';
+
+            switchInputMode(gameMode, true);
+            
             problemEl.innerHTML = '□ × □ = □'; 
 
             // 終了メッセージ
@@ -249,98 +416,186 @@
         }
 
         /**
+         * ゲームの一時停止/再開を切り替えます。
+         */
+        function togglePause() {
+            if (!gameRunning) return;
+
+            gamePaused = !gamePaused;
+
+            if (gamePaused) {
+                // 一時停止
+                stopButton.textContent = '▶️ 再開';
+                switchInputMode(gameMode, true); // 入力を無効化
+                submitButton.disabled = true;
+                showMessage('⏸️ ゲーム一時停止中。再開ボタンを押してね！', 'info');
+                clearInterval(timerInterval); // タイマーを止める
+            } else {
+                // 再開
+                stopButton.textContent = '⏸️ ストップ';
+                switchInputMode(gameMode, false); // 入力を有効化
+                submitButton.disabled = false;
+                showMessage('▶️ 再開！時間を無駄にしないで！', 'success');
+                timerInterval = setInterval(updateTimer, 1000); // タイマーを再開
+            }
+        }
+        
+        /**
+         * ゲームをリトライし、初期状態に戻します。
+         */
+        function resetGame() {
+            // 完全にリセット
+            gameRunning = false;
+            gamePaused = false;
+            clearInterval(timerInterval);
+            
+            // UIのリセット
+            score = 0;
+            timeRemaining = 60;
+            scoreEl.textContent = score;
+            timerEl.textContent = '--';
+            problemEl.innerHTML = '□ × □ = □';
+            scoreEl.classList.remove('score-animation');
+            
+            // ボタンと入力の切り替え
+            startButton.classList.remove('hidden');
+            submitButton.classList.add('hidden');
+            
+            stopButton.textContent = '⏸️ ストップ';
+            stopButton.disabled = true;
+            retryButton.disabled = true;
+            
+            switchInputMode(gameMode, true); // 入力を無効化
+            
+            showMessage('↩️ ゲームをリセットしました。スタートボタンを押して再開！', 'info');
+        }
+
+        /**
          * ユーザーの回答をチェックし、次のステップに進みます。
          */
         function checkAnswer() {
-            if (!gameRunning) return;
+            if (!gameRunning || gamePaused) return;
 
-            const userAnswer = parseInt(answerInput.value, 10);
-            
-            // デバッグログ
-            console.log(`[checkAnswer] User Input: ${answerInput.value}, Parsed: ${userAnswer}, Correct Answer: ${correctFactor}`);
+            let isCorrect = false;
+            let focusEl;
 
+            if (gameMode === 'amari') {
+                // わり算（余りあり）モードの判定
+                const userQuotient = parseInt(quotientInput.value, 10);
+                const userRemainder = parseInt(remainderInput.value, 10);
+                const correctQuotient = correctFactor.quotient;
+                const correctRemainder = correctFactor.remainder;
 
-            // 1. 回答が1〜9の範囲内か、または数字かチェック
-            if (isNaN(userAnswer) || userAnswer < 1 || userAnswer > 9) {
-                console.log('[checkAnswer] ERROR: Input out of range (1-9).');
-                showMessage('答えは1から9の数字で入力してください！', 'error');
-                // 無効な入力の場合、入力をクリアし、同じ問題に再挑戦できるようにフォーカスを戻す
-                answerInput.value = '';
-                answerInput.focus();
-                return; // ここで処理を終了し、再挑戦を促す
+                if (isNaN(userQuotient)) {
+                    showMessage('商を入力してください！', 'error');
+                    quotientInput.focus();
+                    return;
+                }
+                if (isNaN(userRemainder)) {
+                    showMessage('余りを入力してください！', 'error');
+                    remainderInput.focus();
+                    return;
+                }
+
+                isCorrect = (userQuotient === correctQuotient) && (userRemainder === correctRemainder);
+                focusEl = quotientInput;
+
+            } else {
+                // 九九/わり算モードの判定
+                const userAnswer = parseInt(singleAnswerInput.value, 10);
+                
+                // 1. 回答が1〜9の範囲内か、または数字かチェック
+                if (isNaN(userAnswer) || userAnswer < 1 || userAnswer > 9) {
+                    showMessage('答えは1から9の数字で入力してください！', 'error');
+                    singleAnswerInput.value = '';
+                    singleAnswerInput.focus();
+                    return;
+                }
+                isCorrect = userAnswer === correctFactor;
+                focusEl = singleAnswerInput;
             }
 
-            // 2. 正誤判定
-            const isCorrect = userAnswer === correctFactor;
-            const timeBonus = 3; // 正解時、残り時間が3秒以下ならボーナス
-
+            // 2. 正誤判定後の処理
             if (isCorrect) {
-                console.log('[checkAnswer] CORRECT PATH EXECUTED.');
-                // 正解の処理
                 score++;
                 scoreEl.textContent = score;
 
-                // 効果音
-                if(correctSynth) correctSynth.triggerAttackRelease("C5", "8n");
+                // スコアアニメーションの適用
+                scoreEl.classList.remove('score-animation');
+                // DOMの再描画を強制するためのsetTimeout
+                setTimeout(() => scoreEl.classList.add('score-animation'), 10);
 
-                // フィードバックメッセージ
-                let feedbackText;
-                if (timeRemaining <= timeBonus) {
-                    // スコアが高い場合や時間が少ない場合、より強調
-                    feedbackText = '🎉 超速正解！残りわずかでボーナス獲得！';
-                } else if (answerInput.dataset.responseTime && (Date.now() - parseInt(answerInput.dataset.responseTime) < 2000)) {
-                     feedbackText = '👍 正解！素晴らしいスピード！';
-                } else {
-                    feedbackText = '😊 正解！次へ進もう！';
+                // 効果音: 正解
+                if(correctSynth) {
+                    correctSynth.triggerAttackRelease(["C6", "E6"], "8n");
                 }
-                showMessage(feedbackText, 'success');
 
-                // 次の問題へ
-                setTimeout(generateProblem, 500); // 0.5秒後に次の問題を出す
-                answerInput.dataset.responseTime = Date.now(); // 応答時間記録の開始
+                showMessage('😊 正解！次へ進もう！', 'success');
+
+                setTimeout(generateProblem, 500);
             } else {
-                // 不正解の処理 (ペナルティなし)
-                console.log('[checkAnswer] INCORRECT PATH EXECUTED. No time penalty applied.');
-                
-                // === 以前の時間ペナルティの行を削除/コメントアウト ===
-                // timeRemaining = Math.max(0, timeRemaining - 3);
-                // timerEl.textContent = timeRemaining;
-                // ===============================================
+                // 効果音: 不正解
+                if(incorrectSynth) incorrectSynth.triggerAttackRelease("C2", "8n");
 
-                // 効果音
-                if(incorrectSynth) incorrectSynth.triggerAttackRelease("A3", "16n");
-
-                // メッセージ表示
                 showMessage('❌ 残念！違うよ。再チャレンジ！', 'error');
                 
-                // 視覚的なフィードバックを追加 (揺れ)
                 messageArea.classList.add('shake-error');
                 setTimeout(() => {
                     messageArea.classList.remove('shake-error');
                 }, 300);
 
-                // 不正解の場合、問題は変えず、入力だけリセット
-                answerInput.value = '';
-                answerInput.focus();
+                focusEl.focus(); 
             }
         }
-
+        
         // イベントリスナーの設定
         document.addEventListener('DOMContentLoaded', () => {
-            // スタートボタン
+            
+            // 1. ゲームイベントリスナー
             startButton.addEventListener('click', startGame);
-
-            // 解答ボタン
             submitButton.addEventListener('click', checkAnswer);
-
-            // 入力フィールドでEnterキーを押した時
-            answerInput.addEventListener('keydown', (e) => {
-                // ゲームが動いている、かつEnterキーが押された場合
-                if (gameRunning && e.key === 'Enter') {
-                    e.preventDefault(); // デフォルトのEnter動作（フォーム送信など）を防ぐ
+            
+            // 2. コントロールボタンのイベントリスナー
+            stopButton.addEventListener('click', togglePause);
+            retryButton.addEventListener('click', resetGame);
+            
+            // 単一回答用Enterキー
+            singleAnswerInput.addEventListener('keydown', (e) => {
+                if (gameRunning && !gamePaused && e.key === 'Enter') {
+                    e.preventDefault();
                     checkAnswer();
                 }
             });
+
+            // 複数回答用Enterキー
+            const handleAmariKeydown = (e) => {
+                 if (gameRunning && !gamePaused && e.key === 'Enter') {
+                    e.preventDefault();
+                    checkAnswer();
+                }
+            };
+            quotientInput.addEventListener('keydown', handleAmariKeydown);
+            remainderInput.addEventListener('keydown', handleAmariKeydown);
+
+
+            // 3. モード切り替えリスナー
+            [kukuModeRadio, warizanModeRadio, amariModeRadio].forEach(radio => {
+                radio.addEventListener('change', () => {
+                    gameMode = radio.value;
+                    // ゲーム実行中はモード切り替え時に問題を再生成
+                    if (gameRunning) { 
+                        switchInputMode(gameMode, false);
+                        generateProblem(); 
+                        showMessage(`よーい、スタート！${gameMode === 'kuku' ? '九九' : gameMode === 'warizan' ? 'わり算' : '余りありわり算'}モードで頑張ろう！`, 'info'); 
+                    } else {
+                        // ゲーム開始前はUIのみ切り替える
+                        switchInputMode(gameMode, true);
+                    }
+                });
+            });
+            
+            // 初期状態のUIを正しく設定
+            switchInputMode(gameMode, true);
         });
 
     </script>
