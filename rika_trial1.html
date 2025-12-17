@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>理科モン・クエスト - 小学校理科学習ゲーム</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=DotGothic16&family=Kiwi+Maru:wght@400;500&display=swap');
+
+        :root {
+            --primary: #4ade80;
+            --secondary: #3b82f6;
+            --accent: #facc15;
+            --danger: #ef4444;
+        }
+
+        body {
+            font-family: 'Kiwi Maru', serif;
+            background-color: #f0fdf4;
+            overflow-x: hidden;
+        }
+
+        .pixel-font {
+            font-family: 'DotGothic16', sans-serif;
+        }
+
+        .game-card {
+            box-shadow: 0 8px 0 #059669;
+            transition: all 0.1s;
+        }
+
+        .game-card:active {
+            transform: translateY(4px);
+            box-shadow: 0 4px 0 #059669;
+        }
+
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        .floating {
+            animation: floating 3s ease-in-out infinite;
+        }
+
+        @keyframes floating {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        .health-bar-inner {
+            transition: width 0.5s ease-out;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <div id="game-container" class="w-full max-w-2xl bg-white border-8 border-green-600 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
+        
+        <!-- スタート画面 -->
+        <div id="screen-start" class="text-center py-6">
+            <h1 class="text-5xl md:text-6xl font-bold text-green-700 mb-4 pixel-font">理科モン<br>クエスト</h1>
+            <p class="text-lg text-gray-600 mb-8 font-bold">学びたい分野（ぶんや）をえらぼう！</p>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto">
+                <button onclick="startGame('insects')" class="game-card py-3 bg-green-500 text-white rounded-2xl text-lg font-bold hover:bg-green-400">
+                    🐾 こん虫・動物
+                </button>
+                <button onclick="startGame('plants')" class="game-card py-3 bg-emerald-500 text-white rounded-2xl text-lg font-bold hover:bg-emerald-400">
+                    🌻 植物（しょくぶつ）
+                </button>
+                <button onclick="startGame('electricity')" class="game-card py-3 bg-yellow-500 text-white rounded-2xl text-lg font-bold hover:bg-yellow-400">
+                    ⚡ 電気・磁石
+                </button>
+                <button onclick="startGame('stars')" class="game-card py-3 bg-indigo-600 text-white rounded-2xl text-lg font-bold hover:bg-indigo-500">
+                    🌙 星と月
+                </button>
+                <button onclick="startGame('lever')" class="game-card py-3 bg-orange-500 text-white rounded-2xl text-lg font-bold hover:bg-orange-400">
+                    ⚖️ てこ・おもり
+                </button>
+                <button onclick="startGame('liquid')" class="game-card py-3 bg-cyan-500 text-white rounded-2xl text-lg font-bold hover:bg-cyan-400">
+                    🧪 水溶液（すいようえき）
+                </button>
+            </div>
+        </div>
+
+        <!-- バトル画面 -->
+        <div id="screen-battle" class="hidden">
+            <div class="flex justify-between items-center mb-8">
+                <div class="w-1/2 pr-2">
+                    <div class="flex justify-between mb-1">
+                        <span class="font-bold text-green-700">プレイヤー</span>
+                        <span id="player-hp-text" class="text-sm">100/100</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden border-2 border-gray-300">
+                        <div id="player-hp-bar" class="health-bar-inner h-full bg-green-500" style="width: 100%"></div>
+                    </div>
+                </div>
+                <div class="w-1/2 pl-2 text-right">
+                    <div class="flex justify-between mb-1">
+                        <span id="monster-hp-text" class="text-sm ml-auto">100/100</span>
+                        <span id="monster-name" class="font-bold text-red-600">理科モンスター</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden border-2 border-gray-300">
+                        <div id="monster-hp-bar" class="health-bar-inner h-full bg-red-500" style="width: 100%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-center mb-10 relative h-40">
+                <div id="monster-sprite" class="text-8xl floating">👾</div>
+                <div id="effect-layer" class="absolute inset-0 flex items-center justify-center pointer-events-none text-4xl"></div>
+            </div>
+
+            <div id="question-box" class="bg-gray-100 p-6 rounded-2xl border-4 border-gray-300 mb-6">
+                <p id="question-text" class="text-xl font-bold text-gray-800 leading-relaxed"></p>
+            </div>
+
+            <div id="choice-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Choices will be injected here -->
+            </div>
+        </div>
+
+        <!-- 結果画面 -->
+        <div id="screen-result" class="hidden text-center py-10">
+            <h2 id="result-title" class="text-4xl font-bold mb-4 pixel-font text-green-600">冒険おわり！</h2>
+            <div id="result-icon" class="text-8xl mb-6">🏆</div>
+            <p id="result-message" class="text-xl mb-10 font-bold"></p>
+            <button onclick="location.reload()" class="game-card px-10 py-4 bg-blue-500 text-white rounded-2xl text-xl font-bold hover:bg-blue-400">
+                タイトルへもどる
+            </button>
+        </div>
+
+        <!-- メッセージトースト -->
+        <div id="toast" class="absolute top-4 left-1/2 -translate-x-1/2 bg-black/80 text-white px-6 py-3 rounded-full text-lg font-bold opacity-0 transition-opacity pointer-events-none z-50">
+            せいかい！
+        </div>
+
+    </div>
+
+    <script>
+        const quizData = {
+            insects: [
+                { q: "昆虫（こんちゅう）の足は全部で何本？", a: ["4本", "6本", "8本", "10本"], correct: 1 },
+                { q: "昆虫のからだは「頭」「胸」ともう一つは何？", a: ["足", "はね", "腹（はら）", "首"], correct: 2 },
+                { q: "完全変態（かんぜんへんたい）をする昆虫はどれ？", a: ["バッタ", "カマキリ", "カブトムシ", "トンボ"], correct: 2 },
+                { q: "モンシロチョウが卵を産みつけるのはどの植物？", a: ["ひまわり", "キャベツ", "ホウセンカ", "アサガオ"], correct: 1 },
+                { q: "昆虫の足がついているのはからだのどこ？", a: ["頭", "胸", "腹", "全部"], correct: 1 }
+            ],
+            plants: [
+                { q: "植物が種から芽を出すことを何という？", a: ["発芽（はつが）", "開花", "受粉", "光合成"], correct: 0 },
+                { q: "植物が育つのに、日光とあと何が必要？", a: ["砂糖", "肥料", "土", "水と適当な温度"], correct: 3 },
+                { q: "アサガオの花がしぼんだ後にできるのは何？", a: ["根", "種（たね）", "葉", "くき"], correct: 1 },
+                { q: "日光に当たると葉で作られる栄養分は何？", a: ["塩", "でんぷん", "タンパク質", "ビタミン"], correct: 1 },
+                { q: "ひまわりの花はどっちの方向を向くことが多い？", a: ["北", "南", "太陽の方向", "地面"], correct: 2 }
+            ],
+            electricity: [
+                { q: "電気を通すものはどれ？", a: ["プラスチック", "わりばし", "10円玉（銅）", "消しゴム"], correct: 2 },
+                { q: "乾電池を２つ「直列（ちょくれつ）」につなぐと、豆電球の明るさは？", a: ["暗くなる", "明るくなる", "変わらない", "消える"], correct: 1 },
+                { q: "方位磁石のN極が指す方向はどっち？", a: ["東", "西", "南", "北"], correct: 3 },
+                { q: "回路（かいろ）に電気が流れるとき、電池のどこからどこへ流れる？", a: ["＋からー", "ーから＋", "横から", "決まっていない"], correct: 0 },
+                { q: "磁石の同じ極（NとNなど）を近づけるとどうなる？", a: ["くっつく", "しりぞけ合う", "何も起きない", "熱くなる"], correct: 1 }
+            ],
+            stars: [
+                { q: "月はどちらの方向から昇（のぼ）る？", a: ["北", "南", "東", "西"], correct: 2 },
+                { q: "太陽の光をはね返して光っている天体はどれ？", a: ["太陽", "月", "北極星", "一等星"], correct: 1 },
+                { q: "冬の夜空に見える、砂時計のような形をした星座は何？", a: ["夏の大三角", "オリオン座", "カシオペヤ座", "さそり座"], correct: 1 },
+                { q: "月が太陽と重なって、太陽が欠けて見える現象を何という？", a: ["月食", "日食", "満月", "三日月"], correct: 1 },
+                { q: "北極星（ほっきょくせい）を探すときに使われる星座は？", a: ["オリオン座", "カシオペヤ座", "てんびん座", "しし座"], correct: 1 }
+            ],
+            lever: [
+                { q: "てこを支（ささ）えている場所を何という？", a: ["力点", "作用点", "支点", "終点"], correct: 2 },
+                { q: "てこで力を加える場所を何という？", a: ["支点", "力点", "作用点", "始点"], correct: 1 },
+                { q: "重いものを楽に持ち上げるには、支点から力点をどうすればいい？", a: ["近くする", "遠くする", "真上にする", "動かさない"], correct: 1 },
+                { q: "上皿（うわざら）天秤（てんびん）が釣り合っているとき、左右の重さは？", a: ["右が重い", "左が重い", "同じ", "関係ない"], correct: 2 },
+                { q: "てこの原理を利用した道具はどれ？", a: ["えんぴつ", "はさみ", "定規", "消しゴム"], correct: 1 }
+            ],
+            liquid: [
+                { q: "酸性（さんせい）の液体に青色リトマス紙をつけると何色になる？", a: ["青色のまま", "赤色", "黄色", "緑色"], correct: 1 },
+                { q: "二酸化炭素を石灰水に通すと、石灰水はどうなる？", a: ["赤くなる", "透明になる", "白くにごる", "あわが出る"], correct: 2 },
+                { q: "鉄を溶（と）かす力がある水溶液はどれ？", a: ["食塩水", "砂糖水", "塩酸（えんさん）", "重曹水"], correct: 2 },
+                { q: "水に溶けている物質（砂糖など）を何という？", a: ["溶媒", "溶質（ようしつ）", "溶液", "溶け残り"], correct: 1 },
+                { q: "アンモニア水はどのような性質を持っている？", a: ["酸性", "中性", "アルカリ性", "油性"], correct: 2 }
+            ]
+        };
+
+        const monsters = ["👾", "🐉", "👹", "👽", "🤖", "👻", "🧟", "🐙"];
+        
+        let currentState = {
+            category: '',
+            questions: [],
+            currentIdx: 0,
+            playerHP: 100,
+            monsterHP: 100,
+            maxQuestions: 5
+        };
+
+        function showScreen(id) {
+            document.querySelectorAll('#game-container > div').forEach(div => {
+                if(div.id !== 'toast') div.classList.add('hidden');
+            });
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function startGame(category) {
+            currentState.category = category;
+            currentState.questions = [...quizData[category]].sort(() => Math.random() - 0.5);
+            currentState.currentIdx = 0;
+            currentState.playerHP = 100;
+            currentState.monsterHP = 100;
+            
+            // Set random monster based on category or random
+            document.getElementById('monster-sprite').textContent = monsters[Math.floor(Math.random() * monsters.length)];
+            
+            updateUI();
+            loadQuestion();
+            showScreen('screen-battle');
+        }
+
+        function updateUI() {
+            document.getElementById('player-hp-bar').style.width = currentState.playerHP + '%';
+            document.getElementById('player-hp-text').textContent = currentState.playerHP + '/100';
+            
+            document.getElementById('monster-hp-bar').style.width = currentState.monsterHP + '%';
+            document.getElementById('monster-hp-text').textContent = currentState.monsterHP + '/100';
+            
+            // Color feedback for health
+            if(currentState.playerHP < 30) document.getElementById('player-hp-bar').classList.replace('bg-green-500', 'bg-red-500');
+            else document.getElementById('player-hp-bar').classList.replace('bg-red-500', 'bg-green-500');
+        }
+
+        function loadQuestion() {
+            const q = currentState.questions[currentState.currentIdx];
+            document.getElementById('question-text').textContent = `第 ${currentState.currentIdx + 1} 問: ${q.q}`;
+            
+            const container = document.getElementById('choice-container');
+            container.innerHTML = '';
+            
+            q.a.forEach((choice, idx) => {
+                const btn = document.createElement('button');
+                btn.className = "game-card p-4 bg-white border-4 border-gray-200 rounded-xl text-lg font-bold hover:border-blue-400 text-gray-700 text-left transition-colors duration-200";
+                btn.textContent = choice;
+                btn.onclick = () => handleAnswer(idx);
+                container.appendChild(btn);
+            });
+        }
+
+        function handleAnswer(choiceIdx) {
+            const q = currentState.questions[currentState.currentIdx];
+            const isCorrect = choiceIdx === q.correct;
+            const effectLayer = document.getElementById('effect-layer');
+            const monsterSprite = document.getElementById('monster-sprite');
+            
+            // Disable all buttons during effect
+            const buttons = document.querySelectorAll('#choice-container button');
+            buttons.forEach(b => b.disabled = true);
+
+            if (isCorrect) {
+                // Correct: Damage Monster
+                showToast("せいかい！ ✨", "bg-green-600");
+                currentState.monsterHP -= 20;
+                effectLayer.textContent = "💥";
+                monsterSprite.classList.add('shake');
+                setTimeout(() => {
+                    monsterSprite.classList.remove('shake');
+                    effectLayer.textContent = "";
+                }, 500);
+            } else {
+                // Incorrect: Damage Player
+                showToast("ざんねん... 💦 正解は「" + q.a[q.correct] + "」", "bg-red-600");
+                currentState.playerHP -= 25;
+                document.getElementById('game-container').classList.add('shake');
+                effectLayer.textContent = "⚡";
+                setTimeout(() => {
+                    document.getElementById('game-container').classList.remove('shake');
+                    effectLayer.textContent = "";
+                }, 500);
+            }
+
+            updateUI();
+            
+            setTimeout(() => {
+                if (currentState.playerHP <= 0) {
+                    endGame(false);
+                } else if (currentState.monsterHP <= 0 || currentState.currentIdx >= currentState.maxQuestions - 1) {
+                    endGame(true);
+                } else {
+                    currentState.currentIdx++;
+                    loadQuestion();
+                }
+            }, 1200);
+        }
+
+        function showToast(text, colorClass) {
+            const toast = document.getElementById('toast');
+            toast.textContent = text;
+            toast.className = `absolute top-4 left-1/2 -translate-x-1/2 text-white px-6 py-3 rounded-full text-lg font-bold transition-opacity pointer-events-none z-50 shadow-lg ${colorClass}`;
+            toast.style.opacity = "1";
+            setTimeout(() => toast.style.opacity = "0", 1800);
+        }
+
+        function endGame(isWin) {
+            showScreen('screen-result');
+            const title = document.getElementById('result-title');
+            const icon = document.getElementById('result-icon');
+            const msg = document.getElementById('result-message');
+            
+            if (isWin && currentState.monsterHP <= 0) {
+                title.textContent = "完全勝利！";
+                title.className = "text-4xl font-bold mb-4 pixel-font text-yellow-500";
+                icon.textContent = "👑";
+                msg.textContent = "きみは理科（りか）マスターだ！すべてのモンスターをたおしたぞ！";
+            } else if (isWin) {
+                title.textContent = "ぼうけんクリア！";
+                title.className = "text-4xl font-bold mb-4 pixel-font text-green-600";
+                icon.textContent = "🎉";
+                msg.textContent = `${currentState.currentIdx + 1}問中、たくさんの問題に正解したね！もっと勉強して完全勝利をめざそう。`;
+            } else {
+                title.textContent = "しっぱい...";
+                title.className = "text-4xl font-bold mb-4 pixel-font text-gray-500";
+                icon.textContent = "👻";
+                msg.textContent = "体力がなくなってしまった...。もういちどチャレンジして復習しよう！";
+            }
+        }
+    </script>
+</body>
+</html>
