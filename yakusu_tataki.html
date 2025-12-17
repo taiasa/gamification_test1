@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>モグラたたき約数ゲーム</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js (効果音ライブラリ) を追加 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script> 
+    <style>
+        /* フォントの指定 */
+        body { font-family: 'Inter', sans-serif; background-color: #f0fdf4; }
+
+        /* モグラの穴のスタイル (サイズを縮小) */
+        .mole-hole {
+            width: 100%;
+            height: 100px; /* 120pxから縮小 */
+            background-color: #a3e635; /* ライトグリーン */
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+            box-shadow: inset 0 -10px 15px rgba(0, 0, 0, 0.2), 0 5px 10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.1s ease;
+        }
+
+        .mole-hole:active {
+            transform: scale(0.98);
+        }
+
+        /* モグラのスタイル (サイズを縮小) */
+        .mole {
+            position: absolute;
+            bottom: -100px; /* 穴の中に隠れる (heightに合わせて修正) */
+            width: 90%;
+            height: 100px; /* 120pxから縮小 */
+            background-color: #78350f; /* ダークブラウン */
+            border-radius: 50% 50% 10% 10%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.8rem; /* 少し小さく */
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3);
+            transition: bottom 0.2s ease-out, background-color 0.1s, box-shadow 0.1s; /* 出現と色変化のアニメーション */
+            user-select: none;
+        }
+
+        /* モグラが出現している状態 */
+        .mole.popped {
+            bottom: 0px;
+        }
+
+        /* 叩かれたモグラの色変化 (正解/不正解フィードバック用) */
+        .mole.hit-correct {
+            background-color: #10b981; /* エメラルドグリーン */
+            box-shadow: 0 5px 20px rgba(16, 185, 129, 0.8);
+        }
+        .mole.hit-wrong {
+            background-color: #ef4444; /* レッド */
+            box-shadow: 0 5px 20px rgba(239, 68, 68, 0.8);
+        }
+        /* 見逃しモグラの色変化 (フィードバック用) */
+        .mole.missed {
+            background-color: #f59e0b; /* アンバー */
+        }
+
+
+        /* メッセージアニメーション */
+        @keyframes popup {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 0; }
+        }
+
+        .hit-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation: popup 0.8s ease-out forwards;
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        /* スコアのアニメーション */
+        @keyframes score-bump {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); color: #f97316; } /* スコアが増えたら一時的に大きく、オレンジに */
+            100% { transform: scale(1); }
+        }
+        #score.bump {
+            animation: score-bump 0.3s ease-out;
+        }
+        
+        /* コンボのアニメーション */
+        @keyframes combo-grow {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); color: #f97316; }
+            100% { transform: scale(1); }
+        }
+        #combo-display.grow {
+            animation: combo-grow 0.3s ease-out;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen flex flex-col items-center">
+
+    <!-- 全体コンテナを max-w-4xl から max-w-xl に縮小 -->
+    <div class="max-w-xl w-full">
+        <h1 class="text-3xl font-extrabold text-green-700 text-center mb-4">約数モグラたたき</h1>
+        
+        <!-- 説明とステータス表示エリア -->
+        <div id="status-area" class="bg-white p-5 rounded-xl shadow-lg mb-4 border-t-4 border-green-600">
+            <p class="text-center text-gray-700 mb-3 text-base">
+                <span class="font-bold text-green-600">ルール:</span> 画面上部の**ターゲットの約数**を叩きましょう！不正解や**見逃し**は減点です。
+            </p>
+
+            <!-- 2カラムから3カラムに分割 (スコア / コンボ / 時間) -->
+            <div class="grid grid-cols-3 gap-3 text-center">
+                <div class="col-span-1">
+                    <div class="text-xs font-medium text-gray-500">スコア</div>
+                    <div id="score" class="text-2xl font-bold text-green-600">0</div>
+                </div>
+                <div class="col-span-1">
+                    <div class="text-xs font-medium text-gray-500">コンボ</div>
+                    <div id="combo-display" class="text-2xl font-bold text-orange-500">0</div>
+                </div>
+                <div class="col-span-1">
+                    <div class="text-xs font-medium text-gray-500">残り時間</div>
+                    <div id="timer" class="text-2xl font-bold text-red-500">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- コントロールとゲームメッセージ (レベル選択とリトライボタンを追加) -->
+        <div class="flex justify-center flex-col items-center mb-4">
+            <!-- Level Selection Radios -->
+            <div id="level-selection-container" class="mb-3 p-2 bg-gray-100 rounded-lg shadow-sm border border-gray-200 text-sm">
+                <span class="font-semibold text-gray-700 mr-2">レベル選択:</span>
+                <label class="mr-2 cursor-pointer">
+                    <input type="radio" name="difficulty" value="easy" checked>
+                    <span class="text-green-600 font-medium ml-0.5">かんたん</span>
+                </label>
+                <label class="mr-2 cursor-pointer">
+                    <input type="radio" name="difficulty" value="normal">
+                    <span class="text-blue-600 font-medium ml-0.5">ふつう</span>
+                </label>
+                <label class="cursor-pointer">
+                    <input type="radio" name="difficulty" value="hard">
+                    <span class="text-red-600 font-medium ml-0.5">むずかしい</span>
+                </label>
+            </div>
+            <!-- 獲得ポイント表示エリアを新設 -->
+            <div id="score-info" class="text-center text-sm text-gray-700 mb-4 p-2 rounded-lg bg-yellow-50 border border-yellow-200">
+                <!-- このエリアはJavaScriptによって更新されます -->
+                現在の獲得ポイント: <span id="current-score-display" class="font-bold text-green-700">+3 / <span class="text-red-600">-2</span> (叩き逃し: -1)</span>
+            </div>
+            
+            <!-- スタートボタンとリトライボタンを切り替えて表示 -->
+            <div class="flex flex-col items-center">
+                <button id="start-button" class="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg shadow-xl hover:bg-blue-700 transition duration-200 text-lg disabled:bg-gray-400">
+                    ゲームスタート
+                </button>
+                <button id="retry-button" class="hidden px-6 py-2 bg-red-600 text-white font-bold rounded-lg shadow-xl hover:bg-red-700 transition duration-200 text-lg mt-3">
+                    ゲームをリトライ
+                </button>
+            </div>
+        </div>
+
+        <!-- ***** ターゲット強調表示エリア ***** -->
+        <div class="w-full text-center mb-4 p-3 bg-yellow-100 rounded-xl shadow-md border border-yellow-300">
+            <div class="text-lg font-medium text-yellow-800">今のターゲット</div>
+            <div id="target-number-large" class="text-5xl font-extrabold text-yellow-700 mt-0.5">-</div>
+        </div>
+        <!-- ******************************************* -->
+
+        <!-- ゲームエリア（モグラの穴） -->
+        <!-- グリッドのギャップを小さく調整 -->
+        <div id="game-area" class="grid grid-cols-3 gap-3 md:gap-4 relative p-3 bg-green-50 rounded-xl shadow-inner border border-green-200">
+            <!-- JavaScriptで穴を動的に生成します -->
+        </div>
+        
+        <!-- ゲームオーバー/結果メッセージ -->
+        <div id="message-container" class="mt-4 text-center text-xl font-bold text-red-600 min-h-[30px]">
+            <!-- メッセージが表示されます -->
+        </div>
+
+    </div>
+
+    <script>
+        // DOM要素
+        const gameArea = document.getElementById('game-area');
+        const targetNumberLargeEl = document.getElementById('target-number-large');
+        const scoreEl = document.getElementById('score');
+        const comboDisplayEl = document.getElementById('combo-display'); // コンボ表示要素
+        const timerEl = document.getElementById('timer');
+        const startButton = document.getElementById('start-button');
+        const messageContainer = document.getElementById('message-container');
+        // 新しいDOM要素
+        const scoreInfoEl = document.getElementById('current-score-display');
+        const difficultyRadios = document.querySelectorAll('input[name="difficulty"]');
+        const retryButton = document.getElementById('retry-button'); // リトライボタン
+
+        // --- Tone.js セットアップ ---
+        // 正解音 (サイン波)
+        const correctSynth = new Tone.Synth({
+            oscillator: { type: "sine" },
+            envelope: { attack: 0.005, decay: 0.1, sustain: 0.05, release: 0.2 }
+        }).toDestination();
+
+        // 不正解音 (ノイズ)
+        const wrongSynth = new Tone.NoiseSynth({
+            noise: { type: "white" },
+            envelope: { attack: 0.005, decay: 0.15, sustain: 0, release: 0.1 }
+        }).toDestination();
+        
+        // 見逃し音 (低めのサイン波)
+        const missedSynth = new Tone.Synth({
+            oscillator: { type: "sine" },
+            envelope: { attack: 0.01, decay: 0.1, sustain: 0.01, release: 0.1 }
+        }).toDestination();
+        missedSynth.volume.value = -10; // 音量を少し下げる
+
+        // ターゲット変更時の音 (ポリシンセ)
+        const targetChangeSynth = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: "triangle" },
+            envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.3 }
+        }).toDestination();
+
+        let isAudioContextActive = false;
+
+        // AudioContextを有効化し、Tone.jsの実行を開始する
+        function activateAudioContext() {
+            if (!isAudioContextActive) {
+                // AudioContextを有効化
+                Tone.start();
+                isAudioContextActive = true;
+                console.log("AudioContext activated.");
+            }
+        }
+        
+        // --- ゲーム定数 (レベル設定) ---
+        const levelRates = {
+            easy: 1500, // 1.5秒ごとに出現チェック (モグラポップの間隔)
+            normal: 1000, // 1.0秒ごとに出現チェック
+            hard: 700   // 0.7秒ごとに出現チェック
+        };
+        // モグラの表示時間設定 (レベルに応じて調整)
+        const levelDisplayDurations = {
+            easy: 2500, // 2.5秒
+            normal: 2300, // 2.3秒
+            hard: 2000   // 2.0秒
+        };
+        
+        // レベルごとのターゲット数値の範囲 (min: 最小値, max: 最大値)
+        const levelTargetRanges = {
+            easy: { min: 2, max: 40 },      // 2から40までの約数を叩く
+            normal: { min: 10, max: 80 },   // 10から80までの約数を叩く
+            hard: { min: 30, max: 120 }     // 30から120までの約数を叩く
+        };
+
+        // レベルごとの獲得/減点ポイントと表示用のHTML
+        const levelScores = {
+            // miss: 叩き逃し時の減点ポイント (-1に固定)
+            easy: { correct: 3, incorrect: -2, miss: -1, display: '<span class="font-bold text-green-700">+3</span> / <span class="text-red-600">-2</span> (叩き逃し: -1)' },
+            normal: { correct: 5, incorrect: -3, miss: -1, display: '<span class="font-bold text-green-700">+5</span> / <span class="text-red-600">-3</span> (叩き逃し: -1)' },
+            hard: { correct: 10, incorrect: -5, miss: -1, display: '<span class="font-bold text-green-700">+10</span> / <span class="text-red-600">-5</span> (叩き逃し: -1)' }
+        };
+
+        const TARGET_CHANGE_DURATION = 10000; // 10秒ごとにターゲット変更
+        
+        // ゲームの状態
+        let score = 0;
+        let comboCount = 0; // コンボカウンターを追加
+        let timeLeft = 30; // 30秒
+        let gameActive = false;
+        let currentTarget = 0;
+        let molePopInterval = null; // モグラ出現のインターバルID
+        let timerInterval = null;    // タイマーのインターバルID
+        let targetChangeInterval = null; // ターゲット変更のインターバルID
+        let currentMoleDisplayDuration = 0; // 現在のモグラの表示時間
+        const numHoles = 9;
+
+        // --- ユーティリティ関数 ---
+
+        /**
+         * 素数であるか判定する
+         * @param {number} num - 判定したい数
+         * @returns {boolean} 素数であればtrue
+         */
+        function isPrime(num) {
+            if (num <= 1) return false;
+            if (num <= 3) return true;
+            if (num % 2 === 0 || num % 3 === 0) return false;
+            for (let i = 5; i * i <= num; i = i + 6) {
+                if (num % i === 0 || num % (i + 2) === 0) return false;
+            }
+            return true;
+        }
+
+        /**
+         * ターゲット数の約数を全て取得する
+         * @param {number} num - ターゲットの数
+         * @returns {Set<number>} 約数のSet
+         */
+        function getDivisors(num) {
+            const divisors = new Set();
+            for (let i = 1; i * i <= num; i++) {
+                if (num % i === 0) {
+                    divisors.add(i);
+                    divisors.add(num / i);
+                }
+            }
+            return divisors;
+        }
+
+        /**
+         * 約数であるか判定する
+         * @param {number} target - ターゲットの数
+         * @param {number} num - 判定したい数
+         * @returns {boolean} 約数であればtrue
+         */
+        function isDivisor(target, num) {
+            // 0は避ける
+            if (num === 0) return false;
+            return target % num === 0;
+        }
+        
+        /**
+         * 1から100の範囲で、ターゲットの約数ではないランダムな数を生成する
+         * @param {number} target - ターゲットの数
+         * @returns {number} 約数ではないランダムな数
+         */
+        function generateNonDivisor(target) {
+            let num;
+            // モグラの数字は最大100までとする (ターゲットの最大値120を超えてもOK)
+            do {
+                num = Math.floor(Math.random() * 100) + 1;
+            } while (isDivisor(target, num) || num === 1); 
+            return num;
+        }
+
+        // --- UI関連関数 ---
+
+        /**
+         * ゲームエリアにモグラの穴を生成する
+         */
+        function createHoles() {
+            gameArea.innerHTML = '';
+            for (let i = 0; i < numHoles; i++) {
+                const hole = document.createElement('div');
+                hole.className = 'mole-hole group';
+                hole.dataset.index = i;
+                
+                const mole = document.createElement('div');
+                mole.className = 'mole';
+                mole.dataset.number = 0; // モグラの持つ数字
+                mole.dataset.isDivisor = 'false'; // 約数かどうかを保持するフラグ
+                mole.addEventListener('click', handleHit);
+                
+                hole.appendChild(mole);
+                gameArea.appendChild(hole);
+            }
+        }
+
+        /**
+         * スコアと時間を更新して表示する
+         */
+        function updateDisplay() {
+            scoreEl.textContent = score;
+            comboDisplayEl.textContent = comboCount; // コンボ表示を更新
+            timerEl.textContent = timeLeft;
+            const displayTarget = currentTarget > 0 ? currentTarget : '-';
+            // 大きい表示を更新
+            targetNumberLargeEl.textContent = displayTarget;
+        }
+        
+        /**
+         * レベルに応じてポイント表示を更新する
+         */
+        function updateLevelScoreDisplay() {
+            // levelScoresが定義されていることを確認
+            if (typeof levelScores !== 'object') return;
+
+            const selectedLevel = document.querySelector('input[name="difficulty"]:checked').value;
+            // 選択されたレベルのデータがあることを確認
+            if (levelScores[selectedLevel] && levelScores[selectedLevel].display) {
+                const scoreHtml = levelScores[selectedLevel].display;
+                scoreInfoEl.innerHTML = scoreHtml;
+            }
+        }
+
+        /**
+         * ゲーム中のメッセージを一時的に表示する
+         * @param {string} text - 表示するテキスト
+         * @param {string} color - Tailwindのテキスト色クラス
+         */
+        function showHitMessage(text, color) {
+            const message = document.createElement('div');
+            message.className = `hit-message text-4xl font-black ${color}`;
+            message.textContent = text;
+            gameArea.appendChild(message);
+            
+            // アニメーション終了後に要素を削除
+            message.addEventListener('animationend', () => {
+                gameArea.removeChild(message);
+            });
+        }
+
+        // --- ゲームロジック ---
+
+        /**
+         * 新しいターゲット番号を設定し、表示を更新する
+         */
+        function setTargetNumber() {
+            // levelTargetRangesが定義されていることを確認
+            if (typeof levelTargetRanges !== 'object') return;
+            
+            const selectedLevel = document.querySelector('input[name="difficulty"]:checked').value;
+            const range = levelTargetRanges[selectedLevel];
+            let newTarget;
+
+            do {
+                // 範囲内のランダムな数字を生成: Math.floor(Math.random() * (max - min + 1)) + min
+                newTarget = Math.floor(Math.random() * (range.max - range.min + 1)) + range.min; 
+            } while (isPrime(newTarget) || newTarget === 1); // 素数ではない かつ 1 ではないことを保証
+            
+            if (gameActive) {
+                // ゲーム中に変更された場合、メッセージと効果音
+                showHitMessage(`ターゲット変更! ${newTarget}`, 'text-orange-500');
+                
+                if (isAudioContextActive) {
+                    targetChangeSynth.triggerAttackRelease(["C4", "E4", "G4"], "4n");
+                }
+
+                // 既存のモグラを全て隠し、不正解を防ぐ
+                document.querySelectorAll('.mole').forEach(mole => {
+                    mole.classList.remove('popped', 'hit-correct', 'hit-wrong', 'missed'); // missedも除去
+                    mole.dataset.number = 0;
+                    mole.dataset.isDivisor = 'false';
+                    mole.textContent = '';
+                });
+            }
+            
+            currentTarget = newTarget;
+            updateDisplay();
+        }
+
+        /**
+         * ゲームの状態をリセットする
+         */
+        function resetGame() {
+            score = 0;
+            comboCount = 0; // コンボをリセット
+            timeLeft = 30;
+            gameActive = false;
+            currentMoleDisplayDuration = 0; // リセット時にも表示時間を初期化
+            
+            // 既存のインターバルをクリア
+            clearInterval(timerInterval);
+            clearInterval(molePopInterval);
+            clearInterval(targetChangeInterval);
+
+            // リセット時に一度ターゲットを設定
+            setTargetNumber();
+            
+            messageContainer.textContent = '「ゲームスタート」を押してください';
+            
+            // UI制御: スタートボタンをリセットし、リトライボタンを隠す
+            startButton.textContent = 'ゲームスタート';
+            startButton.disabled = false;
+            startButton.classList.remove('hidden');
+            retryButton.classList.add('hidden');
+            
+            // 全てのモグラを隠す
+            document.querySelectorAll('.mole').forEach(mole => {
+                mole.classList.remove('popped', 'hit-correct', 'hit-wrong', 'missed'); // missedも除去
+                mole.dataset.number = 0;
+                mole.dataset.isDivisor = 'false';
+                mole.textContent = '';
+            });
+            
+            updateDisplay();
+            updateLevelScoreDisplay(); // ポイント表示も初期化
+        }
+
+        /**
+         * ゲームをスタートする
+         */
+        function startGame() {
+            if (gameActive) return;
+
+            activateAudioContext();
+
+            gameActive = true;
+            // UI制御: スタートボタンを隠し、リトライボタンを表示
+            startButton.classList.add('hidden'); 
+            retryButton.classList.remove('hidden');
+            messageContainer.textContent = '';
+            
+            // ターゲット変更インターバルを開始
+            targetChangeInterval = setInterval(setTargetNumber, TARGET_CHANGE_DURATION);
+
+            // 選択されたレベルに応じて設定を取得
+            const selectedLevel = document.querySelector('input[name="difficulty"]:checked').value;
+            const popRate = levelRates[selectedLevel] || levelRates.normal;
+            // モグラの表示時間を設定
+            currentMoleDisplayDuration = levelDisplayDurations[selectedLevel] || levelDisplayDurations.normal; 
+            
+            // タイマーを開始
+            timerInterval = setInterval(updateTimer, 1000);
+            
+            // モグラの出現を開始
+            molePopInterval = setInterval(popRandomMole, popRate);
+        }
+
+        /**
+         * ゲームをストップする（時間切れ）
+         */
+        function stopGame() {
+            gameActive = false;
+            clearInterval(timerInterval);
+            clearInterval(molePopInterval);
+            clearInterval(targetChangeInterval);
+
+            // 全てのモグラを隠す
+            document.querySelectorAll('.mole').forEach(mole => {
+                mole.classList.remove('popped', 'hit-correct', 'hit-wrong', 'missed');
+            });
+            
+            // --- スコア評価ロジック ---
+            let evaluationMessage = '';
+            let evaluationRank = '';
+            
+            if (score === 0) {
+                evaluationRank = 'C-';
+                evaluationMessage = '修行が足りません... モグラに翻弄されました。';
+            } else if (score <= 20) {
+                evaluationRank = 'C';
+                evaluationMessage = 'まだ基礎段階です。約数の理解を深めましょう。';
+            } else if (score <= 50) {
+                evaluationRank = 'B';
+                evaluationMessage = '普通レベルの腕前です！コンボを意識してスコアアップ！';
+            } else if (score <= 100) {
+                evaluationRank = 'A';
+                evaluationMessage = 'かなりの実力者！約数博士にリーチです！';
+            } else {
+                evaluationRank = 'S';
+                evaluationMessage = '約数マスター！神業の反射神経と知識です！';
+            }
+
+            messageContainer.innerHTML = `
+                <div class="text-3xl font-extrabold text-red-600 mb-1">ゲームオーバー！</div>
+                <div class="text-4xl font-black text-green-700 mb-3">最終スコア: ${score}点 (評価: ${evaluationRank})</div>
+                <div class="text-xl font-semibold text-gray-700 p-2 bg-yellow-100 rounded-lg shadow-inner">${evaluationMessage}</div>
+            `;
+            
+            // UI制御: リトライボタンを隠し、スタートボタン（リトライ待ち）を再表示
+            retryButton.classList.add('hidden');
+            startButton.classList.remove('hidden');
+            startButton.textContent = 'リトライ (3秒後にリセット)';
+            startButton.disabled = true;
+
+            // 3秒後にリセット
+            setTimeout(resetGame, 3000);
+        }
+
+        /**
+         * タイマーを更新する
+         */
+        function updateTimer() {
+            timeLeft--;
+            timerEl.textContent = timeLeft;
+            
+            if (timeLeft <= 0) {
+                stopGame();
+            }
+        }
+
+        /**
+         * ランダムな穴からモグラを出現させる
+         */
+        function popRandomMole() {
+            if (!gameActive) return;
+
+            const moles = document.querySelectorAll('.mole');
+            
+            // 既にモグラが出現している穴があれば、処理を行う
+            const poppedMoles = Array.from(moles).filter(m => m.classList.contains('popped'));
+            poppedMoles.forEach(moleToHide => {
+                
+                // 約数だった場合（isDivisorが'true'の場合）に見逃しペナルティを適用
+                if (moleToHide.dataset.isDivisor === 'true') {
+                    // スコアを-1し、0未満にならないようにする
+                    const selectedLevel = document.querySelector('input[name="difficulty"]:checked').value;
+                    const missScore = levelScores[selectedLevel].miss; // missは-1
+                    
+                    score = Math.max(0, score + missScore);
+                    
+                    // 見逃しメッセージと効果音
+                    showHitMessage(`見逃し! ${missScore}`, 'text-orange-500');
+                    if (isAudioContextActive) {
+                        missedSynth.triggerAttackRelease("C3", "16n");
+                    }
+                    
+                    // --- コンボリセット ---
+                    if (comboCount > 0) {
+                        showHitMessage(`COMBO BREAK! (${comboCount})`, 'text-red-500');
+                    }
+                    comboCount = 0;
+                    updateDisplay(); // コンボリセット後の表示更新
+
+                    // 見逃しフィードバックとして色を変える
+                    moleToHide.classList.add('missed');
+                    updateDisplay();
+                    
+                    // フィードバック表示時間後にリセット
+                    setTimeout(() => {
+                        moleToHide.classList.remove('popped', 'missed');
+                        moleToHide.dataset.number = 0;
+                        moleToHide.dataset.isDivisor = 'false';
+                        moleToHide.textContent = '';
+                    }, 200);
+
+                } else {
+                    // 約数ではないモグラが隠れる場合はペナルティなし
+                    moleToHide.classList.remove('popped');
+                    moleToHide.dataset.number = 0;
+                    moleToHide.dataset.isDivisor = 'false';
+                    moleToHide.textContent = '';
+                }
+            });
+
+            // 新しく出現させる穴をランダムに選ぶ
+            let availableMoles = Array.from(moles).filter(m => !m.classList.contains('popped') && !m.classList.contains('missed'));
+            if (availableMoles.length === 0) availableMoles = moles;
+            
+            const mole = availableMoles[Math.floor(Math.random() * availableMoles.length)];
+            
+            // モグラが持つ数字を決定
+            const targetDivisors = getDivisors(currentTarget);
+            
+            // 約数 (正解) の出現確率を調整 (70%のまま)
+            const isCorrect = Math.random() < 0.7;
+            
+            let num;
+            let isDivisorFlag = false;
+
+            if (isCorrect && targetDivisors.size > 0) {
+                // 正解の約数をランダムに選ぶ 
+                const divisorArray = Array.from(targetDivisors);
+                num = divisorArray[Math.floor(Math.random() * divisorArray.length)];
+                isDivisorFlag = true;
+            } else {
+                // 不正解の非約数を生成
+                num = generateNonDivisor(currentTarget);
+                isDivisorFlag = false;
+            }
+
+            // モグラを出現させ、数字と約数フラグを設定
+            mole.dataset.number = num;
+            mole.dataset.isDivisor = isDivisorFlag.toString(); // booleanを文字列で保存
+            mole.textContent = num;
+            mole.classList.add('popped');
+
+            // 出現後、一定時間後に自動で隠れるようにする
+            setTimeout(() => {
+                if (mole.classList.contains('popped')) {
+                    // 何もしないか、次のpopRandomMoleが処理することを期待する
+                    // モグラの自動隠蔽ロジックはpopRandomMoleの先頭に移動し、見逃し処理を行う
+                }
+            }, currentMoleDisplayDuration);
+        }
+
+        /**
+         * モグラが叩かれた時の処理
+         * @param {Event} event - クリックイベント
+         */
+        function handleHit(event) {
+            if (!gameActive) return;
+
+            activateAudioContext();
+
+            const mole = event.currentTarget;
+            if (!mole.classList.contains('popped')) return;
+
+            const number = parseInt(mole.dataset.number);
+
+            // 叩いたモグラを即座に隠す（アニメーションのために一時的に残す）
+            mole.classList.remove('popped');
+
+            const isCorrectHit = isDivisor(currentTarget, number);
+
+            // 選択されているレベルのスコアを取得
+            if (typeof levelScores !== 'object') return; 
+
+            const selectedLevel = document.querySelector('input[name="difficulty"]:checked').value;
+            const scores = levelScores[selectedLevel];
+
+
+            if (isCorrectHit) {
+                // --- 正解 (コンボ成立) ---
+                
+                // 1. スコア加算 (基本点)
+                score += scores.correct;
+                
+                // 2. コンボ処理
+                comboCount++;
+                let comboBonus = 0;
+                if (comboCount >= 5) {
+                    // 5コンボごとにボーナス点 (例: 5コンボで+1, 10コンボで+2)
+                    comboBonus = Math.floor(comboCount / 5); 
+                    score += comboBonus;
+                }
+                
+                // 3. メッセージ表示
+                const comboMessage = comboCount >= 5 ? ` +${comboBonus} (x${comboCount} COMBO!)` : '';
+                showHitMessage(`+${scores.correct}!! 正解${comboMessage}`, 'text-green-600');
+                
+                correctSynth.triggerAttackRelease("C5", "8n");
+                mole.classList.add('hit-correct');
+
+                scoreEl.classList.add('bump');
+                comboDisplayEl.classList.add('grow'); // コンボアニメーション
+                setTimeout(() => {
+                    scoreEl.classList.remove('bump');
+                    comboDisplayEl.classList.remove('grow');
+                }, 300);
+
+
+            } else {
+                // --- 不正解 (コンボリセット) ---
+                score = Math.max(0, score + scores.incorrect); // scores.incorrectは負の数
+                showHitMessage(`${scores.incorrect}... 不正解`, 'text-red-600');
+                
+                wrongSynth.triggerAttackRelease("16n");
+                mole.classList.add('hit-wrong');
+                
+                // コンボリセット
+                if (comboCount > 0) {
+                    showHitMessage(`COMBO BREAK! (${comboCount})`, 'text-red-500');
+                }
+                comboCount = 0;
+            }
+
+            // 叩いたモグラのビジュアルフィードバック時間を与える
+            setTimeout(() => {
+                // 最終的にモグラをリセット
+                mole.classList.remove('hit-correct', 'hit-wrong', 'missed');
+                mole.dataset.number = 0;
+                mole.dataset.isDivisor = 'false';
+                mole.textContent = '';
+            }, 200); 
+            
+            updateDisplay();
+        }
+
+        /**
+         * ゲーム途中でリトライする際の処理
+         */
+        function handleRetry() {
+            // 既存のインターバルを全てクリアし、状態をリセット
+            resetGame();
+            
+            // すぐにスタート
+            startGame();
+        }
+
+        // --- 初期化とイベントリスナー ---
+        
+        // ページロード時に穴を生成し、ゲームをリセット
+        window.onload = function() {
+            createHoles();
+            resetGame();
+            
+            // スタートボタンが押された時にもAudioContextを有効化
+            startButton.addEventListener('click', activateAudioContext);
+
+            // レベル選択が変更されたらポイント表示を更新するリスナー
+            difficultyRadios.forEach(radio => {
+                radio.addEventListener('change', updateLevelScoreDisplay);
+            });
+            
+            // リトライボタンのイベントリスナー
+            retryButton.addEventListener('click', handleRetry);
+        }
+
+        startButton.addEventListener('click', startGame);
+
+    </script>
+</body>
+</html>
