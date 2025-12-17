@@ -6,6 +6,8 @@
     <title>算数ブロック崩し</title>
     <!-- Tailwind CSS CDNの読み込み -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js CDNの読み込み (効果音用) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
         /* カスタムスタイル */
         body {
@@ -46,12 +48,6 @@
         #quizModalOverlay {
             background-color: rgba(0, 0, 0, 0.7);
             z-index: 10;
-        }
-        /* ブロックのテキストを中央に配置するためのCSS */
-        .brick-text {
-            color: white; /* ブロック内の文字色 */
-            font-weight: bold;
-            font-size: 14px;
         }
     </style>
 </head>
@@ -130,6 +126,75 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
+        // --- Tone.js (効果音) の設定 ---
+        // 壁・パドル衝突音 (PolySynth - Sine)
+        const wallSynth = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: 'sine' },
+            envelope: { attack: 0.001, decay: 0.1, sustain: 0.1, release: 0.2 },
+            volume: -15
+        }).toDestination();
+        
+        // コード音/ゲームオーバー音 (PolySynth - Chord)
+        // 和音を鳴らすための専用シンセ
+        const chordSynth = new Tone.PolySynth(Tone.Synth, {
+             oscillator: { type: 'triangle' }, 
+             envelope: { attack: 0.01, decay: 0.5, sustain: 0.1, release: 1 },
+             volume: -12
+        }).toDestination();
+
+        // ブロック破壊・不正解音 (MembraneSynth - Kick/Percussion)
+        // 単音の打楽器的な音に使用
+        const blockSynth = new Tone.MembraneSynth({
+            pitchDecay: 0.02,
+            octaves: 5,
+            envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 0.8 },
+            volume: -10
+        }).toDestination();
+
+        // パワーアップ取得音
+        const powerUpSynth = new Tone.DuoSynth({
+            vibratoAmount: 0.5,
+            vibratoRate: 5,
+            harmonicity: 1.5,
+            volume: -10,
+            voice0: {
+                oscillator: { type: 'sine' },
+                filter: { Q: 2, type: 'lowpass', rolloff: -24 },
+                envelope: { attack: 0.005, decay: 0.1, sustain: 0.4, release: 1 }
+            },
+            voice1: {
+                oscillator: { type: 'sine' },
+                filter: { Q: 2, type: 'lowpass', rolloff: -24 },
+                envelope: { attack: 0.005, decay: 0.1, sustain: 0.4, release: 1 }
+            }
+        }).toDestination();
+        
+        // --- サウンド再生関数 ---
+        function playSound(type) {
+            // Tone.jsがまだ初期化されていない場合は、ユーザーアクションなしで再生しようとするとエラーになるため、安全チェック
+            if (Tone.context.state !== 'running') {
+                Tone.start();
+            }
+
+            if (type === 'wall') {
+                wallSynth.triggerAttackRelease('C4', '16n');
+            } else if (type === 'paddle') {
+                wallSynth.triggerAttackRelease('E4', '32n');
+            } else if (type === 'correct') {
+                // 正解/クリア音は明るいコード (chordSynthを使用)
+                chordSynth.triggerAttackRelease(['C5', 'E5', 'G5'], '8n'); 
+            } else if (type === 'incorrect') {
+                // 不正解音は低く短い音 (blockSynthを使用)
+                blockSynth.triggerAttackRelease('C3', '8n');
+            } else if (type === 'powerup') {
+                powerUpSynth.triggerAttackRelease('C6', '8n', Tone.now(), 0.5);
+            } else if (type === 'gameover') {
+                // ゲームオーバー音は低い不協和音 (chordSynthを使用)
+                chordSynth.triggerAttackRelease(['G2', 'C#2'], '2n');
+            }
+        }
+        // --- Tone.js 設定ここまで ---
+
         // ボール速度のレベル定義
         const speedLevels = {
             easy: 1.5,   // 初級 (遅い)
@@ -163,7 +228,7 @@
             width: PADDLE_INITIAL_WIDTH,
             x: (canvas.width - PADDLE_INITIAL_WIDTH) / 2,
             dx: 5,
-            color: '#4a90e2' // 青
+            color: '#00ffff' // 蛍光シアン (ビジュアル強化)
         };
 
         const ball = {
@@ -172,22 +237,24 @@
             y: canvas.height - 30,
             dx: 2, // 速度はresetGameで上書きされます
             dy: -2, // 速度はresetGameで上書きされます
-            color: '#f6ad55' // オレンジ
+            color: '#ff69b4' // 蛍光ピンク (ビジュアル強化)
         };
 
-        // グリッド配置用の初期設定 (バラバラ配置では上書きされます)
+        // グリッド配置用の初期設定 (隙間を確保しつつCanvas幅に合わせる)
+        // Canvas幅: 500px, 列数: 7, 隙間(Padding): 2px
+        // 7 * 68 + 6 * 2 + 2 * 3 = 476 + 12 + 6 = 494 (左右に3pxの隙間が残る)
         const gridInfo = {
             rows: 5,
-            cols: 8,
-            width: 60,
+            cols: 7, // 7列
+            width: 68, // ブロックの横幅
             height: 20,
-            padding: 5,
-            offsetX: 20,
+            padding: 2, // ブロック間の隙間 (2px)
+            offsetX: 3, // Canvas左右の隙間 (3px)
             offsetY: 20,
             colors: ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6'] // 赤、オレンジ、緑、青、紫
         };
 
-        // ブロックの配列 (フラット配列に統一)
+        // ブロックの配列
         let bricks = [];
         // 現在、ボールが衝突した、または衝突する予定のブロック
         let currentTargetBrick = null;
@@ -195,8 +262,8 @@
         // DOM要素
         const scoreDisplay = document.getElementById('scoreDisplay');
         const startButton = document.getElementById('startButton');
-        const retryButton = document.getElementById('retryButton'); // リトライボタン
-        const cheatSpeedResetButton = document.getElementById('cheatSpeedResetButton'); // スピードリセットボタン
+        const retryButton = document.getElementById('retryButton'); 
+        const cheatSpeedResetButton = document.getElementById('cheatSpeedResetButton'); 
         const quizModalOverlay = document.getElementById('quizModalOverlay');
         const quizProblemText = document.getElementById('quizProblem');
         const quizAnswerInput = document.getElementById('quizAnswerInput');
@@ -205,10 +272,10 @@
         const gameEndModalOverlay = document.getElementById('gameEndModalOverlay');
         const gameEndTitle = document.getElementById('gameEndTitle');
         const finalScoreDisplay = document.getElementById('finalScoreDisplay');
-        const scoreMessage = document.getElementById('scoreMessage'); // スコアメッセージ表示要素
+        const scoreMessage = document.getElementById('scoreMessage');
         const restartButton = document.getElementById('restartButton');
         const powerUpStatus = document.getElementById('powerUpStatus');
-        const difficultySelection = document.getElementById('difficulty-selection'); // 難易度選択コンテナ
+        const difficultySelection = document.getElementById('difficulty-selection'); 
 
 
         /**
@@ -268,7 +335,8 @@
             bricks = [];
             let totalBricks = 0;
             const powerUpTypes = ['paddle_boost', 'slow_ball'];
-            const BRICK_PADDING = 5; // グリッド/バラバラ両方の配置の隙間に使用
+            
+            const BRICK_PADDING = gridInfo.padding; 
 
             if (difficulty === 'super_hard') {
                 // --- 超級 (バラバラ配置) ---
@@ -285,12 +353,12 @@
                 // 衝突チェック関数 (配置時の重なり防止用)
                 const isOverlapping = (x, y) => {
                     for (const pos of existingPositions) {
-                        // 1.5は配置の安全マージン
+                        // 2は配置の安全マージン（バラバラ配置では少し隙間を設ける）
                         if (
-                            x < pos.x + BRICK_WIDTH + BRICK_PADDING * 1.5 && 
-                            x + BRICK_WIDTH + BRICK_PADDING * 1.5 > pos.x &&
-                            y < pos.y + BRICK_HEIGHT + BRICK_PADDING * 1.5 &&
-                            y + BRICK_HEIGHT + BRICK_PADDING * 1.5 > pos.y
+                            x < pos.x + BRICK_WIDTH + 2 && 
+                            x + BRICK_WIDTH + 2 > pos.x &&
+                            y < pos.y + BRICK_HEIGHT + 2 &&
+                            y + BRICK_HEIGHT + 2 > pos.y
                         ) {
                             return true;
                         }
@@ -343,13 +411,16 @@
                 const GRID_WIDTH = gridInfo.width;
                 const GRID_HEIGHT = gridInfo.height;
                 const TOTAL_ROWS = gridInfo.rows;
-                const TOTAL_COLS = gridInfo.cols;
+                const TOTAL_COLS = gridInfo.cols; 
+                const GRID_OFFSET_Y = gridInfo.offsetY;
+                const GRID_OFFSET_X = gridInfo.offsetX; 
+
                 
                 // 行ごとに特殊ブロックの位置 (列インデックス) を決定する
-                const specialBrickPositions = []; // 例: [[0, 3], [1, 4], ...]
+                const specialBrickPositions = []; 
 
                 for (let r = 0; r < TOTAL_ROWS; r++) {
-                    const positions = Array.from({ length: TOTAL_COLS }, (_, i) => i); // [0, 1, 2, ..., 7]
+                    const positions = Array.from({ length: TOTAL_COLS }, (_, i) => i); 
                     shuffleArray(positions);
                     
                     // 行ごとに特殊ブロックの数をランダムに1個または2個に決定
@@ -362,8 +433,9 @@
 
                 for (let c = 0; c < TOTAL_COLS; c++) {
                     for (let r = 0; r < TOTAL_ROWS; r++) {
-                        const x = c * (GRID_WIDTH + gridInfo.padding) + gridInfo.offsetX;
-                        const y = r * (GRID_HEIGHT + gridInfo.padding) + gridInfo.offsetY;
+                        // ブロック幅とパディングを考慮して配置
+                        const x = c * (GRID_WIDTH + BRICK_PADDING) + GRID_OFFSET_X; 
+                        const y = r * (GRID_HEIGHT + BRICK_PADDING) + GRID_OFFSET_Y; 
                         
                         // この列が特殊ブロックの位置かチェック
                         const isSpecial = specialBrickPositions[r].includes(c);
@@ -407,46 +479,68 @@
         }
 
         /**
-         * パドルを描画
+         * パドルを描画 (ビジュアル強化: 影とハイライト)
          */
         function drawPaddle() {
             ctx.beginPath();
             ctx.rect(paddle.x, canvas.height - paddle.height, paddle.width, paddle.height);
+            
+            // 立体感のための影 (蛍光色)
+            ctx.shadowColor = paddle.color;
+            ctx.shadowBlur = 10;
             ctx.fillStyle = paddle.color;
             ctx.fill();
             ctx.closePath();
+            ctx.shadowBlur = 0; // 影をリセット
+            
+            // ハイライト (上面)
+            ctx.fillStyle = '#ffffff80'; // 半透明の白
+            ctx.fillRect(paddle.x, canvas.height - paddle.height, paddle.width, 1);
         }
 
         /**
-         * ボールを描画
+         * ボールを描画 (ビジュアル強化: 蛍光効果)
          */
         function drawBall() {
             ctx.beginPath();
             ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            
+            // 蛍光色の効果
+            ctx.shadowColor = ball.color;
+            ctx.shadowBlur = 8;
             ctx.fillStyle = ball.color;
             ctx.fill();
             ctx.closePath();
+            ctx.shadowBlur = 0; // 影をリセット
         }
 
         /**
-         * ブロックを描画 (フラット配列に対応)
+         * ブロックを描画 (ビジュアル強化: 境界線と影)
          */
         function drawBricks() {
             for (const b of bricks) {
                 if (b.status === 1) {
                     ctx.beginPath();
-                    // ブロックオブジェクトの width と height を使用
                     ctx.rect(b.x, b.y, b.width, b.height); 
+                    
+                    // ブロックの影と色
+                    ctx.shadowColor = b.color;
+                    ctx.shadowBlur = 5;
                     ctx.fillStyle = b.color;
                     ctx.fill();
                     ctx.closePath();
+                    ctx.shadowBlur = 0; // 影をリセット
+                    
+                    // 境界線を追加
+                    ctx.strokeStyle = '#0d1117'; // 背景色に近い色で境界線を作成 (隙間を演出)
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
 
                     // 問題文またはパワーアップ記号を描画
                     ctx.fillStyle = b.type === 'none' ? 'white' : 'black'; 
                     ctx.font = '12px Arial';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-                    // ブロックオブジェクトの width と height を使用
                     ctx.fillText(b.display, b.x + b.width / 2, b.y + b.height / 2);
                 }
             }
@@ -478,13 +572,9 @@
             const minDyMagnitude = currentSpeed * MIN_VERTICAL_SPEED_FACTOR;
 
             if (Math.abs(ball.dy) < minDyMagnitude) {
-                // 垂直速度が浅すぎる場合、垂直速度を最低閾値まで引き上げる
                 const newDyMagnitude = minDyMagnitude;
-                
-                // 総速度(currentSpeed)を維持するために新しい水平速度を計算
                 const newDxMagnitude = Math.sqrt(currentSpeed * currentSpeed - newDyMagnitude * newDyMagnitude);
 
-                // 速度を更新 (方向は維持)
                 ball.dy = Math.sign(ball.dy) * newDyMagnitude;
                 ball.dx = Math.sign(ball.dx) * newDxMagnitude;
             }
@@ -504,15 +594,18 @@
             if (ball.x + ball.radius > canvas.width) {
                 ball.dx *= -1;
                 ball.x = canvas.width - ball.radius; 
+                playSound('wall'); 
             } else if (ball.x - ball.radius < 0) {
                 ball.dx *= -1;
                 ball.x = ball.radius; 
+                playSound('wall');
             }
 
             // 壁の衝突判定 (上)
             if (ball.y - ball.radius < 0) {
                 ball.dy *= -1;
                 ball.y = ball.radius;
+                playSound('wall');
             }
 
             // 壁の衝突判定 (下 - ゲームオーバー)
@@ -542,6 +635,7 @@
 
                 // パドル反射後も垂直バイアスを適用
                 applyVerticalBiasToBall();
+                playSound('paddle'); // パドル衝突音
             }
 
             // ブロックとの衝突判定
@@ -556,7 +650,7 @@
                 const b = bricks[i];
 
                 if (b.status === 1) {
-                    // AABB衝突判定 (b.width と b.height を使用)
+                    // AABB衝突判定
                     if (
                         ball.x + ball.radius > b.x &&
                         ball.x - ball.radius < b.x + b.width &&
@@ -569,6 +663,7 @@
 
                         // 特殊ブロックの場合はクイズなしで即座にパワーアップ処理へ
                         if (b.type !== 'none') {
+                            playSound('powerup'); // パワーアップ取得音
                             applyPowerUp(b.type);
                             
                             // ブロック破壊
@@ -646,11 +741,12 @@
 
             if (userAnswer === correctAnswer) {
                 // 正解
+                playSound('correct'); // 正解音
                 quizMessage.textContent = '正解！ブロックを破壊しました！';
                 quizMessage.classList.remove('text-red-400');
                 quizMessage.classList.add('text-green-400');
 
-                // 0.5秒後にブロック破壊処理とゲーム再開
+                // 応答性を高めるため、0.2秒後にブロック破壊処理とゲーム再開
                 setTimeout(() => {
                     // ブロック破壊
                     currentTargetBrick.status = 0;
@@ -673,21 +769,21 @@
                     quizModalOverlay.classList.add('hidden', 'opacity-0');
                     currentTargetBrick = null; // ターゲットをリセット
                     gamePaused = false; // ゲーム再開
-                    draw(); 
-
+                    
                     // ゲームクリア判定
                     if (bricksLeft === 0) {
                         endGame('ゲームクリア！おめでとう！');
                     }
-                }, 500);
+                }, 200); // 0.2秒後に処理実行
 
             } else {
                 // 不正解
+                playSound('incorrect'); // 不正解音
                 quizMessage.textContent = '不正解です。ブロックは壊れませんでした。';
                 quizMessage.classList.remove('text-green-400');
                 quizMessage.classList.add('text-red-400');
 
-                // 0.5秒後にゲーム再開
+                // 応答性を高めるため、0.2秒後にゲーム再開
                 setTimeout(() => {
                     // ボールの反射（不正解でもボールは跳ね返る）
                     if (currentTargetBrick.reflect === 'y') {
@@ -704,8 +800,7 @@
                     quizModalOverlay.classList.add('hidden', 'opacity-0');
                     currentTargetBrick = null; // ターゲットをリセット
                     gamePaused = false; // ゲーム再開
-                    draw(); 
-                }, 500);
+                }, 200); // 0.2秒後に処理実行
             }
         }
         
@@ -764,7 +859,12 @@
         /**
          * スコアに基づいたメッセージを取得
          */
-        function getScoreMessage(finalScore) {
+        function getScoreMessage(finalScore, isClear) {
+            if (isClear) {
+                if (finalScore >= 300) return '🎉 完璧！驚異的な計算力とテクニック！';
+                return '🌟 ゲームクリア！素晴らしい成績です！';
+            }
+            
             if (finalScore >= 300) {
                 return '🎉 驚異的！算数の神！あなたはマスターです！';
             } else if (finalScore >= 200) {
@@ -788,8 +888,20 @@
             
             gameEndTitle.textContent = title;
             finalScoreDisplay.textContent = score;
-            // スコアに基づいたメッセージを設定
-            scoreMessage.textContent = getScoreMessage(score); 
+            
+            const isClear = title.includes('クリア');
+            scoreMessage.textContent = getScoreMessage(score, isClear); 
+            
+            if (isClear) {
+                playSound('correct');
+                gameEndModal.classList.remove('border-red-500');
+                gameEndModal.classList.add('border-green-500');
+            } else {
+                playSound('gameover');
+                gameEndModal.classList.remove('border-green-500');
+                gameEndModal.classList.add('border-red-500');
+            }
+
 
             gameEndModalOverlay.classList.remove('hidden', 'opacity-0');
             gameEndModalOverlay.classList.add('flex', 'opacity-100');
@@ -815,6 +927,8 @@
             paddle.x = (canvas.width - paddle.width) / 2;
             ball.x = canvas.width / 2;
             ball.y = canvas.height - 30;
+            
+            // ボールの初速をランダムに設定
             ball.dx = (Math.random() > 0.5 ? 1 : -1) * speed; 
             ball.dy = -speed;
 
@@ -878,6 +992,10 @@
         // タッチ操作によるパドル制御 (モバイル対応)
         let lastTouchX = null;
         canvas.addEventListener('touchstart', (e) => {
+            // Tone.jsの初期化 (ユーザーの最初の操作で実行)
+            if (Tone.context.state !== 'running') {
+                Tone.start();
+            }
             if (e.touches.length === 1) {
                 lastTouchX = e.touches[0].clientX;
             }
@@ -905,8 +1023,11 @@
 
         // 難易度変更イベントリスナー (ラジオボタン)
         difficultySelection.addEventListener('change', (e) => {
+             // Tone.jsの初期化 (ユーザーの最初の操作で実行)
+            if (Tone.context.state !== 'running') {
+                Tone.start();
+            }
             // 難易度が変更されたら、ゲームを強制的に初期化し、開始待ち状態に戻す
-            // resetGame(true)はスコア、ブロック、速度、UIをリセットします。
             resetGame(true); 
             
             // UIを「ゲーム開始」の状態に戻す
@@ -919,6 +1040,10 @@
 
         // スタートボタン
         startButton.addEventListener('click', () => {
+            // Tone.jsの初期化 (ユーザーの最初の操作で実行)
+            if (Tone.context.state !== 'running') {
+                Tone.start();
+            }
             if (!gameActive || bricksLeft === 0) {
                 // 初回スタートまたはゲームクリア後のリセット (フルリセット)
                 resetGame(true);
@@ -932,6 +1057,10 @@
 
         // リトライボタン (ゲーム途中でのリセット)
         retryButton.addEventListener('click', () => {
+             // Tone.jsの初期化 (ユーザーの最初の操作で実行)
+            if (Tone.context.state !== 'running') {
+                Tone.start();
+            }
             if (gameActive) {
                 // フルリセット
                 resetGame(true);
