@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Element Catch - 理科の学習ゲーム</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            touch-action: none;
+            overflow: hidden;
+            background: #0f172a;
+        }
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            max-width: 600px;
+            margin: 0 auto;
+            background: linear-gradient(to bottom, #1e293b, #0f172a);
+            overflow: hidden;
+            border-left: 2px solid #334155;
+            border-right: 2px solid #334155;
+        }
+        .element-item {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            user-select: none;
+        }
+        #basket {
+            position: absolute;
+            bottom: 40px;
+            width: 120px;
+            height: 60px;
+            background: #3b82f6;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.5);
+            transition: transform 0.1s ease-out;
+            z-index: 10;
+        }
+        #score-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            z-index: 20;
+        }
+        #target-display {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px 20px;
+            border-radius: 20px;
+            color: #60a5fa;
+            font-weight: bold;
+            backdrop-filter: blur(4px);
+            z-index: 20;
+        }
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <!-- UI Elements -->
+    <div id="score-panel">
+        <div class="text-sm opacity-70">SCORE</div>
+        <div id="score-value" class="text-3xl font-bold">0</div>
+        <div id="lives-display" class="mt-2 text-xl text-red-400">❤️❤️❤️</div>
+    </div>
+
+    <div id="target-display">
+        目標: <span id="target-name">???</span>
+    </div>
+
+    <!-- Basket -->
+    <div id="basket">
+        <span class="text-xs opacity-80">キャッチ！</span>
+        <span id="basket-label">読み込み中</span>
+    </div>
+
+    <!-- Start Overlay -->
+    <div id="overlay" class="absolute inset-0 z-50 flex items-center justify-center bg-black/80 p-6 text-center">
+        <div id="start-screen">
+            <h1 class="text-4xl font-bold text-white mb-4">Element Catch</h1>
+            <p class="text-slate-300 mb-8">
+                落ちてくる元素記号を正しく選んでキャッチしよう！<br>
+                左右にスワイプまたはマウスで操作します。
+            </p>
+            <button onclick="startGame()" class="px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-full transition-all transform hover:scale-105">
+                ゲーム開始
+            </button>
+        </div>
+        <div id="game-over-screen" class="hidden">
+            <h2 class="text-4xl font-bold text-red-500 mb-2">GAME OVER</h2>
+            <p id="final-score" class="text-2xl text-white mb-6">スコア: 0</p>
+            <button onclick="restartGame()" class="px-8 py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-full">
+                もう一度プレイ
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const elements = [
+        { symbol: 'H', name: '水素', color: '#ef4444' },
+        { symbol: 'He', name: 'ヘリウム', color: '#f97316' },
+        { symbol: 'Li', name: 'リチウム', color: '#f59e0b' },
+        { symbol: 'Be', name: 'ベリリウム', color: '#eab308' },
+        { symbol: 'B', name: 'ホウ素', color: '#84cc16' },
+        { symbol: 'C', name: '炭素', color: '#22c55e' },
+        { symbol: 'N', name: '窒素', color: '#10b981' },
+        { symbol: 'O', name: '酸素', color: '#06b6d4' },
+        { symbol: 'F', name: 'フッ素', color: '#0ea5e9' },
+        { symbol: 'Ne', name: 'ネオン', color: '#3b82f6' },
+        { symbol: 'Na', name: 'ナトリウム', color: '#6366f1' },
+        { symbol: 'Mg', name: 'マグネシウム', color: '#8b5cf6' },
+        { symbol: 'Al', name: 'アルミニウム', color: '#a855f7' },
+        { symbol: 'Si', name: 'ケイ素', color: '#d946ef' },
+        { symbol: 'P', name: 'リン', color: '#ec4899' },
+        { symbol: 'S', name: '硫黄', color: '#f43f5e' },
+        { symbol: 'Cl', name: '塩素', color: '#64748b' },
+        { symbol: 'K', name: 'カリウム', color: '#ef4444' },
+        { symbol: 'Ca', name: 'カルシウム', color: '#f97316' },
+        { symbol: 'Fe', name: '鉄', color: '#71717a' },
+        { symbol: 'Cu', name: '銅', color: '#b45309' },
+        { symbol: 'Ag', name: '銀', color: '#94a3b8' },
+        { symbol: 'Au', name: '金', color: '#eab308' }
+    ];
+
+    let score = 0;
+    let lives = 3;
+    let gameActive = false;
+    let targetElement = null;
+    let basketX = 0;
+    let containerWidth = 0;
+    let items = [];
+    let lastSpawnTime = 0;
+    let spawnInterval = 1500;
+    let fallSpeed = 3;
+
+    const container = document.getElementById('game-container');
+    const basket = document.getElementById('basket');
+    const scoreVal = document.getElementById('score-value');
+    const livesDisp = document.getElementById('lives-display');
+    const targetNameDisp = document.getElementById('target-name');
+    const basketLabel = document.getElementById('basket-label');
+    const overlay = document.getElementById('overlay');
+    const startScreen = document.getElementById('start-screen');
+    const gameOverScreen = document.getElementById('game-over-screen');
+
+    function init() {
+        containerWidth = container.offsetWidth;
+        basketX = containerWidth / 2 - 60;
+        updateBasketPos();
+
+        // Mouse/Touch controls
+        const handleMove = (e) => {
+            if (!gameActive) return;
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let rect = container.getBoundingClientRect();
+            let relativeX = clientX - rect.left;
+            basketX = Math.max(0, Math.min(containerWidth - 120, relativeX - 60));
+            updateBasketPos();
+        };
+
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('touchstart', handleMove);
+        window.addEventListener('touchmove', handleMove);
+        
+        window.addEventListener('resize', () => {
+            containerWidth = container.offsetWidth;
+        });
+    }
+
+    function updateBasketPos() {
+        basket.style.left = basketX + 'px';
+    }
+
+    function setNewTarget() {
+        targetElement = elements[Math.floor(Math.random() * elements.length)];
+        targetNameDisp.innerText = targetElement.name;
+        basketLabel.innerText = targetElement.name;
+    }
+
+    function spawnItem() {
+        // 40%の確率でターゲットそのものを出現させる
+        let el;
+        if (Math.random() < 0.4) {
+            el = targetElement;
+        } else {
+            el = elements[Math.floor(Math.random() * elements.length)];
+        }
+
+        const div = document.createElement('div');
+        div.className = 'element-item';
+        div.innerText = el.symbol;
+        div.style.backgroundColor = el.color;
+        
+        const x = Math.random() * (containerWidth - 50);
+        div.style.left = x + 'px';
+        div.style.top = '-60px';
+        
+        container.appendChild(div);
+        
+        items.push({
+            dom: div,
+            y: -60,
+            x: x,
+            element: el
+        });
+    }
+
+    function createParticles(x, y, color) {
+        for (let i = 0; i < 8; i++) {
+            const p = document.createElement('div');
+            p.className = 'particle';
+            p.style.width = '8px';
+            p.style.height = '8px';
+            p.style.backgroundColor = color;
+            p.style.left = x + 'px';
+            p.style.top = y + 'px';
+            container.appendChild(p);
+
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 20 + Math.random() * 30;
+            const tx = Math.cos(angle) * dist;
+            const ty = Math.sin(angle) * dist;
+
+            const anim = p.animate([
+                { transform: 'translate(0,0) scale(1)', opacity: 1 },
+                { transform: `translate(${tx}px, ${ty}px) scale(0)`, opacity: 0 }
+            ], { duration: 500, easing: 'ease-out' });
+
+            anim.onfinish = () => p.remove();
+        }
+    }
+
+    function gameLoop(timestamp) {
+        if (!gameActive) return;
+
+        if (timestamp - lastSpawnTime > spawnInterval) {
+            spawnItem();
+            lastSpawnTime = timestamp;
+            // 徐々に難易度を上げる
+            spawnInterval = Math.max(800, 1500 - (score * 10));
+            fallSpeed = Math.min(8, 3 + (score / 15));
+        }
+
+        for (let i = items.length - 1; i >= 0; i--) {
+            const item = items[i];
+            item.y += fallSpeed;
+            item.dom.style.top = item.y + 'px';
+
+            // 衝突判定
+            const basketTop = container.offsetHeight - 100;
+            if (item.y > basketTop && item.y < basketTop + 60) {
+                if (item.x + 50 > basketX && item.x < basketX + 120) {
+                    if (item.element.symbol === targetElement.symbol) {
+                        // 正解
+                        score += 10;
+                        scoreVal.innerText = score;
+                        createParticles(item.x + 25, item.y + 25, item.element.color);
+                        setNewTarget();
+                    } else {
+                        // 不正解
+                        lives--;
+                        updateLives();
+                        container.style.backgroundColor = 'rgba(239, 68, 68, 0.2)';
+                        setTimeout(() => container.style.backgroundColor = '', 100);
+                        if (lives <= 0) endGame();
+                    }
+                    item.dom.remove();
+                    items.splice(i, 1);
+                    continue;
+                }
+            }
+
+            // 画面外へ
+            if (item.y > container.offsetHeight) {
+                // 正解を逃した場合はペナルティなし（初心者向け設定）
+                // 厳しくするならここでライフを減らす
+                item.dom.remove();
+                items.splice(i, 1);
+            }
+        }
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    function updateLives() {
+        livesDisp.innerText = '❤️'.repeat(lives);
+    }
+
+    function startGame() {
+        score = 0;
+        lives = 3;
+        scoreVal.innerText = '0';
+        updateLives();
+        items.forEach(it => it.dom.remove());
+        items = [];
+        overlay.classList.add('hidden');
+        gameActive = true;
+        setNewTarget();
+        lastSpawnTime = performance.now();
+        requestAnimationFrame(gameLoop);
+    }
+
+    function endGame() {
+        gameActive = false;
+        document.getElementById('final-score').innerText = 'スコア: ' + score;
+        overlay.classList.remove('hidden');
+        startScreen.classList.add('hidden');
+        gameOverScreen.classList.remove('hidden');
+    }
+
+    function restartGame() {
+        startScreen.classList.remove('hidden');
+        gameOverScreen.classList.add('hidden');
+        startGame();
+    }
+
+    init();
+</script>
+</body>
+</html>
