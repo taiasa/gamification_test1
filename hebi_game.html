@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Math Snake Evolution - Large</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #1a202c;
+            touch-action: manipulation;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        canvas {
+            image-rendering: pixelated;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.6);
+            max-width: 100%;
+            height: auto;
+        }
+        .retro-font {
+            font-family: 'Courier New', Courier, monospace;
+        }
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .level-radio:checked + label {
+            background-color: #16a34a;
+            border-color: #4ade80;
+            color: white;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4 text-white">
+
+    <!-- 全体の最大幅を約1.3倍(max-w-md)に拡大 -->
+    <div class="w-full max-w-md flex flex-col gap-4">
+        <!-- Header / Stats (Padding and Text size increased) -->
+        <div class="flex justify-between items-center bg-gray-800 p-4 rounded-2xl border-2 border-gray-700">
+            <div>
+                <p class="text-[12px] text-gray-400 uppercase tracking-widest leading-none">Score</p>
+                <p id="score" class="text-3xl font-bold retro-font">000</p>
+            </div>
+            <div class="text-right">
+                <p class="text-[12px] text-gray-400 uppercase tracking-widest leading-none">Best</p>
+                <p id="highScore" class="text-3xl font-bold retro-font text-yellow-400">000</p>
+            </div>
+        </div>
+
+        <!-- Game Canvas Container -->
+        <div class="relative flex justify-center bg-black rounded-xl overflow-hidden border-8 border-gray-700 mx-auto w-full">
+            <canvas id="gameCanvas"></canvas>
+            
+            <!-- Quiz Overlay (Enhanced size) -->
+            <div id="quizOverlay" class="absolute inset-0 bg-blue-900/95 flex flex-col items-center justify-center text-center p-6 hidden">
+                <p id="quizLevelLabel" class="text-blue-200 text-sm mb-2 uppercase tracking-widest font-bold"></p>
+                <h3 id="mathProblem" class="text-4xl font-bold mb-6 retro-font whitespace-nowrap overflow-hidden text-ellipsis w-full">5 + 2 = ?</h3>
+                <input id="mathAnswer" type="number" step="any" pattern="[0-9.-]*" inputmode="decimal" class="w-48 p-3 rounded-lg bg-white text-blue-900 text-center text-3xl font-bold mb-6 focus:outline-none focus:ring-4 focus:ring-blue-400">
+                <button id="submitAnswer" class="bg-yellow-500 hover:bg-yellow-400 text-blue-900 font-black py-3 px-10 rounded-full shadow-xl text-xl">
+                    OK
+                </button>
+            </div>
+
+            <!-- Ready Count Overlay -->
+            <div id="readyOverlay" class="absolute inset-0 bg-black/40 flex items-center justify-center hidden pointer-events-none">
+                <h2 class="text-8xl font-black text-white italic animate-pulse">GO!</h2>
+            </div>
+
+            <!-- Start Screen -->
+            <div id="startScreen" class="absolute inset-0 bg-black/95 flex flex-col items-center justify-center text-center p-6 transition-opacity duration-300">
+                <h1 class="text-4xl font-black mb-2 text-green-500 uppercase tracking-tighter italic">MATH SNAKE</h1>
+                <p class="text-xs text-gray-400 mb-6 tracking-widest">SELECT LEVEL</p>
+                
+                <div class="grid grid-cols-2 gap-3 w-full mb-8">
+                    <input type="radio" id="lvl1" name="level" value="beginner" class="hidden level-radio" checked>
+                    <label for="lvl1" class="bg-gray-800 border-2 border-gray-600 p-3 rounded-xl cursor-pointer text-base hover:bg-gray-700 transition">
+                        初級 <span class="block text-[10px] text-gray-400">1桁/10点</span>
+                    </label>
+                    
+                    <input type="radio" id="lvl2" name="level" value="intermediate" class="hidden level-radio">
+                    <label for="lvl2" class="bg-gray-800 border-2 border-gray-600 p-3 rounded-xl cursor-pointer text-base hover:bg-gray-700 transition">
+                        中級 <span class="block text-[10px] text-gray-400">小3・4/20点</span>
+                    </label>
+
+                    <input type="radio" id="lvl3" name="level" value="advanced" class="hidden level-radio">
+                    <label for="lvl3" class="bg-gray-800 border-2 border-gray-600 p-3 rounded-xl cursor-pointer text-base hover:bg-gray-700 transition">
+                        上級 <span class="block text-[10px] text-gray-400">小5・6/40点</span>
+                    </label>
+
+                    <input type="radio" id="lvl4" name="level" value="extreme" class="hidden level-radio">
+                    <label for="lvl4" class="bg-gray-800 border-2 border-gray-600 p-3 rounded-xl cursor-pointer text-base hover:bg-gray-700 transition">
+                        超級 <span class="block text-[10px] text-gray-400">中学生/100点</span>
+                    </label>
+                </div>
+
+                <button id="startBtn" class="bg-green-600 hover:bg-green-500 text-white font-bold py-4 px-12 rounded-full shadow-2xl transform transition active:scale-95 text-lg">
+                    ゲーム開始
+                </button>
+            </div>
+
+            <!-- Game Over Screen -->
+            <div id="gameOverScreen" class="absolute inset-0 bg-red-900/90 flex flex-col items-center justify-center text-center p-6 hidden">
+                <h2 class="text-4xl font-black mb-2 text-white italic">GAME OVER</h2>
+                <p id="finalScoreMsg" class="text-2xl mb-6">Score: 0</p>
+                <button id="restartBtn" class="bg-white text-red-900 font-bold py-3 px-8 rounded-full shadow-lg transform transition active:scale-95 text-lg">
+                    トップに戻る
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Controls (Scale increased) -->
+        <div class="grid grid-cols-3 gap-2 mt-4 max-w-[300px] mx-auto md:hidden">
+            <div></div>
+            <button id="btnUp" class="bg-gray-700 p-5 rounded-2xl flex justify-center active:bg-gray-600">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="white"><path d="M12 8l-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14z"/></svg>
+            </button>
+            <div></div>
+            <button id="btnLeft" class="bg-gray-700 p-5 rounded-2xl flex justify-center active:bg-gray-600">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="white"><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6z"/></svg>
+            </button>
+            <button id="btnDown" class="bg-gray-700 p-5 rounded-2xl flex justify-center active:bg-gray-600">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="white"><path d="M12 16l6-6-1.41-1.41L12 13.17 7.41 8.59 6 10z"/></svg>
+            </button>
+            <button id="btnRight" class="bg-gray-700 p-5 rounded-2xl flex justify-center active:bg-gray-600">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="white"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+            </button>
+        </div>
+        
+        <p class="text-center text-gray-500 text-xs mt-2 hidden md:block uppercase tracking-widest leading-relaxed">Arrows to move / Level up for higher scores</p>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const highScoreElement = document.getElementById('highScore');
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const quizOverlay = document.getElementById('quizOverlay');
+        const readyOverlay = document.getElementById('readyOverlay');
+        const mathProblem = document.getElementById('mathProblem');
+        const mathAnswer = document.getElementById('mathAnswer');
+        const finalScoreMsg = document.getElementById('finalScoreMsg');
+        const quizLevelLabel = document.getElementById('quizLevelLabel');
+
+        const GRID_SIZE = 20; 
+        let tileCountX, tileCountY;
+        
+        let snake = [];
+        let food = { x: 5, y: 5 };
+        let dx = 0, dy = 0, nextDx = 0, nextDy = 0;
+        let score = 0, highScore = 0;
+        let gameLoop = null, isGameOver = false, isPaused = false;
+        let gameSpeed = 100;
+        let currentQuizAnswer = 0;
+        let currentLevel = 'beginner';
+
+        function initCanvas() {
+            const size = Math.min(window.innerWidth - 40, 360); 
+            canvas.width = Math.floor(size / GRID_SIZE) * GRID_SIZE;
+            canvas.height = canvas.width; 
+            tileCountX = canvas.width / GRID_SIZE;
+            tileCountY = canvas.height / GRID_SIZE;
+        }
+
+        function resetGame() {
+            snake = [
+                { x: Math.floor(tileCountX / 2), y: Math.floor(tileCountY / 2) },
+                { x: Math.floor(tileCountX / 2), y: Math.floor(tileCountY / 2) + 1 },
+                { x: Math.floor(tileCountX / 2), y: Math.floor(tileCountY / 2) + 2 }
+            ];
+            dx = 0; dy = -1; nextDx = 0; nextDy = -1;
+            score = 0;
+            updateScore();
+            spawnFood();
+            isGameOver = false;
+            isPaused = false;
+        }
+
+        function spawnFood() {
+            food.x = Math.floor(Math.random() * tileCountX);
+            food.y = Math.floor(Math.random() * tileCountY);
+            for (let part of snake) {
+                if (part.x === food.x && part.y === food.y) {
+                    spawnFood();
+                    break;
+                }
+            }
+        }
+
+        function generateQuiz() {
+            let n1, n2, op;
+            const ops = ['+', '-', '×', '÷'];
+            
+            switch(currentLevel) {
+                case 'beginner': 
+                    op = ops[Math.floor(Math.random() * 3)];
+                    n1 = Math.floor(Math.random() * 9) + 1;
+                    n2 = Math.floor(Math.random() * 9) + 1;
+                    if (op === '-') if (n1 < n2) [n1, n2] = [n2, n1];
+                    quizLevelLabel.textContent = "初級チャレンジ";
+                    break;
+
+                case 'intermediate': 
+                    op = ops[Math.floor(Math.random() * 4)];
+                    if (op === '+' || op === '-') {
+                        n1 = Math.floor(Math.random() * 90) + 10;
+                        n2 = Math.floor(Math.random() * 90) + 10;
+                    } else if (op === '×') {
+                        n1 = Math.floor(Math.random() * 20) + 2;
+                        n2 = Math.floor(Math.random() * 9) + 2;
+                    } else { 
+                        n2 = Math.floor(Math.random() * 9) + 2;
+                        n1 = n2 * (Math.floor(Math.random() * 10) + 2);
+                    }
+                    if (op === '-' && n1 < n2) [n1, n2] = [n2, n1];
+                    quizLevelLabel.textContent = "中級チャレンジ";
+                    break;
+
+                case 'advanced': 
+                    op = ops[Math.floor(Math.random() * 4)];
+                    if (op === '+' || op === '-') {
+                        n1 = (Math.random() * 50).toFixed(1);
+                        n2 = (Math.random() * 50).toFixed(1);
+                    } else if (op === '×') {
+                        n1 = Math.floor(Math.random() * 50) + 2;
+                        n2 = Math.floor(Math.random() * 20) + 2;
+                    } else {
+                        n2 = Math.floor(Math.random() * 15) + 2;
+                        n1 = n2 * (Math.floor(Math.random() * 20) + 5);
+                    }
+                    quizLevelLabel.textContent = "上級チャレンジ";
+                    break;
+
+                case 'extreme': 
+                    op = ops[Math.floor(Math.random() * 4)];
+                    n1 = Math.floor(Math.random() * 40) - 20;
+                    n2 = Math.floor(Math.random() * 40) - 20;
+                    if (op === '÷') {
+                        n2 = n2 === 0 ? 1 : n2;
+                        let multiplier = Math.floor(Math.random() * 10) - 5;
+                        n1 = n2 * (multiplier === 0 ? 1 : multiplier);
+                    }
+                    quizLevelLabel.textContent = "超級チャレンジ";
+                    break;
+            }
+
+            if (op === '+') currentQuizAnswer = Number(n1) + Number(n2);
+            else if (op === '-') currentQuizAnswer = Number(n1) - Number(n2);
+            else if (op === '×') currentQuizAnswer = Number(n1) * Number(n2);
+            else if (op === '÷') currentQuizAnswer = Number(n1) / Number(n2);
+
+            currentQuizAnswer = Math.round(currentQuizAnswer * 100) / 100;
+            
+            let n1_str = n1 < 0 ? `(${n1})` : n1;
+            let n2_str = n2 < 0 ? `(${n2})` : n2;
+            mathProblem.textContent = `${n1_str} ${op} ${n2_str} = ?`;
+
+            isPaused = true;
+            quizOverlay.classList.remove('hidden');
+            mathAnswer.value = '';
+            mathAnswer.focus();
+        }
+
+        function checkAnswer() {
+            const userAnswer = parseFloat(mathAnswer.value);
+            let reward = 10;
+            if (currentLevel === 'intermediate') reward = 20;
+            else if (currentLevel === 'advanced') reward = 40;
+            else if (currentLevel === 'extreme') reward = 100;
+
+            if (userAnswer === currentQuizAnswer) {
+                score += reward;
+            } else {
+                score = Math.max(0, score - Math.floor(reward/2));
+            }
+            updateScore();
+            quizOverlay.classList.add('hidden');
+            
+            readyOverlay.classList.remove('hidden');
+            setTimeout(() => {
+                readyOverlay.classList.add('hidden');
+                isPaused = false;
+            }, 500);
+        }
+
+        function draw() {
+            // 背景色を少し明るい灰色に変更して、動ける範囲をはっきりさせる
+            ctx.fillStyle = '#2d3748';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // グリッド線を白く強調
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.lineWidth = 1;
+            for(let i=0; i<=canvas.width; i+=GRID_SIZE) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+            }
+
+            // Food
+            ctx.fillStyle = '#ff4d4d';
+            ctx.beginPath();
+            ctx.arc(food.x * GRID_SIZE + GRID_SIZE/2, food.y * GRID_SIZE + GRID_SIZE/2, (GRID_SIZE/2) - 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Snake
+            snake.forEach((part, index) => {
+                const isHead = index === 0;
+                ctx.fillStyle = isHead ? '#4ade80' : '#166534';
+                const padding = 1;
+                const r = 5;
+                const x = part.x * GRID_SIZE + padding;
+                const y = part.y * GRID_SIZE + padding;
+                const w = GRID_SIZE - padding * 2;
+                const h = GRID_SIZE - padding * 2;
+                ctx.beginPath();
+                ctx.roundRect(x, y, w, h, r);
+                ctx.fill();
+
+                if (isHead) {
+                    ctx.fillStyle = 'black';
+                    let eyeX1, eyeY1, eyeX2, eyeY2;
+                    if (dx === 1) { eyeX1=x+12; eyeY1=y+4; eyeX2=x+12; eyeY2=y+12; }
+                    else if (dx === -1) { eyeX1=x+4; eyeY1=y+4; eyeX2=x+4; eyeY2=y+12; }
+                    else if (dy === -1) { eyeX1=x+4; eyeY1=y+4; eyeX2=x+12; eyeY2=y+4; }
+                    else { eyeX1=x+4; eyeY1=y+12; eyeX2=x+12; eyeY2=y+12; }
+                    ctx.fillRect(eyeX1, eyeY1, 2, 2);
+                    ctx.fillRect(eyeX2, eyeY2, 2, 2);
+                }
+            });
+        }
+
+        function move() {
+            dx = nextDx; dy = nextDy;
+            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+            if (head.x < 0 || head.x >= tileCountX || head.y < 0 || head.y >= tileCountY) { endGame(); return; }
+            for (let i = 0; i < snake.length; i++) {
+                if (snake[i].x === head.x && snake[i].y === head.y) { endGame(); return; }
+            }
+            snake.unshift(head);
+            if (head.x === food.x && head.y === food.y) {
+                generateQuiz();
+                spawnFood();
+                if (gameSpeed > 60) {
+                    clearInterval(gameLoop);
+                    gameSpeed -= 1;
+                    gameLoop = setInterval(update, gameSpeed);
+                }
+            } else {
+                snake.pop();
+            }
+        }
+
+        function updateScore() {
+            scoreElement.textContent = score.toString().padStart(3, '0');
+            if (score > highScore) {
+                highScore = score;
+                highScoreElement.textContent = highScore.toString().padStart(3, '0');
+            }
+        }
+
+        function update() {
+            if (isGameOver || isPaused) return;
+            move();
+            draw();
+        }
+
+        function endGame() {
+            isGameOver = true;
+            clearInterval(gameLoop);
+            finalScoreMsg.textContent = `Score: ${score}`;
+            gameOverScreen.classList.remove('hidden');
+        }
+
+        function startGame() {
+            currentLevel = document.querySelector('input[name="level"]:checked').value;
+            startScreen.style.opacity = '0';
+            setTimeout(() => startScreen.classList.add('hidden'), 300);
+            gameOverScreen.classList.add('hidden');
+            quizOverlay.classList.add('hidden');
+            resetGame();
+            gameSpeed = 100;
+            if (gameLoop) clearInterval(gameLoop);
+            gameLoop = setInterval(update, gameSpeed);
+        }
+
+        function changeDirection(newDx, newDy) {
+            if (isPaused) return;
+            if (newDx === -dx && newDx !== 0) return;
+            if (newDy === -dy && newDy !== 0) return;
+            nextDx = newDx;
+            nextDy = newDy;
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !quizOverlay.classList.contains('hidden')) {
+                checkAnswer();
+                return;
+            }
+            switch(e.key) {
+                case 'ArrowUp': changeDirection(0, -1); break;
+                case 'ArrowDown': changeDirection(0, 1); break;
+                case 'ArrowLeft': changeDirection(-1, 0); break;
+                case 'ArrowRight': changeDirection(1, 0); break;
+            }
+        });
+
+        document.getElementById('submitAnswer').onclick = checkAnswer;
+        document.getElementById('btnUp').onclick = () => changeDirection(0, -1);
+        document.getElementById('btnDown').onclick = () => changeDirection(0, 1);
+        document.getElementById('btnLeft').onclick = () => changeDirection(-1, 0);
+        document.getElementById('btnRight').onclick = () => changeDirection(1, 0);
+        document.getElementById('startBtn').onclick = startGame;
+        document.getElementById('restartBtn').onclick = () => {
+            gameOverScreen.classList.add('hidden');
+            startScreen.classList.remove('hidden');
+            startScreen.style.opacity = '1';
+        };
+
+        window.addEventListener('resize', () => { initCanvas(); draw(); });
+        initCanvas();
+        draw();
+    </script>
+</body>
+</html>
