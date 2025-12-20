@@ -1,284 +1,467 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>爽快ピンポンゲーム ULTIMATE++</title>
-<style>
-body{
-  margin:0;
-  background:radial-gradient(#111,#000);
-  color:#0ff;
-  font-family:sans-serif;
-}
-canvas{
-  display:block;
-  margin:auto;
-  background:#000;
-}
-#ui{
-  position:absolute;
-  top:10px;
-  width:100%;
-  text-align:center;
-  pointer-events:none;
-}
-#overlay{
-  position:absolute;
-  inset:0;
-  background:rgba(0,0,0,0.85);
-  color:#fff;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-  z-index:10;
-}
-#overlay button{
-  margin-top:20px;
-  font-size:18px;
-  padding:10px 20px;
-}
-.ruleBox{
-  margin-top:10px;
-  font-size:16px;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>爽快ピンポンゲーム ULTIMATE++</title>
+    <style>
+        :root {
+            --primary-color: #0ff;
+            --bg-gradient: radial-gradient(circle, #1a1a1a, #000);
+        }
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: var(--bg-gradient);
+            color: var(--primary-color);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        canvas {
+            display: block;
+            background: #000;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+            max-width: 95vw;
+            max-height: 80vh;
+            border: 2px solid #333;
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            pointer-events: none;
+            text-shadow: 0 0 10px var(--primary-color);
+        }
+        #score {
+            font-size: 32px;
+            font-weight: bold;
+        }
+        #speed-info {
+            font-size: 14px;
+            opacity: 0.8;
+            margin-top: 4px;
+        }
+        #overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            z-index: 10;
+        }
+        .menu-card {
+            background: #111;
+            padding: 40px;
+            border-radius: 15px;
+            border: 1px solid var(--primary-color);
+        }
+        button {
+            margin-top: 20px;
+            font-size: 20px;
+            padding: 12px 30px;
+            background: transparent;
+            color: var(--primary-color);
+            border: 2px solid var(--primary-color);
+            cursor: pointer;
+            transition: 0.3s;
+            border-radius: 5px;
+        }
+        button:hover {
+            background: var(--primary-color);
+            color: #000;
+        }
+        .ruleBox {
+            margin: 20px 0;
+            text-align: left;
+            display: inline-block;
+        }
+        label {
+            display: block;
+            margin: 10px 0;
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body>
 
 <div id="ui">
-  <div id="score">LEFT 0 : 0 RIGHT</div>
+    <div id="score">LEFT 0 : 0 RIGHT</div>
+    <div id="speed-info">BALL SPEED: x1.00</div>
 </div>
 
 <div id="overlay">
-  <div>
-    <h1>爽快ピンポンゲーム</h1>
-    <p>
-      左：W / S（A/Dは特別ルール）<br>
-      右：↑ / ↓（←/→は特別ルール）<br><br>
-      🔥 S：速度UP　🌀 C：急カーブ<br>
-      📏 L：相手バー拡張<br><br>
-      先に <b>10点</b> 取った方の勝ち
-    </p>
+    <div class="menu-card">
+        <h1>爽快ピンポンゲーム</h1>
+        <p>
+            左：W / S（A/Dでボレー）<br>
+            右：↑ / ↓（←/→でボレー）<br><br>
+            🔥 S：速度UP | 🌀 C：急カーブ | 📏 L：相手延長
+        </p>
 
-    <div class="ruleBox">
-      <label>
-        <input type="radio" name="rule" value="normal" checked>
-        通常ルール
-      </label><br>
-      <label>
-        <input type="radio" name="rule" value="volley">
-        特別ルール（ボレーあり）
-      </label>
+        <div class="ruleBox">
+            <label>
+                <input type="radio" name="rule" value="normal" checked> 通常ルール
+            </label>
+            <label>
+                <input type="radio" name="rule" value="volley"> 特別ルール（前後移動あり）
+            </label>
+        </div>
+        <br>
+        <button id="startBtn">START GAME</button>
     </div>
-
-    <button onclick="startGame()">START</button>
-  </div>
 </div>
 
-<canvas id="game" width="900" height="500"></canvas>
+<canvas id="game"></canvas>
 
 <script>
-/* ========= AUDIO ========= */
-let audioCtx;
-function initAudio(){
-  if(!audioCtx){
-    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-  }
-}
-function se(freq,d=0.1,type="sine",v=0.2){
-  if(!audioCtx) return;
-  const o=audioCtx.createOscillator(), g=audioCtx.createGain();
-  o.type=type; o.frequency.value=freq; g.gain.value=v;
-  o.connect(g).connect(audioCtx.destination);
-  o.start(); o.stop(audioCtx.currentTime+d);
-}
-const seHit=()=>se(900,0.05,"square",0.15);
-const seScore=()=>se(220,0.3,"sawtooth",0.25);
-const seItem=()=>se(1200,0.12,"triangle",0.2);
-
-/* ========= GAME ========= */
-const canvas=document.getElementById("game");
-const ctx=canvas.getContext("2d");
-const W=canvas.width,H=canvas.height;
-const WIN_SCORE=10;
-
-let rule="normal";
-let left,right,ball;
-let items=[];                // ★ 追加
-let scoreL=0,scoreR=0;
-let running=false,gameOver=false;
-let curveDelay=0,curvePower=0;
-
-function init(){
-  left={x:30,y:H/2,tx:30,ty:H/2,h:100};
-  right={x:W-42,y:H/2,tx:W-42,ty:H/2,h:100};
-  items=[];
-  resetBall();
-}
-function resetBall(dir=1){
-  ball={x:W/2,y:H/2,vx:dir*6,vy:(Math.random()*2-1)*4,r:8,speed:1};
-  curveDelay=curvePower=0;
-}
-init();
-
-const keys={};
-addEventListener("keydown",e=>keys[e.key]=true);
-addEventListener("keyup",e=>keys[e.key]=false);
-
-function startGame(){
-  initAudio();
-  rule=document.querySelector("input[name=rule]:checked").value;
-  document.getElementById("overlay").style.display="none";
-  scoreL=scoreR=0;
-  updateScore();
-  gameOver=false;
-  running=true;
-  items=[];
-  resetBall(Math.random()>0.5?1:-1);
-}
-
-function updateScore(){
-  document.getElementById("score").textContent=
-    `LEFT ${scoreL} : ${scoreR} RIGHT`;
-}
-
-/* ========= アイテム生成 ========= */
-setInterval(()=>{
-  if(!running||gameOver) return;
-  if(items.length>=5) return;
-
-  items.push({
-    x:Math.random()*(W-200)+100,
-    y:Math.random()*(H-100)+50,
-    r:18,
-    type:["speed","curve","long"][Math.floor(Math.random()*3)]
-  });
-},4000);
-
-function applyItem(type,player){
-  seItem();
-  if(type==="speed") ball.speed+=0.7;
-  if(type==="curve"){
-    curveDelay=40;
-    curvePower=(Math.random()>0.5?1:-1)*(4+Math.random()*3);
-  }
-  if(type==="long"){
-    const t = player===left ? right : left;
-    t.h=160;
-    setTimeout(()=>t.h=100,5000);
-  }
-}
-
-/* ========= UPDATE ========= */
-function update(){
-  if(!running||gameOver) return;
-
-  if(keys["w"]) left.ty-=8;
-  if(keys["s"]) left.ty+=8;
-  if(keys["ArrowUp"]) right.ty-=8;
-  if(keys["ArrowDown"]) right.ty+=8;
-
-  if(rule==="volley"){
-    if(keys["a"]) left.tx-=6;
-    if(keys["d"]) left.tx+=6;
-    if(keys["ArrowLeft"]) right.tx-=6;
-    if(keys["ArrowRight"]) right.tx+=6;
-  }
-
-  left.tx=Math.max(10,Math.min(W/2-20,left.tx));
-  right.tx=Math.max(W/2+8,Math.min(W-20,right.tx));
-  left.ty=Math.max(left.h/2,Math.min(H-left.h/2,left.ty));
-  right.ty=Math.max(right.h/2,Math.min(H-right.h/2,right.ty));
-
-  left.x+=(left.tx-left.x)*0.25;
-  left.y+=(left.ty-left.y)*0.25;
-  right.x+=(right.tx-right.x)*0.25;
-  right.y+=(right.ty-right.y)*0.25;
-
-  ball.x+=ball.vx*ball.speed;
-  ball.y+=ball.vy*ball.speed;
-
-  if(curveDelay>0 && --curveDelay===0) ball.vy+=curvePower;
-  if(ball.y<ball.r||ball.y>H-ball.r) ball.vy*=-1;
-
-  function hit(p,isLeft){
-    if(ball.x+ball.r>p.x && ball.x-ball.r<p.x+12 &&
-       ball.y>p.y-p.h/2 && ball.y<p.y+p.h/2){
-      seHit();
-      const pos=(ball.y-p.y)/(p.h/2);
-      ball.vy=pos*7;
-      ball.vx=isLeft?Math.abs(ball.vx):-Math.abs(ball.vx);
+/**
+ * Constants & Configuration
+ */
+const CONFIG = {
+    WIDTH: 900,
+    HEIGHT: 500,
+    WIN_SCORE: 10,
+    PADDLE_WIDTH: 12,
+    PADDLE_HEIGHT: 100,
+    PADDLE_SPEED: 12, // スピードアップ
+    BALL_RADIUS: 8,
+    BALL_INITIAL_VX: 6,
+    ITEM_SPAWN_RATE: 4000,
+    BOUNCE_SPEED_UP_STEP: 5, // 5回ごとに加速
+    COLORS: {
+        PADDLE: "#0ff",
+        BALL: "#fff",
+        SPEED: "#f33",
+        CURVE: "#3f3",
+        LONG: "#ff3"
     }
-  }
-  hit(left,true);
-  hit(right,false);
+};
 
-  items=items.filter(it=>{
-    if(Math.hypot(ball.x-it.x,ball.y-it.y)<ball.r+it.r){
-      applyItem(it.type,ball.vx<0?left:right);
-      return false;
+/**
+ * Audio Manager
+ */
+const AudioMgr = {
+    ctx: null,
+    init() {
+        if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    },
+    play(freq, duration = 0.1, type = "sine", volume = 0.2) {
+        if (!this.ctx || this.ctx.state === 'suspended') return;
+        const o = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        o.type = type;
+        o.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        g.gain.setValueAtTime(volume, this.ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+        o.connect(g).connect(this.ctx.destination);
+        o.start();
+        o.stop(this.ctx.currentTime + duration);
+    },
+    seHit() { this.play(900, 0.05, "square", 0.1); },
+    seScore() { this.play(220, 0.4, "sawtooth", 0.2); },
+    seItem() { this.play(1200, 0.15, "triangle", 0.15); },
+    seCount(freq) { this.play(freq, 0.1, "sine", 0.1); }
+};
+
+/**
+ * Game State
+ */
+const state = {
+    running: false,
+    gameOver: false,
+    rule: "normal",
+    scoreL: 0,
+    scoreR: 0,
+    paddles: {
+        left: { x: 30, y: 250, tx: 30, ty: 250, h: CONFIG.PADDLE_HEIGHT },
+        right: { x: 858, y: 250, tx: 858, ty: 250, h: CONFIG.PADDLE_HEIGHT }
+    },
+    ball: { x: 450, y: 250, vx: 0, vy: 0, speed: 1, baseSpeedMult: 1, bounceCount: 0 },
+    items: [],
+    curve: { delay: 0, power: 0 },
+    keys: new Set(),
+    lastItemSpawn: 0,
+    countdown: 0 // カウントダウン秒数
+};
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+canvas.width = CONFIG.WIDTH;
+canvas.height = CONFIG.HEIGHT;
+
+/**
+ * Core Functions
+ */
+function resetBall(dir = 1) {
+    state.ball = {
+        x: CONFIG.WIDTH / 2,
+        y: CONFIG.HEIGHT / 2,
+        vx: dir * CONFIG.BALL_INITIAL_VX,
+        vy: (Math.random() * 2 - 1) * 4,
+        speed: 1,
+        baseSpeedMult: 1, // 跳ね返りによる加速倍率
+        bounceCount: 0
+    };
+    state.curve = { delay: 0, power: 0 };
+    startCountdown();
+}
+
+function startCountdown() {
+    state.countdown = 3; // 3, 2, 1
+    const timer = setInterval(() => {
+        state.countdown--;
+        if (state.countdown > 0) {
+            AudioMgr.seCount(440);
+        } else {
+            AudioMgr.seCount(880);
+            clearInterval(timer);
+        }
+    }, 700);
+}
+
+function updateScoreUI() {
+    document.getElementById("score").textContent = `LEFT ${state.scoreL} : ${state.scoreR} RIGHT`;
+}
+
+function updateSpeedUI() {
+    const totalSpeed = (state.ball.speed * state.ball.baseSpeedMult).toFixed(2);
+    document.getElementById("speed-info").textContent = `BALL SPEED: x${totalSpeed}`;
+}
+
+function applyItem(type, isLeftCollector) {
+    AudioMgr.seItem();
+    if (type === "speed") state.ball.speed += 0.5;
+    if (type === "curve") {
+        state.curve.delay = 40;
+        state.curve.power = (Math.random() > 0.5 ? 1 : -1) * (4 + Math.random() * 3);
     }
-    return true;
-  });
-
-  if(ball.x<0){ scoreR++; score(); }
-  if(ball.x>W){ scoreL++; score(); }
+    if (type === "long") {
+        const target = isLeftCollector ? state.paddles.right : state.paddles.left;
+        target.h = 160;
+        setTimeout(() => target.h = CONFIG.PADDLE_HEIGHT, 5000);
+    }
+    updateSpeedUI();
 }
 
-function score(){
-  seScore();
-  updateScore();
-  items=[];
-  if(scoreL>=WIN_SCORE||scoreR>=WIN_SCORE){
-    gameOver=true;
-    setTimeout(()=>location.reload(),5000);
-  }
-  resetBall(scoreL>scoreR?1:-1);
+/**
+ * Game Loop - Update
+ */
+function update() {
+    if (!state.running || state.gameOver) return;
+
+    const { paddles, keys, ball } = state;
+
+    // Paddle Movement (Always enabled even during countdown)
+    if (keys.has("KeyW")) paddles.left.ty -= CONFIG.PADDLE_SPEED;
+    if (keys.has("KeyS")) paddles.left.ty += CONFIG.PADDLE_SPEED;
+    if (keys.has("ArrowUp")) paddles.right.ty -= CONFIG.PADDLE_SPEED;
+    if (keys.has("ArrowDown")) paddles.right.ty += CONFIG.PADDLE_SPEED;
+
+    if (state.rule === "volley") {
+        if (keys.has("KeyA")) paddles.left.tx -= 8;
+        if (keys.has("KeyD")) paddles.left.tx += 8;
+        if (keys.has("ArrowLeft")) paddles.right.tx -= 8;
+        if (keys.has("ArrowRight")) paddles.right.tx += 8;
+    }
+
+    // Constraints
+    paddles.left.tx = Math.max(10, Math.min(CONFIG.WIDTH / 2 - 40, paddles.left.tx));
+    paddles.right.tx = Math.max(CONFIG.WIDTH / 2 + 20, Math.min(CONFIG.WIDTH - 30, paddles.right.tx));
+    
+    for (let side in paddles) {
+        const p = paddles[side];
+        p.ty = Math.max(p.h / 2, Math.min(CONFIG.HEIGHT - p.h / 2, p.ty));
+        p.x += (p.tx - p.x) * 0.25;
+        p.y += (p.ty - p.y) * 0.25;
+    }
+
+    // Ball & Items (Paused during countdown)
+    if (state.countdown > 0) return;
+
+    // Ball Physics
+    const currentSpeed = ball.speed * ball.baseSpeedMult;
+    ball.x += ball.vx * currentSpeed;
+    ball.y += ball.vy * currentSpeed;
+
+    if (state.curve.delay > 0) {
+        state.curve.delay--;
+        if (state.curve.delay === 0) ball.vy += state.curve.power;
+    }
+
+    // Wall Bounce
+    if (ball.y < CONFIG.BALL_RADIUS || ball.y > CONFIG.HEIGHT - CONFIG.BALL_RADIUS) {
+        ball.vy *= -1;
+        ball.y = ball.y < CONFIG.BALL_RADIUS ? CONFIG.BALL_RADIUS : CONFIG.HEIGHT - CONFIG.BALL_RADIUS;
+        handleBounce();
+    }
+
+    // Collision Detection
+    const checkPaddleHit = (p, isLeft) => {
+        if (ball.x + CONFIG.BALL_RADIUS > p.x && 
+            ball.x - CONFIG.BALL_RADIUS < p.x + CONFIG.PADDLE_WIDTH &&
+            ball.y > p.y - p.h / 2 && ball.y < p.y + p.h / 2) {
+            
+            AudioMgr.seHit();
+            const relativeIntersectY = (ball.y - p.y) / (p.h / 2);
+            ball.vy = relativeIntersectY * 7;
+            ball.vx = isLeft ? Math.abs(ball.vx) : -Math.abs(ball.vx);
+            ball.x = isLeft ? p.x + CONFIG.PADDLE_WIDTH + CONFIG.BALL_RADIUS : p.x - CONFIG.BALL_RADIUS;
+            handleBounce();
+        }
+    };
+    checkPaddleHit(paddles.left, true);
+    checkPaddleHit(paddles.right, false);
+
+    function handleBounce() {
+        ball.bounceCount++;
+        if (ball.bounceCount >= CONFIG.BOUNCE_SPEED_UP_STEP) {
+            ball.bounceCount = 0;
+            ball.baseSpeedMult += 0.1;
+            updateSpeedUI();
+        }
+    }
+
+    // Items Logic
+    const now = Date.now();
+    if (now - state.lastItemSpawn > CONFIG.ITEM_SPAWN_RATE && state.items.length < 5) {
+        state.items.push({
+            x: 150 + Math.random() * (CONFIG.WIDTH - 300),
+            y: 50 + Math.random() * (CONFIG.HEIGHT - 100),
+            r: 18,
+            type: ["speed", "curve", "long"][Math.floor(Math.random() * 3)]
+        });
+        state.lastItemSpawn = now;
+    }
+
+    state.items = state.items.filter(it => {
+        const dist = Math.hypot(ball.x - it.x, ball.y - it.y);
+        if (dist < CONFIG.BALL_RADIUS + it.r) {
+            applyItem(it.type, ball.vx < 0);
+            return false;
+        }
+        return true;
+    });
+
+    // Scoring
+    if (ball.x < 0) { state.scoreR++; handleScore(); }
+    else if (ball.x > CONFIG.WIDTH) { state.scoreL++; handleScore(); }
 }
 
-/* ========= DRAW ========= */
-function draw(){
-  ctx.clearRect(0,0,W,H);
+function handleScore() {
+    AudioMgr.seScore();
+    updateScoreUI();
+    state.items = [];
+    if (state.scoreL >= CONFIG.WIN_SCORE || state.scoreR >= CONFIG.WIN_SCORE) {
+        state.gameOver = true;
+        setTimeout(() => location.reload(), 5000);
+    } else {
+        resetBall(state.scoreL > state.scoreR ? 1 : -1);
+        updateSpeedUI();
+    }
+}
 
-  ctx.fillStyle="#333";
-  for(let y=0;y<H;y+=20) ctx.fillRect(W/2-1,y,2,10);
+/**
+ * Game Loop - Draw
+ */
+function draw() {
+    ctx.clearRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT);
 
-  ctx.fillStyle="#0ff";
-  ctx.fillRect(left.x,left.y-left.h/2,12,left.h);
-  ctx.fillRect(right.x,right.y-right.h/2,12,right.h);
-
-  ctx.beginPath();
-  ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
-  ctx.fillStyle="#fff";
-  ctx.fill();
-
-  items.forEach(it=>{
-    ctx.fillStyle=
-      it.type==="speed"?"#f33":
-      it.type==="curve"?"#3f3":"#ff3";
+    // Center Line
+    ctx.setLineDash([10, 10]);
+    ctx.strokeStyle = "#333";
     ctx.beginPath();
-    ctx.arc(it.x,it.y,it.r,0,Math.PI*2);
-    ctx.fill();
-    ctx.fillStyle="#000";
-    ctx.font="bold 16px sans-serif";
-    ctx.textAlign="center";
-    ctx.textBaseline="middle";
-    ctx.fillText(it.type[0].toUpperCase(),it.x,it.y);
-  });
+    ctx.moveTo(CONFIG.WIDTH / 2, 0);
+    ctx.lineTo(CONFIG.WIDTH / 2, CONFIG.HEIGHT);
+    ctx.stroke();
+    ctx.setLineDash([]);
 
-  if(gameOver){
-    ctx.font="bold 64px sans-serif";
-    ctx.fillStyle="#fff";
-    ctx.textAlign="center";
-    ctx.fillText(scoreL>scoreR?"LEFT WIN!!":"RIGHT WIN!!",W/2,H/2);
-  }
+    // Paddles
+    ctx.fillStyle = CONFIG.COLORS.PADDLE;
+    ctx.fillRect(state.paddles.left.x, state.paddles.left.y - state.paddles.left.h / 2, CONFIG.PADDLE_WIDTH, state.paddles.left.h);
+    ctx.fillRect(state.paddles.right.x, state.paddles.right.y - state.paddles.right.h / 2, CONFIG.PADDLE_WIDTH, state.paddles.right.h);
+
+    // Ball
+    ctx.fillStyle = CONFIG.COLORS.BALL;
+    ctx.beginPath();
+    ctx.arc(state.ball.x, state.ball.y, CONFIG.BALL_RADIUS, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Items
+    state.items.forEach(it => {
+        ctx.fillStyle = CONFIG.COLORS[it.type.toUpperCase()];
+        ctx.beginPath();
+        ctx.arc(it.x, it.y, it.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#000";
+        ctx.font = "bold 16px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(it.type[0].toUpperCase(), it.x, it.y);
+    });
+
+    // Countdown UI
+    if (state.countdown > 0) {
+        ctx.fillStyle = "rgba(0,0,0,0.3)";
+        ctx.fillRect(0,0, CONFIG.WIDTH, CONFIG.HEIGHT);
+        ctx.font = "bold 120px sans-serif";
+        ctx.fillStyle = varColor();
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(state.countdown, CONFIG.WIDTH / 2, CONFIG.HEIGHT / 2);
+    }
+
+    function varColor() {
+        return state.countdown === 3 ? "#f33" : state.countdown === 2 ? "#ff3" : "#3f3";
+    }
+
+    if (state.gameOver) {
+        ctx.fillStyle = "rgba(0,0,0,0.7)";
+        ctx.fillRect(0,0, CONFIG.WIDTH, CONFIG.HEIGHT);
+        ctx.font = "bold 64px sans-serif";
+        ctx.fillStyle = "#fff";
+        ctx.textAlign = "center";
+        ctx.fillText(state.scoreL > state.scoreR ? "LEFT WIN!!" : "RIGHT WIN!!", CONFIG.WIDTH / 2, CONFIG.HEIGHT / 2);
+    }
 }
 
-(function loop(){
-  update(); draw();
-  requestAnimationFrame(loop);
-})();
+/**
+ * Initialization & Events
+ */
+function initGame() {
+    AudioMgr.init();
+    state.rule = document.querySelector("input[name=rule]:checked").value;
+    state.scoreL = 0;
+    state.scoreR = 0;
+    state.items = [];
+    state.running = true;
+    state.gameOver = false;
+    state.lastItemSpawn = Date.now();
+    updateScoreUI();
+    resetBall(Math.random() > 0.5 ? 1 : -1);
+    updateSpeedUI();
+    document.getElementById("overlay").style.display = "none";
+}
+
+document.getElementById("startBtn").addEventListener("click", initGame);
+
+window.addEventListener("keydown", e => state.keys.add(e.code));
+window.addEventListener("keyup", e => state.keys.delete(e.code));
+
+function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
 </script>
 </body>
 </html>
