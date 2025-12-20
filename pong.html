@@ -24,7 +24,7 @@
         canvas {
             display: block;
             background: #000;
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
             max-width: 95vw;
             max-height: 80vh;
             border: 2px solid #333;
@@ -103,7 +103,7 @@
         <p>
             左：W / S（A/Dでボレー）<br>
             右：↑ / ↓（←/→でボレー）<br><br>
-            🔥 S：速度UP | 🌀 C：急カーブ | 📏 L：相手延長
+            🔥 S：速度 | 🌀 C：カーブ | 📏 L：相手延長 | 🌟 U：超必殺
         </p>
 
         <div class="ruleBox">
@@ -131,17 +131,19 @@ const CONFIG = {
     WIN_SCORE: 10,
     PADDLE_WIDTH: 12,
     PADDLE_HEIGHT: 100,
-    PADDLE_SPEED: 12, // スピードアップ
+    PADDLE_SPEED: 12,
     BALL_RADIUS: 8,
-    BALL_INITIAL_VX: 6,
-    ITEM_SPAWN_RATE: 4000,
-    BOUNCE_SPEED_UP_STEP: 5, // 5回ごとに加速
+    BALL_INITIAL_VX: 9, // 初速を1.5倍 (6 * 1.5)
+    ITEM_SPAWN_RATE: 3500,
+    BOUNCE_SPEED_UP_STEP: 5,
+    ITEM_RADIUS: 24, // アイテムサイズを大きく
     COLORS: {
         PADDLE: "#0ff",
         BALL: "#fff",
         SPEED: "#f33",
         CURVE: "#3f3",
-        LONG: "#ff3"
+        LONG: "#ff3",
+        ULTIMATE: "#f0f"
     }
 };
 
@@ -167,7 +169,11 @@ const AudioMgr = {
     },
     seHit() { this.play(900, 0.05, "square", 0.1); },
     seScore() { this.play(220, 0.4, "sawtooth", 0.2); },
-    seItem() { this.play(1200, 0.15, "triangle", 0.15); },
+    seItem() { this.play(1200, 0.2, "triangle", 0.15); },
+    seUltimate() { 
+        this.play(600, 0.5, "sawtooth", 0.2);
+        this.play(800, 0.5, "sine", 0.2);
+    },
     seCount(freq) { this.play(freq, 0.1, "sine", 0.1); }
 };
 
@@ -184,12 +190,16 @@ const state = {
         left: { x: 30, y: 250, tx: 30, ty: 250, h: CONFIG.PADDLE_HEIGHT },
         right: { x: 858, y: 250, tx: 858, ty: 250, h: CONFIG.PADDLE_HEIGHT }
     },
-    ball: { x: 450, y: 250, vx: 0, vy: 0, speed: 1, baseSpeedMult: 1, bounceCount: 0 },
+    ball: { 
+        x: 450, y: 250, vx: 0, vy: 0, speed: 1, baseSpeedMult: 1, bounceCount: 0,
+        isUltimate: false, ultimateTime: 0
+    },
     items: [],
     curve: { delay: 0, power: 0 },
     keys: new Set(),
     lastItemSpawn: 0,
-    countdown: 0 // カウントダウン秒数
+    countdown: 0,
+    frameCounter: 0
 };
 
 const canvas = document.getElementById("game");
@@ -207,15 +217,17 @@ function resetBall(dir = 1) {
         vx: dir * CONFIG.BALL_INITIAL_VX,
         vy: (Math.random() * 2 - 1) * 4,
         speed: 1,
-        baseSpeedMult: 1, // 跳ね返りによる加速倍率
-        bounceCount: 0
+        baseSpeedMult: 1,
+        bounceCount: 0,
+        isUltimate: false,
+        ultimateTime: 0
     };
     state.curve = { delay: 0, power: 0 };
     startCountdown();
 }
 
 function startCountdown() {
-    state.countdown = 3; // 3, 2, 1
+    state.countdown = 3;
     const timer = setInterval(() => {
         state.countdown--;
         if (state.countdown > 0) {
@@ -233,20 +245,26 @@ function updateScoreUI() {
 
 function updateSpeedUI() {
     const totalSpeed = (state.ball.speed * state.ball.baseSpeedMult).toFixed(2);
-    document.getElementById("speed-info").textContent = `BALL SPEED: x${totalSpeed}`;
+    document.getElementById("speed-info").textContent = `BALL SPEED: x${totalSpeed} ${state.ball.isUltimate ? '!!ULTIMATE!!' : ''}`;
 }
 
 function applyItem(type, isLeftCollector) {
-    AudioMgr.seItem();
-    if (type === "speed") state.ball.speed += 0.5;
-    if (type === "curve") {
-        state.curve.delay = 40;
-        state.curve.power = (Math.random() > 0.5 ? 1 : -1) * (4 + Math.random() * 3);
-    }
-    if (type === "long") {
-        const target = isLeftCollector ? state.paddles.right : state.paddles.left;
-        target.h = 160;
-        setTimeout(() => target.h = CONFIG.PADDLE_HEIGHT, 5000);
+    if (type === "ultimate") {
+        AudioMgr.seUltimate();
+        state.ball.isUltimate = true;
+        state.ball.ultimateTime = 180; // 約3秒
+    } else {
+        AudioMgr.seItem();
+        if (type === "speed") state.ball.speed += 0.5;
+        if (type === "curve") {
+            state.curve.delay = 30;
+            state.curve.power = (Math.random() > 0.5 ? 1 : -1) * (5 + Math.random() * 5);
+        }
+        if (type === "long") {
+            const target = isLeftCollector ? state.paddles.right : state.paddles.left;
+            target.h = 160;
+            setTimeout(() => target.h = CONFIG.PADDLE_HEIGHT, 5000);
+        }
     }
     updateSpeedUI();
 }
@@ -256,10 +274,11 @@ function applyItem(type, isLeftCollector) {
  */
 function update() {
     if (!state.running || state.gameOver) return;
+    state.frameCounter++;
 
     const { paddles, keys, ball } = state;
 
-    // Paddle Movement (Always enabled even during countdown)
+    // Paddle Movement
     if (keys.has("KeyW")) paddles.left.ty -= CONFIG.PADDLE_SPEED;
     if (keys.has("KeyS")) paddles.left.ty += CONFIG.PADDLE_SPEED;
     if (keys.has("ArrowUp")) paddles.right.ty -= CONFIG.PADDLE_SPEED;
@@ -272,10 +291,6 @@ function update() {
         if (keys.has("ArrowRight")) paddles.right.tx += 8;
     }
 
-    // Constraints
-    paddles.left.tx = Math.max(10, Math.min(CONFIG.WIDTH / 2 - 40, paddles.left.tx));
-    paddles.right.tx = Math.max(CONFIG.WIDTH / 2 + 20, Math.min(CONFIG.WIDTH - 30, paddles.right.tx));
-    
     for (let side in paddles) {
         const p = paddles[side];
         p.ty = Math.max(p.h / 2, Math.min(CONFIG.HEIGHT - p.h / 2, p.ty));
@@ -283,13 +298,23 @@ function update() {
         p.y += (p.ty - p.y) * 0.25;
     }
 
-    // Ball & Items (Paused during countdown)
     if (state.countdown > 0) return;
 
     // Ball Physics
     const currentSpeed = ball.speed * ball.baseSpeedMult;
-    ball.x += ball.vx * currentSpeed;
-    ball.y += ball.vy * currentSpeed;
+    let moveX = ball.vx * currentSpeed;
+    let moveY = ball.vy * currentSpeed;
+
+    // 超必殺技：ぐるぐる回転軌道
+    if (ball.isUltimate) {
+        ball.ultimateTime--;
+        const swirlScale = 15;
+        moveY += Math.sin(state.frameCounter * 0.2) * swirlScale;
+        if (ball.ultimateTime <= 0) ball.isUltimate = false;
+    }
+
+    ball.x += moveX;
+    ball.y += moveY;
 
     if (state.curve.delay > 0) {
         state.curve.delay--;
@@ -303,7 +328,7 @@ function update() {
         handleBounce();
     }
 
-    // Collision Detection
+    // Paddle Hits
     const checkPaddleHit = (p, isLeft) => {
         if (ball.x + CONFIG.BALL_RADIUS > p.x && 
             ball.x - CONFIG.BALL_RADIUS < p.x + CONFIG.PADDLE_WIDTH &&
@@ -314,6 +339,9 @@ function update() {
             ball.vy = relativeIntersectY * 7;
             ball.vx = isLeft ? Math.abs(ball.vx) : -Math.abs(ball.vx);
             ball.x = isLeft ? p.x + CONFIG.PADDLE_WIDTH + CONFIG.BALL_RADIUS : p.x - CONFIG.BALL_RADIUS;
+            
+            // ヒット時に必殺技が切れる
+            if (ball.isUltimate) ball.isUltimate = false;
             handleBounce();
         }
     };
@@ -331,12 +359,19 @@ function update() {
 
     // Items Logic
     const now = Date.now();
-    if (now - state.lastItemSpawn > CONFIG.ITEM_SPAWN_RATE && state.items.length < 5) {
+    if (now - state.lastItemSpawn > CONFIG.ITEM_SPAWN_RATE && state.items.length < 4) {
+        const rand = Math.random();
+        let type = "speed";
+        if (rand < 0.1) type = "ultimate"; // 10%で超必殺
+        else if (rand < 0.4) type = "curve";
+        else if (rand < 0.7) type = "long";
+
         state.items.push({
-            x: 150 + Math.random() * (CONFIG.WIDTH - 300),
-            y: 50 + Math.random() * (CONFIG.HEIGHT - 100),
-            r: 18,
-            type: ["speed", "curve", "long"][Math.floor(Math.random() * 3)]
+            x: 200 + Math.random() * (CONFIG.WIDTH - 400),
+            y: 80 + Math.random() * (CONFIG.HEIGHT - 160),
+            r: CONFIG.ITEM_RADIUS,
+            type: type,
+            pulse: 0
         });
         state.lastItemSpawn = now;
     }
@@ -350,9 +385,91 @@ function update() {
         return true;
     });
 
-    // Scoring
     if (ball.x < 0) { state.scoreR++; handleScore(); }
     else if (ball.x > CONFIG.WIDTH) { state.scoreL++; handleScore(); }
+}
+
+/**
+ * Game Loop - Draw
+ */
+function draw() {
+    ctx.clearRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT);
+
+    // Center Line
+    ctx.setLineDash([10, 10]);
+    ctx.strokeStyle = "#222";
+    ctx.beginPath(); ctx.moveTo(CONFIG.WIDTH / 2, 0); ctx.lineTo(CONFIG.WIDTH / 2, CONFIG.HEIGHT); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Items
+    state.items.forEach(it => {
+        const color = CONFIG.COLORS[it.type.toUpperCase()];
+        it.pulse = (it.pulse + 0.1) % (Math.PI * 2);
+        const s = it.r + Math.sin(it.pulse) * 4;
+
+        // Glow
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = color;
+        
+        // Outer circle
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(it.x, it.y, s, 0, Math.PI * 2); ctx.stroke();
+        
+        // Inner circle
+        ctx.fillStyle = "rgba(0,0,0,0.8)";
+        ctx.beginPath(); ctx.arc(it.x, it.y, it.r - 2, 0, Math.PI * 2); ctx.fill();
+        
+        ctx.shadowBlur = 0;
+        
+        // Icon Text/Emoji
+        const icons = { speed: "🔥", curve: "🌀", long: "📏", ultimate: "🌟" };
+        ctx.font = "24px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(icons[it.type], it.x, it.y);
+    });
+
+    // Paddles
+    ctx.fillStyle = CONFIG.COLORS.PADDLE;
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = CONFIG.COLORS.PADDLE;
+    ctx.fillRect(state.paddles.left.x, state.paddles.left.y - state.paddles.left.h / 2, CONFIG.PADDLE_WIDTH, state.paddles.left.h);
+    ctx.fillRect(state.paddles.right.x, state.paddles.right.y - state.paddles.right.h / 2, CONFIG.PADDLE_WIDTH, state.paddles.right.h);
+    ctx.shadowBlur = 0;
+
+    // Ball
+    if (state.ball.isUltimate) {
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = CONFIG.COLORS.ULTIMATE;
+        ctx.fillStyle = CONFIG.COLORS.ULTIMATE;
+    } else {
+        ctx.fillStyle = CONFIG.COLORS.BALL;
+    }
+    ctx.beginPath();
+    ctx.arc(state.ball.x, state.ball.y, CONFIG.BALL_RADIUS, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // UI Layer
+    if (state.countdown > 0) {
+        ctx.fillStyle = "rgba(0,0,0,0.4)";
+        ctx.fillRect(0,0, CONFIG.WIDTH, CONFIG.HEIGHT);
+        ctx.font = "bold 120px sans-serif";
+        ctx.fillStyle = state.countdown === 3 ? "#f33" : state.countdown === 2 ? "#ff3" : "#3f3";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(state.countdown, CONFIG.WIDTH / 2, CONFIG.HEIGHT / 2);
+    }
+
+    if (state.gameOver) {
+        ctx.fillStyle = "rgba(0,0,0,0.8)";
+        ctx.fillRect(0,0, CONFIG.WIDTH, CONFIG.HEIGHT);
+        ctx.font = "bold 64px sans-serif";
+        ctx.fillStyle = "#fff";
+        ctx.textAlign = "center";
+        ctx.fillText(state.scoreL > state.scoreR ? "LEFT WIN!!" : "RIGHT WIN!!", CONFIG.WIDTH / 2, CONFIG.HEIGHT / 2);
+    }
 }
 
 function handleScore() {
@@ -368,100 +485,24 @@ function handleScore() {
     }
 }
 
-/**
- * Game Loop - Draw
- */
-function draw() {
-    ctx.clearRect(0, 0, CONFIG.WIDTH, CONFIG.HEIGHT);
-
-    // Center Line
-    ctx.setLineDash([10, 10]);
-    ctx.strokeStyle = "#333";
-    ctx.beginPath();
-    ctx.moveTo(CONFIG.WIDTH / 2, 0);
-    ctx.lineTo(CONFIG.WIDTH / 2, CONFIG.HEIGHT);
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    // Paddles
-    ctx.fillStyle = CONFIG.COLORS.PADDLE;
-    ctx.fillRect(state.paddles.left.x, state.paddles.left.y - state.paddles.left.h / 2, CONFIG.PADDLE_WIDTH, state.paddles.left.h);
-    ctx.fillRect(state.paddles.right.x, state.paddles.right.y - state.paddles.right.h / 2, CONFIG.PADDLE_WIDTH, state.paddles.right.h);
-
-    // Ball
-    ctx.fillStyle = CONFIG.COLORS.BALL;
-    ctx.beginPath();
-    ctx.arc(state.ball.x, state.ball.y, CONFIG.BALL_RADIUS, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Items
-    state.items.forEach(it => {
-        ctx.fillStyle = CONFIG.COLORS[it.type.toUpperCase()];
-        ctx.beginPath();
-        ctx.arc(it.x, it.y, it.r, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = "#000";
-        ctx.font = "bold 16px sans-serif";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(it.type[0].toUpperCase(), it.x, it.y);
-    });
-
-    // Countdown UI
-    if (state.countdown > 0) {
-        ctx.fillStyle = "rgba(0,0,0,0.3)";
-        ctx.fillRect(0,0, CONFIG.WIDTH, CONFIG.HEIGHT);
-        ctx.font = "bold 120px sans-serif";
-        ctx.fillStyle = varColor();
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(state.countdown, CONFIG.WIDTH / 2, CONFIG.HEIGHT / 2);
-    }
-
-    function varColor() {
-        return state.countdown === 3 ? "#f33" : state.countdown === 2 ? "#ff3" : "#3f3";
-    }
-
-    if (state.gameOver) {
-        ctx.fillStyle = "rgba(0,0,0,0.7)";
-        ctx.fillRect(0,0, CONFIG.WIDTH, CONFIG.HEIGHT);
-        ctx.font = "bold 64px sans-serif";
-        ctx.fillStyle = "#fff";
-        ctx.textAlign = "center";
-        ctx.fillText(state.scoreL > state.scoreR ? "LEFT WIN!!" : "RIGHT WIN!!", CONFIG.WIDTH / 2, CONFIG.HEIGHT / 2);
-    }
-}
-
-/**
- * Initialization & Events
- */
 function initGame() {
     AudioMgr.init();
     state.rule = document.querySelector("input[name=rule]:checked").value;
-    state.scoreL = 0;
-    state.scoreR = 0;
-    state.items = [];
-    state.running = true;
-    state.gameOver = false;
+    state.scoreL = 0; state.scoreR = 0; state.items = [];
+    state.running = true; state.gameOver = false;
     state.lastItemSpawn = Date.now();
-    updateScoreUI();
-    resetBall(Math.random() > 0.5 ? 1 : -1);
-    updateSpeedUI();
+    updateScoreUI(); resetBall(Math.random() > 0.5 ? 1 : -1); updateSpeedUI();
     document.getElementById("overlay").style.display = "none";
 }
 
 document.getElementById("startBtn").addEventListener("click", initGame);
-
 window.addEventListener("keydown", e => state.keys.add(e.code));
 window.addEventListener("keyup", e => state.keys.delete(e.code));
 
-function loop() {
-    update();
-    draw();
+(function loop() {
+    update(); draw();
     requestAnimationFrame(loop);
-}
-requestAnimationFrame(loop);
-
+})();
 </script>
 </body>
 </html>
