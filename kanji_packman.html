@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>国語パックマン：同音異義語の迷宮</title>
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --panel-color: #16213e;
+            --text-color: #e94560;
+            --accent-color: #0f3460;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: white;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #game-container {
+            position: relative;
+            background-color: var(--panel-color);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            max-width: 95vw;
+        }
+
+        #ui-panel {
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        #question-box {
+            background: var(--accent-color);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            border: 2px solid var(--text-color);
+            min-height: 50px;
+        }
+
+        .highlight {
+            color: #ffde7d;
+            font-weight: bold;
+            text-decoration: underline;
+        }
+
+        #stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+
+        canvas {
+            background-color: #000;
+            display: block;
+            margin: 0 auto;
+            border: 4px solid #333;
+            border-radius: 5px;
+            max-width: 100%;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 15px;
+            z-index: 10;
+        }
+
+        button {
+            background-color: var(--text-color);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.2rem;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: scale(1.1);
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="ui-panel">
+        <div id="question-box">
+            問題を読み込んでいます...
+        </div>
+        <div id="stats">
+            <div>スコア: <span id="score">0</span></div>
+            <div>残りライフ: <span id="lives">3</span></div>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="overlay">
+        <h1 id="overlay-title">国語パックマン</h1>
+        <p id="overlay-desc">正しい漢字を食べてポイントを稼ごう！</p>
+        <button id="start-btn">ゲーム開始</button>
+    </div>
+</div>
+
+<script>
+/**
+ * Game Configuration & Data
+ */
+const CELL_SIZE = 30;
+const ROWS = 15;
+const COLS = 19;
+const MAX_ENEMIES = 5;
+
+const QUESTIONS = [
+    { q: "スープを（　）める。", ans: "温", options: ["温", "暖", "暑", "厚"], reading: "あつ" },
+    { q: "運動場を開（　）する。", ans: "放", options: ["放", "法", "報", "訪"], reading: "ほう" },
+    { q: "家庭菜園を（　）む。", ans: "営", options: ["営", "独", "栄", "影"], reading: "いとな" },
+    { q: "会議の（　）行を妨げる。", ans: "進", options: ["進", "信", "震", "振"], reading: "しん" },
+    { q: "（　）大な計画を立てる。", ans: "壮", options: ["壮", "草", "走", "早"], reading: "そう" },
+    { q: "友人を家に（　）く。", ans: "招", options: ["招", "紹", "消", "焦"], reading: "まね" },
+    { q: "（　）学に励む。", ans: "勤", options: ["勤", "勉", "均", "琴"], reading: "きん" },
+    { q: "（　）い布で袋を作る。", ans: "厚", options: ["厚", "暑", "熱", "圧"], reading: "あつ" },
+    { q: "（　）な成績を収める。", ans: "優秀", options: ["優秀", "郵趣", "悠州", "融周"], reading: "ゆうしゅう" },
+    { q: "（　）に注意して歩く。", ans: "足下", options: ["足下", "足元", "脚下", "足本"], reading: "あしもと" },
+    { q: "（　）を正して座る。", ans: "姿勢", options: ["姿勢", "司勢", "至誠", "市勢"], reading: "しせい" },
+    { q: "意見を（　）成する。", ans: "賛", options: ["賛", "酸", "参", "桟"], reading: "さん" },
+    { q: "事件を（　）査する。", ans: "調", options: ["調", "聴", "超", "帳"], reading: "ちょう" },
+    { q: "（　）器を大切にする。", ans: "磁", options: ["磁", "辞", "時", "字"], reading: "じ" }
+];
+
+// 1: wall, 0: path, 2: power pellet
+const MAZE_LAYOUT = [
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [1,2,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,2,1],
+    [1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,0,1],
+    [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1],
+    [1,1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,1,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,1,1],
+    [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1],
+    [1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,0,1],
+    [1,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,1],
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+];
+
+// 文字が出現可能な候補地
+const KANJI_SPAWN_POINTS = [
+    {r: 1, c: 1}, {r: 1, c: 17}, {r: 13, c: 1}, {r: 13, c: 17},
+    {r: 7, c: 1}, {r: 7, c: 17}, {r: 7, c: 9}, {r: 3, c: 4},
+    {r: 3, c: 14}, {r: 11, c: 4}, {r: 11, c: 14}
+];
+
+/**
+ * Sound Engine (Web Audio API)
+ */
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playSound(freq, type, duration, vol = 0.1) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration);
+}
+
+const sounds = {
+    correct: () => { playSound(880, 'sine', 0.2); playSound(1320, 'sine', 0.3); },
+    wrong: () => { playSound(220, 'sawtooth', 0.4, 0.2); },
+    power: () => { playSound(660, 'square', 0.1); playSound(880, 'square', 0.1); },
+    move: () => { /* 移動音はうるさいため控えめに */ }
+};
+
+/**
+ * Game State
+ */
+let canvas, ctx;
+let score = 0;
+let lives = 3;
+let currentQuestionIndex = 0;
+let gameState = 'STOPPED';
+let powerMode = false;
+let powerTimer = 0;
+let lastEnemySpawnTime = 0;
+
+const player = {
+    x: 9 * CELL_SIZE + CELL_SIZE/2,
+    y: 11 * CELL_SIZE + CELL_SIZE/2,
+    dir: { x: 0, y: 0 },
+    nextDir: { x: 0, y: 0 },
+    speed: 2,
+    radius: 12,
+    mouthOpen: 0,
+    mouthSpeed: 0.15
+};
+
+let enemies = [];
+let items = [];
+let kanjiOptions = [];
+
+/**
+ * Initialization
+ */
+window.onload = () => {
+    canvas = document.getElementById('gameCanvas');
+    ctx = canvas.getContext('2d');
+    canvas.width = COLS * CELL_SIZE;
+    canvas.height = ROWS * CELL_SIZE;
+
+    document.getElementById('start-btn').onclick = startGame;
+    window.addEventListener('keydown', handleKey);
+
+    resetGame();
+    drawInitial();
+};
+
+function resetGame() {
+    score = 0;
+    lives = 3;
+    currentQuestionIndex = 0;
+    updateUI();
+}
+
+function startGame() {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    document.getElementById('overlay').classList.add('hidden');
+    gameState = 'RUNNING';
+    initStage();
+    gameLoop();
+}
+
+function initStage() {
+    enemies = [];
+    spawnEnemy();
+    lastEnemySpawnTime = Date.now();
+    
+    items = [];
+    kanjiOptions = [];
+    
+    const q = QUESTIONS[currentQuestionIndex];
+    document.getElementById('question-box').innerHTML = q.q.replace('（　）', '<span class="highlight">（　）</span>');
+    
+    // 出現位置をランダムにシャッフル
+    const spawnPoints = [...KANJI_SPAWN_POINTS].sort(() => Math.random() - 0.5);
+    
+    // オプション（漢字）をランダムな場所に配置
+    q.options.forEach((opt, idx) => {
+        if (idx < spawnPoints.length) {
+            kanjiOptions.push({
+                char: opt,
+                x: spawnPoints[idx].c * CELL_SIZE + CELL_SIZE/2,
+                y: spawnPoints[idx].r * CELL_SIZE + CELL_SIZE/2,
+                isCorrect: opt === q.ans
+            });
+        }
+    });
+
+    for(let r=0; r<ROWS; r++) {
+        for(let c=0; c<COLS; c++) {
+            if(MAZE_LAYOUT[r][c] === 2) {
+                items.push({ x: c*CELL_SIZE + CELL_SIZE/2, y: r*CELL_SIZE + CELL_SIZE/2, type: 'POWER' });
+            }
+        }
+    }
+}
+
+function spawnEnemy() {
+    if(enemies.length >= MAX_ENEMIES) return;
+    enemies.push({
+        x: 9 * CELL_SIZE + CELL_SIZE/2,
+        y: 5 * CELL_SIZE + CELL_SIZE/2,
+        dir: { x: 1, y: 0 },
+        speed: 1.5,
+        color: `hsl(${Math.random()*360}, 70%, 60%)`,
+        id: Math.random()
+    });
+}
+
+function handleKey(e) {
+    if(gameState !== 'RUNNING') return;
+    if(e.key === 'ArrowUp') player.nextDir = { x: 0, y: -1 };
+    if(e.key === 'ArrowDown') player.nextDir = { x: 0, y: 1 };
+    if(e.key === 'ArrowLeft') player.nextDir = { x: -1, y: 0 };
+    if(e.key === 'ArrowRight') player.nextDir = { x: 1, y: 0 };
+}
+
+function moveEntity(ent) {
+    if(ent === player && (player.nextDir.x !== 0 || player.nextDir.y !== 0)) {
+        if(canMove(ent.x, ent.y, player.nextDir)) {
+            ent.dir = player.nextDir;
+        }
+    }
+
+    if(canMove(ent.x, ent.y, ent.dir)) {
+        ent.x += ent.dir.x * ent.speed;
+        ent.y += ent.dir.y * ent.speed;
+    } else if (ent !== player) {
+        const dirs = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
+        const validDirs = dirs.filter(d => canMove(ent.x, ent.y, d));
+        if(validDirs.length > 0) {
+            ent.dir = validDirs[Math.floor(Math.random() * validDirs.length)];
+        }
+    }
+}
+
+function canMove(x, y, dir) {
+    const nextX = x + dir.x * (CELL_SIZE/2 + 2);
+    const nextY = y + dir.y * (CELL_SIZE/2 + 2);
+    const c = Math.floor(nextX / CELL_SIZE);
+    const r = Math.floor(nextY / CELL_SIZE);
+    if(r < 0 || r >= ROWS || c < 0 || c >= COLS) return false;
+    return MAZE_LAYOUT[r][c] !== 1;
+}
+
+function update() {
+    moveEntity(player);
+    enemies.forEach(moveEntity);
+
+    // 口のパクパクアニメーション
+    player.mouthOpen += player.mouthSpeed;
+    if(player.mouthOpen > 0.2 || player.mouthOpen < 0) player.mouthSpeed *= -1;
+
+    if(Date.now() - lastEnemySpawnTime > 5000) {
+        spawnEnemy();
+        lastEnemySpawnTime = Date.now();
+    }
+
+    if(powerMode) {
+        powerTimer--;
+        if(powerTimer <= 0) powerMode = false;
+    }
+
+    items = items.filter(item => {
+        const dist = Math.hypot(player.x - item.x, player.y - item.y);
+        if(dist < 15) {
+            if(item.type === 'POWER') {
+                powerMode = true;
+                powerTimer = 400;
+                sounds.power();
+            }
+            return false;
+        }
+        return true;
+    });
+
+    kanjiOptions.forEach((opt, idx) => {
+        const dist = Math.hypot(player.x - opt.x, player.y - opt.y);
+        if(dist < 20) {
+            if(opt.isCorrect) {
+                score += 100;
+                currentQuestionIndex = (currentQuestionIndex + 1) % QUESTIONS.length;
+                sounds.correct();
+                initStage();
+            } else {
+                score = Math.max(0, score - 20);
+                sounds.wrong();
+                player.x = 9 * CELL_SIZE + CELL_SIZE/2;
+                player.y = 11 * CELL_SIZE + CELL_SIZE/2;
+            }
+        }
+    });
+
+    enemies.forEach((enemy, idx) => {
+        const dist = Math.hypot(player.x - enemy.x, player.y - enemy.y);
+        if(dist < 20) {
+            if(powerMode) {
+                score += 200;
+                enemies.splice(idx, 1);
+                sounds.correct();
+            } else {
+                lives--;
+                sounds.wrong();
+                player.x = 9 * CELL_SIZE + CELL_SIZE/2;
+                player.y = 11 * CELL_SIZE + CELL_SIZE/2;
+                if(lives <= 0) gameOver();
+            }
+        }
+    });
+
+    updateUI();
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    for(let r=0; r<ROWS; r++) {
+        for(let c=0; c<COLS; c++) {
+            if(MAZE_LAYOUT[r][c] === 1) {
+                ctx.fillStyle = '#1e3a8a';
+                ctx.fillRect(c*CELL_SIZE+2, r*CELL_SIZE+2, CELL_SIZE-4, CELL_SIZE-4);
+            }
+        }
+    }
+
+    items.forEach(item => {
+        ctx.beginPath();
+        ctx.arc(item.x, item.y, 6, 0, Math.PI*2);
+        ctx.fillStyle = '#ffde7d';
+        ctx.fill();
+    });
+
+    kanjiOptions.forEach(opt => {
+        ctx.fillStyle = "white";
+        ctx.font = "bold 20px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(opt.char, opt.x, opt.y);
+    });
+
+    // プレイヤー描画（向きに対応）
+    ctx.save();
+    ctx.translate(player.x, player.y);
+    let angle = 0;
+    if(player.dir.x === 1) angle = 0;
+    else if(player.dir.x === -1) angle = Math.PI;
+    else if(player.dir.y === 1) angle = Math.PI/2;
+    else if(player.dir.y === -1) angle = -Math.PI/2;
+    ctx.rotate(angle);
+
+    ctx.beginPath();
+    const open = player.mouthOpen;
+    ctx.arc(0, 0, player.radius, open * Math.PI, (2 - open) * Math.PI);
+    ctx.lineTo(0, 0);
+    ctx.fillStyle = "#ffff00";
+    ctx.fill();
+    ctx.restore();
+
+    enemies.forEach(enemy => {
+        ctx.fillStyle = powerMode ? "#4ade80" : enemy.color;
+        ctx.beginPath();
+        ctx.arc(enemy.x, enemy.y - 2, 12, Math.PI, 0);
+        ctx.lineTo(enemy.x + 12, enemy.y + 12);
+        ctx.lineTo(enemy.x - 12, enemy.y + 12);
+        ctx.fill();
+        
+        if(powerMode) {
+            ctx.fillStyle = "black";
+            ctx.font = "14px sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText(QUESTIONS[currentQuestionIndex].reading, enemy.x, enemy.y + 5);
+        }
+    });
+}
+
+function updateUI() {
+    document.getElementById('score').innerText = score;
+    document.getElementById('lives').innerText = lives;
+}
+
+function gameOver() {
+    gameState = 'STOPPED';
+    document.getElementById('overlay-title').innerText = "ゲームオーバー";
+    document.getElementById('overlay-desc').innerText = `最終スコア: ${score}点`;
+    document.getElementById('start-btn').innerText = "もう一度挑戦";
+    document.getElementById('overlay').classList.remove('hidden');
+}
+
+function drawInitial() {
+    draw();
+}
+
+function gameLoop() {
+    if(gameState === 'RUNNING') {
+        update();
+        draw();
+        requestAnimationFrame(gameLoop);
+    }
+}
+</script>
+</body>
+</html>
