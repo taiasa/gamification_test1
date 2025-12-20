@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speed Typing Magic Master - Alphabet Learning</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=M+PLUS+Rounded+1c:wght@700&display=swap');
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #0a0a1a;
+            color: white;
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: background 1s ease, filter 0.5s ease;
+        }
+
+        #canvas-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .magic-text {
+            font-family: 'Cinzel', serif;
+            font-size: 4.5rem;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 0.8), 0 0 40px rgba(0, 255, 255, 0.4);
+            letter-spacing: 0.2rem;
+            margin-bottom: 2rem;
+            z-index: 20;
+            text-transform: lowercase;
+        }
+
+        .input-display {
+            font-size: 2.5rem;
+            height: 4rem;
+            color: #ffd700;
+            border-bottom: 3px solid #ffd700;
+            min-width: 200px;
+            text-align: center;
+            z-index: 20;
+            text-transform: lowercase;
+        }
+
+        .enemy {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.5));
+            z-index: 5;
+        }
+        
+        .enemy.elite {
+            width: 130px;
+            height: 130px;
+            font-size: 4.5rem;
+            filter: drop-shadow(0 0 20px rgba(255, 0, 0, 0.8));
+            animation: pulse 1s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { transform: scale(1); }
+            to { transform: scale(1.1); }
+        }
+
+        .enemy-word {
+            font-size: 1.1rem;
+            background: rgba(0,0,0,0.8);
+            padding: 2px 12px;
+            border-radius: 6px;
+            margin-top: 5px;
+            color: #00ffff;
+            white-space: nowrap;
+            font-weight: bold;
+            text-transform: lowercase;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            width: 90%;
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.5rem;
+            z-index: 30;
+        }
+
+        #quiz-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+
+        .quiz-card {
+            background: #1a1a2e;
+            padding: 2.5rem;
+            border: 3px solid #4facfe;
+            border-radius: 24px;
+            text-align: center;
+            max-width: 550px;
+            width: 90%;
+            box-shadow: 0 0 50px rgba(79, 172, 254, 0.3);
+        }
+
+        .quiz-option {
+            width: 100%;
+            padding: 1.2rem;
+            margin: 0.6rem 0;
+            background: #252545;
+            border: 1px solid #4facfe;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1.5rem;
+            transition: all 0.2s;
+        }
+        .quiz-option:hover {
+            background: #4facfe;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        #pause-countdown {
+            position: absolute;
+            font-size: 8rem;
+            color: #ffd700;
+            font-weight: bold;
+            z-index: 50;
+            display: none;
+            text-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
+            pointer-events: none;
+        }
+
+        .flash-effect {
+            animation: flash-animation 0.5s ease-out;
+        }
+        @keyframes flash-animation {
+            0% { background-color: rgba(255, 50, 50, 0.6); }
+            100% { background-color: transparent; }
+        }
+
+        .drain-effect {
+            animation: drain-animation 0.5s ease-out;
+        }
+        @keyframes drain-animation {
+            0% { background-color: rgba(147, 51, 234, 0.5); }
+            100% { background-color: transparent; }
+        }
+
+        .shake {
+            animation: shake-animation 0.4s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes shake-animation {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(4px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+            40%, 60% { transform: translate3d(6px, 0, 0); }
+        }
+
+        #start-screen {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle, #1a1a3a 0%, #050510 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            text-align: center;
+        }
+
+        .btn-start {
+            padding: 1.2rem 4rem;
+            font-size: 2.2rem;
+            background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+            border: none;
+            border-radius: 60px;
+            color: white;
+            cursor: pointer;
+            margin-top: 2.5rem;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            transition: all 0.2s;
+        }
+        .btn-start:hover { 
+            transform: scale(1.05);
+            box-shadow: 0 15px 30px rgba(0, 242, 254, 0.4);
+        }
+
+        .difficulty-container {
+            margin-top: 2rem;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1.5rem;
+            background: rgba(255,255,255,0.05);
+            padding: 2rem;
+            border-radius: 24px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .diff-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            gap: 0.8rem;
+            font-size: 1.1rem;
+            padding: 0.8rem 1.2rem;
+            border-radius: 15px;
+            background: rgba(0,0,0,0.3);
+            transition: all 0.3s;
+        }
+        .diff-label:hover { background: rgba(255,255,255,0.1); }
+
+        .diff-label input {
+            width: 1.5rem;
+            height: 1.5rem;
+            accent-color: #00f2fe;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="ui-layer">
+        <div>SCORE: <span id="score">0</span></div>
+        <div>HP: <span id="hp">100</span>%</div>
+    </div>
+
+    <div id="start-screen">
+        <h1 class="text-7xl mb-6 font-bold" style="font-family: 'Cinzel', serif; letter-spacing: 4px;">MAGIC MASTER</h1>
+        <p class="text-2xl opacity-80 mb-4">タイピングで迫りくる魔物を封印せよ</p>
+        
+        <div class="difficulty-container">
+            <label class="diff-label">
+                <input type="radio" name="difficulty" value="easy"> 
+                <div>
+                    <span class="block font-bold text-green-400 text-lg">やさしい</span>
+                    <span class="text-xs opacity-60">（アルファベット）</span>
+                </div>
+            </label>
+            <label class="diff-label">
+                <input type="radio" name="difficulty" value="normal" checked> 
+                <div>
+                    <span class="block font-bold text-blue-400 text-lg">ふつう</span>
+                    <span class="text-xs opacity-60">（厳選２０単語）</span>
+                </div>
+            </label>
+            <label class="diff-label">
+                <input type="radio" name="difficulty" value="hard"> 
+                <div>
+                    <span class="block font-bold text-red-400 text-lg">むずかしい</span>
+                    <span class="text-xs opacity-60">（単語多め）</span>
+                </div>
+            </label>
+        </div>
+
+        <button class="btn-start" onclick="startGame()">冒険を始める</button>
+    </div>
+
+    <!-- クイズ（魔法の代償）画面 -->
+    <div id="quiz-overlay">
+        <div class="quiz-card">
+            <h2 id="quiz-title" class="text-3xl mb-2 text-yellow-400">FORBIDDEN MAGIC!</h2>
+            <p id="quiz-instruction" class="mb-2 opacity-80">この魔物を一掃するには、真の名を解き明かせ：</p>
+            <p id="quiz-word" class="text-6xl font-bold mb-8 text-white tracking-widest"></p>
+            <div id="quiz-options"></div>
+            <div class="mt-8 p-4 bg-black/40 rounded-lg text-sm">
+                <p class="text-purple-400 font-bold">魔法の代償：</p>
+                <ul class="text-left list-disc list-inside opacity-80">
+                    <li>正解：魔物一掃だが、HPが <span class="text-red-400">20%</span> 減少する</li>
+                    <li>不正解：一撃を受け、HPが <span class="text-red-500 font-bold">50%</span> 減少する</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div id="pause-countdown">2</div>
+
+    <div id="target-spell" class="magic-text">ready?</div>
+    <div id="input-buffer" class="input-display"></div>
+
+    <canvas id="canvas-overlay"></canvas>
+</div>
+
+<script>
+    // Sound System
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+
+    function playSound(type) {
+        if (!audioCtx) audioCtx = new AudioCtx();
+        const now = audioCtx.currentTime;
+
+        switch(type) {
+            case 'type':
+                const oscT = audioCtx.createOscillator();
+                const gainT = audioCtx.createGain();
+                oscT.connect(gainT); gainT.connect(audioCtx.destination);
+                oscT.type = 'sine';
+                oscT.frequency.setValueAtTime(440, now);
+                gainT.gain.setValueAtTime(0.05, now);
+                gainT.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                oscT.start(now); oscT.stop(now + 0.05);
+                break;
+            case 'correct':
+                const oscC = audioCtx.createOscillator();
+                const gainC = audioCtx.createGain();
+                oscC.connect(gainC); gainC.connect(audioCtx.destination);
+                oscC.type = 'square';
+                oscC.frequency.setValueAtTime(660, now);
+                oscC.frequency.exponentialRampToValueAtTime(880, now + 0.1);
+                gainC.gain.setValueAtTime(0.05, now);
+                gainC.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                oscC.start(now); oscC.stop(now + 0.2);
+                break;
+            case 'explosion':
+                const oscEx = audioCtx.createOscillator();
+                const gainEx = audioCtx.createGain();
+                oscEx.connect(gainEx); gainEx.connect(audioCtx.destination);
+                oscEx.type = 'sawtooth';
+                oscEx.frequency.setValueAtTime(100, now);
+                oscEx.frequency.exponentialRampToValueAtTime(40, now + 1.0);
+                gainEx.gain.setValueAtTime(0.3, now);
+                gainEx.gain.exponentialRampToValueAtTime(0.01, now + 1.0);
+                oscEx.start(now); oscEx.stop(now + 1.0);
+                break;
+            case 'defeat':
+                const oscD = audioCtx.createOscillator();
+                const gainD = audioCtx.createGain();
+                oscD.connect(gainD); gainD.connect(audioCtx.destination);
+                oscD.type = 'sawtooth';
+                oscD.frequency.setValueAtTime(110, now);
+                gainD.gain.setValueAtTime(0.05, now);
+                gainD.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                oscD.start(now); oscD.stop(now + 0.1);
+                break;
+            case 'damage':
+                const oscDam = audioCtx.createOscillator();
+                const gainDam = audioCtx.createGain();
+                oscDam.connect(gainDam); gainDam.connect(audioCtx.destination);
+                oscDam.type = 'triangle';
+                oscDam.frequency.setValueAtTime(80, now);
+                gainDam.gain.setValueAtTime(0.4, now);
+                gainDam.gain.linearRampToValueAtTime(0.01, now + 0.4);
+                oscDam.start(now); oscDam.stop(now + 0.4);
+                break;
+        }
+    }
+
+    // やさしい用：アルファベット1文字
+    const alphabetChars = "abcdefghijklmnopqrstuvwxyz".split("");
+    const alphabetList = alphabetChars.map(char => ({ word: char, mean: char.toUpperCase() }));
+
+    // ふつう用：厳選20単語
+    const normalWords = [
+        { word: "apple", mean: "りんご" }, { word: "book", mean: "本" },
+        { word: "cat", mean: "ねこ" }, { word: "dog", mean: "いぬ" },
+        { word: "egg", mean: "たまご" }, { word: "fish", mean: "魚" },
+        { word: "girl", mean: "女の子" }, { word: "house", mean: "家" },
+        { word: "ice", mean: "氷" }, { word: "jump", mean: "跳ぶ" },
+        { word: "king", mean: "王様" }, { word: "lion", mean: "ライオン" },
+        { word: "milk", mean: "牛乳" }, { word: "night", mean: "夜" },
+        { word: "orange", mean: "オレンジ" }, { word: "pen", mean: "ペン" },
+        { word: "queen", mean: "女王" }, { word: "rain", mean: "雨" },
+        { word: "sun", mean: "太陽" }, { word: "tree", mean: "木" }
+    ];
+
+    const hardWords = [
+        { word: "future", mean: "未来" }, { word: "history", mean: "歴史" },
+        { word: "science", mean: "科学" }, { word: "memory", mean: "記憶" },
+        { word: "battle", mean: "戦闘" }, { word: "journey", mean: "旅" },
+        { word: "island", mean: "島" }, { word: "bridge", mean: "橋" },
+        { word: "energy", mean: "エネルギー" }, { word: "rocket", mean: "ロケット" }
+    ];
+
+    const eliteWords = [
+        { word: "environment", mean: "環境" },
+        { word: "opportunity", mean: "機会" },
+        { word: "knowledge", mean: "知識" },
+        { word: "imagination", mean: "想像力" }
+    ];
+
+    let difficulty = "normal";
+    let score = 0;
+    let hp = 100;
+    let currentSpell = null;
+    let inputBuffer = "";
+    let isGameOver = false;
+    let gameActive = false;
+    let isQuizActive = false;
+    let isPaused = false;
+    let enemies = [];
+    let spawnTimer;
+    
+    const container = document.getElementById('game-container');
+    const spellDisplay = document.getElementById('target-spell');
+    const inputDisplay = document.getElementById('input-buffer');
+    const scoreDisplay = document.getElementById('score');
+    const hpDisplay = document.getElementById('hp');
+    const canvas = document.getElementById('canvas-overlay');
+    const ctx = canvas.getContext('2d');
+    const quizOverlay = document.getElementById('quiz-overlay');
+    const countdownDisplay = document.getElementById('pause-countdown');
+
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function startGame() {
+        if (!audioCtx) audioCtx = new AudioCtx();
+        difficulty = document.querySelector('input[name="difficulty"]:checked').value;
+        document.getElementById('start-screen').style.display = 'none';
+        score = 0; hp = 100; isGameOver = false; gameActive = true;
+        scoreDisplay.innerText = score;
+        hpDisplay.innerText = hp;
+        enemies = [];
+        setNextSpell();
+        spawnEnemy();
+        requestAnimationFrame(gameLoop);
+    }
+
+    function setNextSpell() {
+        let pool;
+        if (difficulty === "easy") pool = alphabetList;
+        else if (difficulty === "normal") pool = normalWords;
+        else pool = normalWords.concat(hardWords, eliteWords);
+
+        const data = pool[Math.floor(Math.random() * pool.length)];
+        currentSpell = { word: data.word.toLowerCase(), mean: data.mean };
+        spellDisplay.innerText = currentSpell.word;
+    }
+
+    function spawnEnemy() {
+        if (!gameActive || isQuizActive || isPaused) {
+            spawnTimer = setTimeout(spawnEnemy, 1000);
+            return;
+        }
+
+        let isElite = false;
+        let pool;
+
+        if (difficulty === "easy") pool = alphabetList;
+        else if (difficulty === "normal") pool = normalWords;
+        else {
+            isElite = Math.random() < 0.3; 
+            pool = isElite ? eliteWords : normalWords.concat(hardWords);
+        }
+
+        const data = pool[Math.floor(Math.random() * pool.length)];
+        const wordLowercase = data.word.toLowerCase();
+
+        const enemy = document.createElement('div');
+        enemy.className = isElite ? 'enemy elite' : 'enemy';
+        enemy.innerHTML = `<span>${isElite ? '🐲' : '👾'}</span><span class="enemy-word">${wordLowercase}</span>`;
+        
+        const side = Math.floor(Math.random() * 4);
+        let x, y;
+        if(side === 0) { x = -80; y = Math.random() * window.innerHeight; }
+        else if(side === 1) { x = window.innerWidth + 80; y = Math.random() * window.innerHeight; }
+        else if(side === 2) { x = Math.random() * window.innerWidth; y = -80; }
+        else { x = Math.random() * window.innerWidth; y = window.innerHeight + 80; }
+
+        enemy.style.left = x + 'px';
+        enemy.style.top = y + 'px';
+        container.appendChild(enemy);
+        
+        const speeds = { easy: 0.3, normal: 0.6, hard: 0.85 };
+        const baseSpeed = speeds[difficulty];
+        const speedBonus = score / 30000;
+
+        enemies.push({
+            element: enemy, x: x, y: y, word: wordLowercase, mean: data.mean,
+            speed: baseSpeed + (isElite ? 0.3 : 0) + speedBonus, isElite: isElite
+        });
+
+        const spawnRates = { easy: 4500, normal: 3200, hard: 2500 };
+        spawnTimer = setTimeout(spawnEnemy, Math.max(1000, spawnRates[difficulty] - score/25));
+    }
+
+    window.addEventListener('keydown', (e) => {
+        if (!gameActive || isGameOver || isQuizActive || isPaused) return;
+        
+        const char = e.key.toLowerCase();
+        if (/^[a-z]$/.test(char)) {
+            playSound('type');
+            inputBuffer += char;
+            checkInput();
+        } else if (e.key === 'Backspace') {
+            inputBuffer = inputBuffer.slice(0, -1);
+        }
+        inputDisplay.innerText = inputBuffer;
+    });
+
+    function checkInput() {
+        const currentLower = currentSpell.word.toLowerCase();
+        const bufferLower = inputBuffer.toLowerCase();
+
+        if (bufferLower === currentLower) {
+            playSound('correct');
+            score += 100;
+            scoreDisplay.innerText = score;
+            killSpecificEnemy(currentLower);
+            inputBuffer = "";
+            setNextSpell();
+            return;
+        }
+
+        const targetIdx = enemies.findIndex(e => e.word.toLowerCase() === bufferLower);
+        if (targetIdx !== -1) {
+            const target = enemies[targetIdx];
+            playSound('defeat');
+            score += 50;
+            scoreDisplay.innerText = score;
+            createParticles(target.x, target.y, 'cyan');
+            target.element.remove();
+            enemies.splice(targetIdx, 1);
+            inputBuffer = "";
+        }
+    }
+
+    function killSpecificEnemy(word) {
+        const idx = enemies.findIndex(e => e.word.toLowerCase() === word.toLowerCase());
+        if (idx !== -1) {
+            const target = enemies[idx];
+            createParticles(target.x, target.y, '#ffd700');
+            target.element.remove();
+            enemies.splice(idx, 1);
+        }
+    }
+
+    function gameLoop() {
+        if (!gameActive || isQuizActive || isPaused) return;
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight / 2;
+
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            const en = enemies[i];
+            const dx = centerX - en.x;
+            const dy = centerY - en.y;
+            const angle = Math.atan2(dy, dx);
+            en.x += Math.cos(angle) * en.speed;
+            en.y += Math.sin(angle) * en.speed;
+            en.element.style.left = en.x + 'px';
+            en.element.style.top = en.y + 'px';
+
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < 90) {
+                startQuiz(en, i);
+                return;
+            }
+        }
+        updateParticles();
+        requestAnimationFrame(gameLoop);
+    }
+
+    function startQuiz(enemyData, index) {
+        isQuizActive = true;
+        const quizWord = document.getElementById('quiz-word');
+        const quizOptions = document.getElementById('quiz-options');
+        const quizInstruction = document.getElementById('quiz-instruction');
+        
+        quizWord.innerText = enemyData.word.toLowerCase();
+        quizOptions.innerHTML = "";
+        
+        if (difficulty === "easy") {
+            quizInstruction.innerText = "この小文字の「大文字」はどれ？";
+        } else {
+            quizInstruction.innerText = "この単語の正しい意味を選べ：";
+        }
+
+        let options = [enemyData.mean];
+        
+        let pool;
+        if (difficulty === "easy") {
+            pool = alphabetChars.map(c => c.toUpperCase());
+        } else {
+            pool = (difficulty === "normal" ? normalWords : normalWords.concat(hardWords, eliteWords)).map(d => d.mean);
+        }
+
+        while(options.length < 4) {
+            const r = pool[Math.floor(Math.random() * pool.length)];
+            if(!options.includes(r)) options.push(r);
+        }
+        options.sort(() => Math.random() - 0.5);
+
+        options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'quiz-option';
+            btn.innerText = opt;
+            btn.onclick = () => handleQuizAnswer(opt === enemyData.mean, enemyData, index);
+            quizOptions.appendChild(btn);
+        });
+        quizOverlay.style.display = 'flex';
+    }
+
+    function handleQuizAnswer(isCorrect, enemyData, index) {
+        quizOverlay.style.display = 'none';
+        isQuizActive = false;
+
+        if (isCorrect) {
+            playSound('explosion');
+            container.classList.add('drain-effect');
+            container.classList.add('shake');
+            
+            setTimeout(() => {
+                const colors = ['#ff4500', '#9400d3', '#ffffff'];
+                enemies.forEach((en) => {
+                    createParticles(en.x, en.y, colors[Math.floor(Math.random() * colors.length)], 30);
+                    en.element.remove();
+                });
+                score += enemies.length * 60;
+                enemies = [];
+                scoreDisplay.innerText = score;
+                takeDamage(20, true);
+            }, 100);
+
+            setTimeout(() => {
+                container.classList.remove('drain-effect');
+                container.classList.remove('shake');
+            }, 500);
+        } else {
+            playSound('damage');
+            takeDamage(50);
+            enemyData.element.remove();
+            enemies.splice(index, 1);
+        }
+        startPauseTimer();
+    }
+
+    function startPauseTimer() {
+        if (isGameOver) return;
+        isPaused = true;
+        let count = 2;
+        countdownDisplay.innerText = count;
+        countdownDisplay.style.display = 'block';
+        const timerId = setInterval(() => {
+            count--;
+            if (count > 0) countdownDisplay.innerText = count;
+            else {
+                clearInterval(timerId);
+                countdownDisplay.style.display = 'none';
+                isPaused = false;
+                requestAnimationFrame(gameLoop);
+            }
+        }, 1000);
+    }
+
+    function takeDamage(amount, isSacrifice = false) {
+        hp -= amount;
+        hpDisplay.innerText = Math.max(0, hp);
+        if (!isSacrifice) {
+            container.classList.add('flash-effect');
+            setTimeout(() => container.classList.remove('flash-effect'), 500);
+        }
+        if (hp <= 0 && !isGameOver) gameOver();
+    }
+
+    function gameOver() {
+        isGameOver = true;
+        gameActive = false;
+        spellDisplay.innerText = "lost";
+        setTimeout(() => { 
+            alert(`冒険は終わった... 最終スコア: ${score}`); 
+            location.reload(); 
+        }, 500);
+    }
+
+    let particles = [];
+    function createParticles(x, y, color, count = 15) {
+        for (let i = 0; i < count; i++) {
+            particles.push({
+                x: x, y: y,
+                vx: (Math.random() - 0.5) * 15, vy: (Math.random() - 0.5) * 15,
+                radius: Math.random() * 6 + 1, color: color, life: 1.0
+            });
+        }
+    }
+
+    function updateParticles() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+            p.x += p.vx; p.y += p.vy; p.life -= 0.04;
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.fillStyle = p.color; ctx.globalAlpha = p.life; ctx.fill();
+            if (p.life <= 0) particles.splice(i, 1);
+        }
+    }
+</script>
+</body>
+</html>
