@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>爽快ピンポンゲーム FINAL+</title>
+<title>爽快ピンポンゲーム ULTIMATE++</title>
 <style>
 body{
   margin:0;
@@ -20,17 +20,27 @@ canvas{
   top:10px;
   width:100%;
   text-align:center;
+  pointer-events:none;
 }
-#buttons{
+#overlay{
   position:absolute;
-  bottom:15px;
-  width:100%;
+  inset:0;
+  background:rgba(0,0,0,0.85);
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
   text-align:center;
+  z-index:10;
 }
-button{
+#overlay button{
+  margin-top:20px;
+  font-size:18px;
+  padding:10px 20px;
+}
+.ruleBox{
+  margin-top:10px;
   font-size:16px;
-  padding:8px 16px;
-  margin:0 5px;
 }
 </style>
 </head>
@@ -38,33 +48,71 @@ button{
 
 <div id="ui">
   <div id="score">LEFT 0 : 0 RIGHT</div>
-  🕹 W/S ｜ ↑/↓ ｜ R:再開<br>
-  ⭐ 🔥SPEED 🌀CURVE 📏LONG（相手が有利）
 </div>
 
-<div id="buttons">
-  <button onclick="startGame()">▶ ゲームスタート</button>
-  <button onclick="resetGame()">🔄 リセット</button>
+<div id="overlay">
+  <div>
+    <h1>爽快ピンポンゲーム</h1>
+    <p>
+      左：W / S（A/Dは特別ルール）<br>
+      右：↑ / ↓（←/→は特別ルール）<br><br>
+      🔥 S：速度UP　🌀 C：急カーブ<br>
+      📏 L：相手バー拡張<br><br>
+      先に <b>10点</b> 取った方の勝ち
+    </p>
+
+    <div class="ruleBox">
+      <label>
+        <input type="radio" name="rule" value="normal" checked>
+        通常ルール
+      </label><br>
+      <label>
+        <input type="radio" name="rule" value="volley">
+        特別ルール（ボレーあり）
+      </label>
+    </div>
+
+    <button onclick="startGame()">START</button>
+  </div>
 </div>
 
 <canvas id="game" width="900" height="500"></canvas>
 
 <script>
+/* ========= AUDIO ========= */
+let audioCtx;
+function initAudio(){
+  if(!audioCtx){
+    audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  }
+}
+function se(freq,d=0.1,type="sine",v=0.2){
+  if(!audioCtx) return;
+  const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+  o.type=type; o.frequency.value=freq; g.gain.value=v;
+  o.connect(g).connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime+d);
+}
+const seHit=()=>se(900,0.05,"square",0.15);
+const seScore=()=>se(220,0.3,"sawtooth",0.25);
+const seItem=()=>se(1200,0.12,"triangle",0.2);
+
+/* ========= GAME ========= */
 const canvas=document.getElementById("game");
 const ctx=canvas.getContext("2d");
 const W=canvas.width,H=canvas.height;
 const WIN_SCORE=10;
 
-let baseH=100,paddleW=12;
-let left,right,ball,items=[];
+let rule="normal";
+let left,right,ball;
+let items=[];                // ★ 追加
 let scoreL=0,scoreR=0;
-let running=false,waiting=false,gameOver=false;
-let winnerText="";
+let running=false,gameOver=false;
 let curveDelay=0,curvePower=0;
 
 function init(){
-  left={x:30,y:H/2-50,h:baseH};
-  right={x:W-42,y:H/2-50,h:baseH};
+  left={x:30,y:H/2,tx:30,ty:H/2,h:100};
+  right={x:W-42,y:H/2,tx:W-42,ty:H/2,h:100};
   items=[];
   resetBall();
 }
@@ -79,19 +127,15 @@ addEventListener("keydown",e=>keys[e.key]=true);
 addEventListener("keyup",e=>keys[e.key]=false);
 
 function startGame(){
-  if(!running&&!gameOver){
-    running=true;
-    resetBall(Math.random()>0.5?1:-1);
-  }
-}
-function resetGame(){
+  initAudio();
+  rule=document.querySelector("input[name=rule]:checked").value;
+  document.getElementById("overlay").style.display="none";
   scoreL=scoreR=0;
-  running=false;
-  waiting=false;
-  gameOver=false;
-  winnerText="";
-  init();
   updateScore();
+  gameOver=false;
+  running=true;
+  items=[];
+  resetBall(Math.random()>0.5?1:-1);
 }
 
 function updateScore(){
@@ -99,69 +143,58 @@ function updateScore(){
     `LEFT ${scoreL} : ${scoreR} RIGHT`;
 }
 
-// ---------- アイテム ----------
+/* ========= アイテム生成 ========= */
 setInterval(()=>{
-  if(items.length<5&&running&&!gameOver){
-    items.push({
-      x:Math.random()*(W-200)+100,
-      y:Math.random()*(H-100)+50,
-      r:22,
-      type:["speed","curve","long"][Math.floor(Math.random()*3)]
-    });
-  }
-},4500);
+  if(!running||gameOver) return;
+  if(items.length>=5) return;
+
+  items.push({
+    x:Math.random()*(W-200)+100,
+    y:Math.random()*(H-100)+50,
+    r:18,
+    type:["speed","curve","long"][Math.floor(Math.random()*3)]
+  });
+},4000);
 
 function applyItem(type,player){
-  // 取得した側 player
-  // long は「逆のバー」に効果
-  if(type==="speed") ball.speed+=1;
-
+  seItem();
+  if(type==="speed") ball.speed+=0.7;
   if(type==="curve"){
     curveDelay=40;
-    curvePower=(Math.random()>0.5?1:-1)*(3+Math.random()*3);
+    curvePower=(Math.random()>0.5?1:-1)*(4+Math.random()*3);
   }
-
   if(type==="long"){
-    const target = (player===left)? right : left;
-    target.h=170;
-    setTimeout(()=>target.h=baseH,5000);
+    const t = player===left ? right : left;
+    t.h=160;
+    setTimeout(()=>t.h=100,5000);
   }
 }
 
-// ---------- 得点 ----------
-function score(leftSide){
-  if(leftSide) scoreL++; else scoreR++;
-  updateScore();
-  items=[];
-  if(scoreL>=WIN_SCORE) return triggerWin(true);
-  if(scoreR>=WIN_SCORE) return triggerWin(false);
-
-  waiting=true;
-  setTimeout(()=>{
-    resetBall(leftSide?1:-1);
-    waiting=false;
-  },2000);
-}
-
-// ---------- 勝利 ----------
-function triggerWin(leftWin){
-  gameOver=true;
-  running=false;
-  waiting=true;
-  winnerText=leftWin?"LEFT WIN!!":"RIGHT WIN!!";
-}
-
-// ---------- 更新 ----------
+/* ========= UPDATE ========= */
 function update(){
-  if(!running||waiting||gameOver) return;
+  if(!running||gameOver) return;
 
-  if(keys["w"]) left.y-=8;
-  if(keys["s"]) left.y+=8;
-  if(keys["ArrowUp"]) right.y-=8;
-  if(keys["ArrowDown"]) right.y+=8;
+  if(keys["w"]) left.ty-=8;
+  if(keys["s"]) left.ty+=8;
+  if(keys["ArrowUp"]) right.ty-=8;
+  if(keys["ArrowDown"]) right.ty+=8;
 
-  left.y=Math.max(0,Math.min(H-left.h,left.y));
-  right.y=Math.max(0,Math.min(H-right.h,right.y));
+  if(rule==="volley"){
+    if(keys["a"]) left.tx-=6;
+    if(keys["d"]) left.tx+=6;
+    if(keys["ArrowLeft"]) right.tx-=6;
+    if(keys["ArrowRight"]) right.tx+=6;
+  }
+
+  left.tx=Math.max(10,Math.min(W/2-20,left.tx));
+  right.tx=Math.max(W/2+8,Math.min(W-20,right.tx));
+  left.ty=Math.max(left.h/2,Math.min(H-left.h/2,left.ty));
+  right.ty=Math.max(right.h/2,Math.min(H-right.h/2,right.ty));
+
+  left.x+=(left.tx-left.x)*0.25;
+  left.y+=(left.ty-left.y)*0.25;
+  right.x+=(right.tx-right.x)*0.25;
+  right.y+=(right.ty-right.y)*0.25;
 
   ball.x+=ball.vx*ball.speed;
   ball.y+=ball.vy*ball.speed;
@@ -170,18 +203,16 @@ function update(){
   if(ball.y<ball.r||ball.y>H-ball.r) ball.vy*=-1;
 
   function hit(p,isLeft){
-    if(ball.x+ball.r>p.x&&ball.x-ball.r<p.x+paddleW&&
-       ball.y>p.y&&ball.y<p.y+p.h){
-      const pos=(ball.y-(p.y+p.h/2))/(p.h/2);
-      ball.vy=pos*6;
+    if(ball.x+ball.r>p.x && ball.x-ball.r<p.x+12 &&
+       ball.y>p.y-p.h/2 && ball.y<p.y+p.h/2){
+      seHit();
+      const pos=(ball.y-p.y)/(p.h/2);
+      ball.vy=pos*7;
       ball.vx=isLeft?Math.abs(ball.vx):-Math.abs(ball.vx);
-      ball.speed+=0.05;
     }
   }
-  hit(left,true); hit(right,false);
-
-  if(ball.x<0) score(false);
-  if(ball.x>W) score(true);
+  hit(left,true);
+  hit(right,false);
 
   items=items.filter(it=>{
     if(Math.hypot(ball.x-it.x,ball.y-it.y)<ball.r+it.r){
@@ -190,45 +221,23 @@ function update(){
     }
     return true;
   });
+
+  if(ball.x<0){ scoreR++; score(); }
+  if(ball.x>W){ scoreL++; score(); }
 }
 
-// ---------- 描画 ----------
-function drawItem(it){
-  ctx.save();
-  ctx.translate(it.x,it.y);
-  ctx.textAlign="center";
-  ctx.textBaseline="middle";
-  ctx.font="bold 20px sans-serif";
-
-  if(it.type==="speed"){
-    ctx.fillStyle="#f33";
-    ctx.beginPath();
-    ctx.arc(0,0,it.r,0,Math.PI*2);
-    ctx.fill();
-    ctx.fillStyle="#fff";
-    ctx.fillText("S",0,1);
+function score(){
+  seScore();
+  updateScore();
+  items=[];
+  if(scoreL>=WIN_SCORE||scoreR>=WIN_SCORE){
+    gameOver=true;
+    setTimeout(()=>location.reload(),5000);
   }
-
-  if(it.type==="curve"){
-    ctx.strokeStyle="#3f3";
-    ctx.lineWidth=5;
-    ctx.beginPath();
-    ctx.arc(0,0,it.r,0,Math.PI*1.5);
-    ctx.stroke();
-    ctx.fillStyle="#3f3";
-    ctx.fillText("C",0,1);
-  }
-
-  if(it.type==="long"){
-    ctx.fillStyle="#ff3";
-    ctx.fillRect(-it.r,-it.r/2,it.r*2,it.r);
-    ctx.fillStyle="#000";
-    ctx.fillText("L",0,1);
-  }
-
-  ctx.restore();
+  resetBall(scoreL>scoreR?1:-1);
 }
 
+/* ========= DRAW ========= */
 function draw(){
   ctx.clearRect(0,0,W,H);
 
@@ -236,23 +245,33 @@ function draw(){
   for(let y=0;y<H;y+=20) ctx.fillRect(W/2-1,y,2,10);
 
   ctx.fillStyle="#0ff";
-  ctx.fillRect(left.x,left.y,paddleW,left.h);
-  ctx.fillRect(right.x,right.y,paddleW,right.h);
+  ctx.fillRect(left.x,left.y-left.h/2,12,left.h);
+  ctx.fillRect(right.x,right.y-right.h/2,12,right.h);
 
-  if(!waiting&&!gameOver){
+  ctx.beginPath();
+  ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
+  ctx.fillStyle="#fff";
+  ctx.fill();
+
+  items.forEach(it=>{
+    ctx.fillStyle=
+      it.type==="speed"?"#f33":
+      it.type==="curve"?"#3f3":"#ff3";
     ctx.beginPath();
-    ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
-    ctx.fillStyle="#fff";
+    ctx.arc(it.x,it.y,it.r,0,Math.PI*2);
     ctx.fill();
-  }
-
-  items.forEach(drawItem);
+    ctx.fillStyle="#000";
+    ctx.font="bold 16px sans-serif";
+    ctx.textAlign="center";
+    ctx.textBaseline="middle";
+    ctx.fillText(it.type[0].toUpperCase(),it.x,it.y);
+  });
 
   if(gameOver){
-    ctx.font="bold 72px sans-serif";
+    ctx.font="bold 64px sans-serif";
     ctx.fillStyle="#fff";
     ctx.textAlign="center";
-    ctx.fillText(winnerText,W/2,H/2);
+    ctx.fillText(scoreL>scoreR?"LEFT WIN!!":"RIGHT WIN!!",W/2,H/2);
   }
 }
 
