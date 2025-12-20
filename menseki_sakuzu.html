@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>図形お絵描きクエスト：面積の魔法使い</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            touch-action: none;
+            user-select: none;
+        }
+        .canvas-container {
+            position: relative;
+            background-color: #ffffff;
+            background-image: 
+                linear-gradient(to right, #e2e8f0 1px, transparent 1px),
+                linear-gradient(to bottom, #e2e8f0 1px, transparent 1px);
+            background-size: 20px 20px;
+            cursor: crosshair;
+        }
+        .canvas-container::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: 
+                linear-gradient(to right, #cbd5e1 1px, transparent 1px),
+                linear-gradient(to bottom, #cbd5e1 1px, transparent 1px);
+            background-size: 100px 100px;
+            pointer-events: none;
+        }
+        .monster-bounce {
+            animation: bounce 2s infinite;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .overlay {
+            backdrop-filter: blur(4px);
+            transition: opacity 0.3s ease;
+        }
+        #timer-bar {
+            transition: width 0.1s linear;
+        }
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            border-radius: 50%;
+            animation: particle-fade 0.8s ease-out forwards;
+        }
+        @keyframes particle-fade {
+            0% { transform: translate(0, 0) scale(1); opacity: 1; }
+            100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+        }
+        .heart-active { color: #f43f5e; filter: drop-shadow(0 0 2px #fda4af); }
+        .heart-empty { color: #e2e8f0; }
+    </style>
+</head>
+<body class="bg-slate-200 min-h-screen flex flex-col items-center p-4 font-sans text-slate-800">
+
+    <!-- レベル選択オーバーレイ -->
+    <div id="tutorial-overlay" class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 overlay">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl text-center">
+            <h2 id="overlay-title" class="text-3xl font-black text-emerald-600 mb-6">レベルを選択</h2>
+            <div class="space-y-4 mb-8">
+                <button onclick="setLevel(1)" class="w-full text-left p-4 bg-blue-50 rounded-2xl border-2 border-blue-200 hover:border-blue-500 transition-all group">
+                    <h3 class="font-bold text-blue-700 group-hover:scale-105 transition-transform text-center">初級：見習い魔法使い</h3>
+                    <p class="text-sm text-blue-600/80 text-center">練習モード。ライフ減少なし。図形は自由！</p>
+                </button>
+                <button onclick="setLevel(2)" class="w-full text-left p-4 bg-amber-50 rounded-2xl border-2 border-amber-200 hover:border-amber-500 transition-all group">
+                    <h3 class="font-bold text-amber-700 group-hover:scale-105 transition-transform text-center">中級：一人前魔法使い</h3>
+                    <p class="text-sm text-amber-600/80 text-center">ライフ3。敵が「図形」を指定。面積は必ず作れる数になります。</p>
+                </button>
+                <button onclick="setLevel(3)" class="w-full text-left p-4 bg-purple-50 rounded-2xl border-2 border-purple-200 hover:border-purple-500 transition-all group">
+                    <h3 class="font-bold text-purple-700 group-hover:scale-105 transition-transform text-center">上級：伝説の魔法使い</h3>
+                    <p class="text-sm text-purple-600/80 text-center">ライフ3。図形指定＋20秒タイマー。より大きな面積が登場！</p>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ヘッダー -->
+    <div class="w-full max-w-2xl bg-white rounded-2xl shadow-lg p-6 mb-4 flex justify-between items-center border-b-4 border-slate-300">
+        <div class="flex flex-col">
+            <div class="flex items-center gap-2">
+                <h1 id="show-help" class="text-2xl font-bold text-emerald-600 cursor-pointer hover:opacity-80">面積の魔法使い ℹ️</h1>
+                <div id="life-container" class="flex gap-1 ml-4 hidden">
+                    <span class="heart text-xl heart-active">❤️</span>
+                    <span class="heart text-xl heart-active">❤️</span>
+                    <span class="heart text-xl heart-active">❤️</span>
+                </div>
+            </div>
+            <div class="flex gap-1 mt-2">
+                <button id="lvl-btn-1" class="px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-all bg-slate-200 text-slate-500">初級</button>
+                <button id="lvl-btn-2" class="px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-all bg-slate-200 text-slate-500">中級</button>
+                <button id="lvl-btn-3" class="px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-all bg-slate-200 text-slate-500">上級</button>
+            </div>
+        </div>
+        <div class="text-right">
+            <div class="text-xs font-bold uppercase text-slate-400 tracking-widest">Score</div>
+            <div id="score" class="text-3xl font-black text-emerald-500 leading-none">0</div>
+        </div>
+    </div>
+
+    <!-- メインエリア -->
+    <div id="main-container" class="w-full max-w-2xl bg-white rounded-3xl shadow-xl overflow-hidden flex flex-col border-2 border-white">
+        
+        <div id="timer-container" class="h-2 w-full bg-slate-100 hidden">
+            <div id="timer-bar" class="h-full bg-rose-500 w-full" style="width: 100%;"></div>
+        </div>
+
+        <div id="mission-panel" class="p-6 bg-emerald-50 border-b-2 border-emerald-100 flex items-center gap-6">
+            <div id="monster-emoji" class="text-7xl monster-bounce drop-shadow-md">👾</div>
+            <div class="flex-1">
+                <div class="flex flex-wrap gap-2 mb-2">
+                    <div class="bg-white px-4 py-2 rounded-xl border-2 border-emerald-200 shadow-sm">
+                        <span class="text-sm font-bold text-slate-500">面積：</span>
+                        <span id="target-area" class="text-2xl font-black text-rose-500">12</span>
+                        <span class="text-sm font-bold text-slate-400"> cm²</span>
+                    </div>
+                    <div id="target-shape-panel" class="bg-white px-4 py-2 rounded-xl border-2 border-blue-200 shadow-sm hidden">
+                        <span class="text-sm font-bold text-slate-500">図形：</span>
+                        <span id="target-shape-name" class="text-xl font-black text-blue-600">長方形</span>
+                    </div>
+                </div>
+                <div id="hint-text" class="text-sm text-slate-600 bg-white/50 p-2 rounded-lg italic">魔法の準備中...</div>
+            </div>
+        </div>
+
+        <div class="p-6 flex flex-col items-center bg-slate-50 relative">
+            <div id="beginner-hud" class="absolute top-8 left-8 z-20 bg-white/95 px-3 py-2 rounded-xl border-2 border-blue-200 text-sm shadow-md hidden">
+                <div id="hud-dimensions" class="font-bold text-blue-600"></div>
+            </div>
+
+            <div id="canvas-wrapper" class="canvas-container border-4 border-slate-300 rounded-xl shadow-inner relative overflow-hidden ring-4 ring-emerald-100" 
+                 style="width: 400px; height: 400px;">
+                <canvas id="gameCanvas" width="400" height="400"></canvas>
+            </div>
+            
+            <div id="mode-buttons" class="mt-6 flex flex-wrap gap-2 w-full">
+                <button id="btn-rect" onclick="setMode('rect')" class="mode-btn flex-1 py-3 rounded-xl font-bold transition-all bg-emerald-600 text-white border-b-4 border-emerald-800">長方形</button>
+                <button id="btn-tri" onclick="setMode('tri')" class="mode-btn flex-1 py-3 rounded-xl font-bold transition-all bg-slate-300 text-slate-700 border-b-4 border-slate-400">三角形</button>
+                <button id="btn-para" onclick="setMode('para')" class="mode-btn flex-1 py-3 rounded-xl font-bold transition-all bg-slate-300 text-slate-700 border-b-4 border-slate-400">平行四辺形</button>
+                <button id="btn-rhombus" onclick="setMode('rhombus')" class="mode-btn flex-1 py-3 rounded-xl font-bold transition-all bg-slate-300 text-slate-700 border-b-4 border-slate-400">ひし形</button>
+                <button onclick="clearCanvas()" class="px-6 py-3 bg-rose-100 text-rose-600 rounded-xl font-bold hover:bg-rose-200 border-b-4 border-rose-300">消去</button>
+            </div>
+        </div>
+
+        <div class="p-6 bg-white flex justify-around items-center border-t border-slate-200">
+            <div class="text-center px-4" id="area-display-container">
+                <div class="text-xs text-slate-400 font-bold uppercase tracking-widest leading-none mb-1">現在の面積</div>
+                <div id="current-area" class="text-4xl font-black text-slate-700 leading-none">0.0</div>
+            </div>
+            <div class="flex flex-col items-center">
+                <div id="status-msg" class="text-lg font-bold text-emerald-600 mb-1">図形を描こう！</div>
+                <button id="attack-btn" onclick="performAttack()" class="px-10 py-5 bg-emerald-600 text-white rounded-2xl font-black text-2xl shadow-xl hover:bg-emerald-700 active:scale-95 transition-all border-b-4 border-emerald-900">
+                    魔法発動！
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const GRID_SIZE = 20;
+        
+        let score = 0;
+        let lives = 3;
+        let targetArea = 0;
+        let targetShape = ''; 
+        let currentArea = 0;
+        let mode = 'rect'; 
+        let level = 0; 
+        let isDrawing = false;
+        let startX, startY, currentX, currentY;
+        let shapes = [];
+        
+        let timeLeft = 20;
+        let timerInterval = null;
+        const TIME_LIMIT = 20;
+
+        let audioCtx = null;
+
+        const monsters = [
+            { emoji: '👾', level: 1 }, { emoji: '👻', level: 1 },
+            { emoji: '👽', level: 2 }, { emoji: '🤖', level: 2 },
+            { emoji: '👹', level: 3 }, { emoji: '🐉', level: 3 }
+        ];
+
+        const shapeNames = {
+            'rect': '長方形',
+            'tri': '三角形',
+            'para': '平行四辺形',
+            'rhombus': 'ひし形'
+        };
+
+        function getGridCoord(val) {
+            return Math.round(val / GRID_SIZE) * GRID_SIZE;
+        }
+
+        function playSound(type) {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                const now = audioCtx.currentTime;
+                
+                if (type === 'success') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523.25, now);
+                    osc.frequency.exponentialRampToValueAtTime(1046.50, now + 0.1);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                } else if (type === 'fail') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(110.00, now);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 0.5);
+                    osc.start(now);
+                    osc.stop(now + 0.5);
+                } else if (type === 'gameover') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(220, now);
+                    osc.frequency.linearRampToValueAtTime(55, now + 1);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.linearRampToValueAtTime(0.01, now + 1);
+                    osc.start(now);
+                    osc.stop(now + 1);
+                }
+            } catch (e) {
+                console.log("Audio not supported");
+            }
+        }
+
+        function setLevel(l) {
+            level = l;
+            lives = 3;
+            score = 0;
+            document.getElementById('score').innerText = score;
+            document.getElementById('tutorial-overlay').style.opacity = '0';
+            setTimeout(() => document.getElementById('tutorial-overlay').classList.add('hidden'), 300);
+            
+            updateLevelUI();
+            updateHearts();
+            setNewMission();
+        }
+
+        function updateLevelUI() {
+            [1, 2, 3].forEach(l => {
+                const btn = document.getElementById(`lvl-btn-${l}`);
+                const colors = { 1: 'bg-blue-500', 2: 'bg-amber-500', 3: 'bg-purple-600' };
+                if (level === l) {
+                    btn.className = `px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-all text-white shadow-md ring-2 ring-offset-1 ring-slate-400 ${colors[l]}`;
+                } else {
+                    btn.className = `px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-all bg-slate-200 text-slate-500`;
+                }
+            });
+
+            document.getElementById('area-display-container').style.visibility = (level === 1) ? 'visible' : 'hidden';
+            document.getElementById('beginner-hud').style.display = (level === 1) ? 'block' : 'none';
+            document.getElementById('timer-container').classList.toggle('hidden', level !== 3);
+            document.getElementById('life-container').classList.toggle('hidden', level === 1);
+        }
+
+        function updateHearts() {
+            const hearts = document.querySelectorAll('.heart');
+            hearts.forEach((h, i) => {
+                if (i < lives) {
+                    h.className = "heart text-xl heart-active";
+                    h.innerText = "❤️";
+                } else {
+                    h.className = "heart text-xl heart-empty";
+                    h.innerText = "🖤";
+                }
+            });
+        }
+
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            if (level !== 3) return;
+
+            timeLeft = TIME_LIMIT;
+            updateTimerUI();
+            
+            timerInterval = setInterval(() => {
+                timeLeft -= 0.1;
+                updateTimerUI();
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    handleFail("⌛ 時間切れ！");
+                }
+            }, 100);
+        }
+
+        function updateTimerUI() {
+            const bar = document.getElementById('timer-bar');
+            if (!bar) return;
+            const percentage = Math.max(0, (timeLeft / TIME_LIMIT) * 100);
+            bar.style.width = percentage + "%";
+            if (percentage < 25) bar.className = "h-full bg-rose-600";
+            else if (percentage < 50) bar.className = "h-full bg-amber-500";
+            else bar.className = "h-full bg-emerald-500";
+        }
+
+        function handleFail(reason) {
+            lives--;
+            updateHearts();
+            playSound('fail');
+            failEffect();
+            document.getElementById('status-msg').innerText = reason + " ライフ減少！";
+            
+            if (lives <= 0) {
+                setTimeout(gameOver, 1000);
+            } else {
+                setTimeout(setNewMission, 1500);
+            }
+        }
+
+        function gameOver() {
+            if (timerInterval) clearInterval(timerInterval);
+            playSound('gameover');
+            document.getElementById('overlay-title').innerHTML = `<span class="text-rose-600 italic">GAME OVER</span><br><span class="text-sm text-slate-500 font-normal">最終スコア: ${score}</span>`;
+            document.getElementById('tutorial-overlay').classList.remove('hidden');
+            document.getElementById('tutorial-overlay').style.opacity = '1';
+        }
+
+        function setNewMission() {
+            const levelMonsters = monsters.filter(m => m.level === level || (level === 2 && m.level <= 2) || (level === 3));
+            const m = levelMonsters[Math.floor(Math.random() * levelMonsters.length)];
+            document.getElementById('monster-emoji').innerText = m.emoji;
+            
+            // 図形指定の設定（中級・上級）
+            let keys = Object.keys(shapeNames);
+            if (level > 1) {
+                targetShape = keys[Math.floor(Math.random() * keys.length)];
+                document.getElementById('target-shape-panel').classList.remove('hidden');
+                document.getElementById('target-shape-name').innerText = shapeNames[targetShape];
+            } else {
+                targetShape = '';
+                document.getElementById('target-shape-panel').classList.add('hidden');
+            }
+
+            // ターゲット面積の生成（素数を避け、図形に合った合成数を生成）
+            generateValidArea();
+            
+            document.getElementById('target-area').innerText = targetArea;
+            document.getElementById('status-msg').innerText = "図形を描こう！";
+            currentArea = 0;
+            shapes = [];
+            updateAreaHUD(0, 0);
+            draw();
+
+            if (level === 3) startTimer();
+            else if (timerInterval) clearInterval(timerInterval);
+        }
+
+        /**
+         * 図形の種類とレベルに応じた、必ず作れる面積を生成する
+         */
+        function generateValidArea() {
+            // 基本となる辺の長さの範囲をレベルで調整
+            let minSide = 2, maxSide = 5;
+            if (level === 2) { minSide = 2; maxSide = 8; }
+            if (level === 3) { minSide = 3; maxSide = 12; }
+
+            const side1 = Math.floor(Math.random() * (maxSide - minSide + 1)) + minSide;
+            const side2 = Math.floor(Math.random() * (maxSide - minSide + 1)) + minSide;
+
+            // ターゲット図形に基づいた面積計算
+            // targetShapeが空（初級）の場合は長方形を基準にする
+            const currentShapeType = targetShape || 'rect';
+
+            if (currentShapeType === 'rect' || currentShapeType === 'para') {
+                // 長方形・平行四辺形は 底辺 × 高さ。 side1*side2 が必ず合成数になるよう、どちらも1より大きく設定
+                targetArea = side1 * side2;
+            } else if (currentShapeType === 'tri') {
+                // 三角形は (底辺 × 高さ) / 2
+                // 面積が整数になるように、side1かside2のどちらかを偶数にする
+                const s1 = side1 % 2 === 0 ? side1 : side1 + 1;
+                targetArea = (s1 * side2) / 2;
+            } else if (currentShapeType === 'rhombus') {
+                // ひし形は (対角線1 × 対角線2) / 2
+                // こちらも整数になるように調整
+                const s1 = side1 % 2 === 0 ? side1 : side1 + 1;
+                targetArea = (s1 * side2) / 2;
+            }
+        }
+
+        function updateAreaHUD(w, h) {
+            document.getElementById('current-area').innerText = currentArea.toFixed(1);
+            const hud = document.getElementById('hud-dimensions');
+            if (level === 1) {
+                if (mode === 'rect') hud.innerHTML = `たて: <span class="text-rose-500">${h}</span>cm <br> よこ: <span class="text-rose-500">${w}</span>cm`;
+                else if (mode === 'tri') hud.innerHTML = `底辺: <span class="text-rose-500">${w}</span>cm <br> 高さ: <span class="text-rose-500">${h}</span>cm`;
+                else if (mode === 'para') hud.innerHTML = `底辺: <span class="text-rose-500">${w}</span>cm <br> 高さ: <span class="text-rose-500">${h}</span>cm`;
+                else if (mode === 'rhombus') hud.innerHTML = `対角線1: <span class="text-rose-500">${w}</span>cm <br> 対角線2: <span class="text-rose-500">${h}</span>cm`;
+            }
+        }
+
+        function calculateArea(x1, y1, x2, y2, type) {
+            const w = Math.abs(x2 - x1) / GRID_SIZE;
+            const h = Math.abs(y2 - y1) / GRID_SIZE;
+            if (type === 'rect' || type === 'para') return w * h;
+            if (type === 'tri' || type === 'rhombus') return (w * h) / 2;
+            return 0;
+        }
+
+        function drawShape(s, isPreview = false) {
+            ctx.fillStyle = isPreview ? 'rgba(59, 130, 246, 0.4)' : 'rgba(16, 185, 129, 0.4)';
+            ctx.strokeStyle = isPreview ? '#2563eb' : '#059669';
+            ctx.lineWidth = 3;
+            if (isPreview) ctx.setLineDash([5, 5]);
+
+            const {x1, y1, x2, y2, type} = s;
+            const minX = Math.min(x1, x2);
+            const maxX = Math.max(x1, x2);
+            const minY = Math.min(y1, y2);
+            const maxY = Math.max(y1, y2);
+            const w = maxX - minX;
+            const h = maxY - minY;
+
+            ctx.beginPath();
+            if (type === 'rect') {
+                ctx.rect(minX, minY, w, h);
+            } else if (type === 'tri') {
+                ctx.moveTo(minX, maxY);
+                ctx.lineTo(maxX, maxY);
+                ctx.lineTo(minX + w/2, minY);
+            } else if (type === 'para') {
+                const shift = GRID_SIZE * 2;
+                ctx.moveTo(minX + shift, minY);
+                ctx.lineTo(maxX + shift, minY);
+                ctx.lineTo(maxX, maxY);
+                ctx.lineTo(minX, maxY);
+            } else if (type === 'rhombus') {
+                ctx.moveTo(minX + w/2, minY);
+                ctx.lineTo(maxX, minY + h/2);
+                ctx.lineTo(minX + w/2, maxY);
+                ctx.lineTo(minX, minY + h/2);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            shapes.forEach(s => drawShape(s));
+            if (isDrawing) drawShape({x1: startX, y1: startY, x2: currentX, y2: currentY, type: mode}, true);
+        }
+
+        canvas.addEventListener('mousedown', e => {
+            if (level === 0) return;
+            const rect = canvas.getBoundingClientRect();
+            startX = getGridCoord(e.clientX - rect.left);
+            startY = getGridCoord(e.clientY - rect.top);
+            currentX = startX;
+            currentY = startY;
+            isDrawing = true;
+        });
+
+        window.addEventListener('mousemove', e => {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            currentX = getGridCoord(e.clientX - rect.left);
+            currentY = getGridCoord(e.clientY - rect.top);
+            const w = Math.abs(currentX - startX) / GRID_SIZE;
+            const h = Math.abs(currentY - startY) / GRID_SIZE;
+            currentArea = calculateArea(startX, startY, currentX, currentY, mode);
+            updateAreaHUD(w, h);
+            draw();
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (!isDrawing) return;
+            isDrawing = false;
+            if (currentArea > 0) shapes = [{x1: startX, y1: startY, x2: currentX, y2: currentY, type: mode}];
+            draw();
+        });
+
+        function setMode(m) {
+            mode = m;
+            const btns = ['rect', 'tri', 'para', 'rhombus'];
+            btns.forEach(id => {
+                const b = document.getElementById(`btn-${id}`);
+                if (!b) return;
+                if (mode === id) {
+                    b.className = "mode-btn flex-1 py-3 rounded-xl font-bold transition-all bg-emerald-600 text-white border-b-4 border-emerald-800 scale-105 shadow-md";
+                } else {
+                    b.className = "mode-btn flex-1 py-3 rounded-xl font-bold transition-all bg-slate-300 text-slate-700 border-b-4 border-slate-400";
+                }
+            });
+            clearCanvas();
+        }
+
+        function clearCanvas() {
+            shapes = [];
+            currentArea = 0;
+            updateAreaHUD(0, 0);
+            draw();
+        }
+
+        function performAttack() {
+            if (shapes.length === 0) return;
+            if (level === 3 && timeLeft <= 0) return;
+
+            const shape = shapes[0];
+            const areaDiff = Math.abs(currentArea - targetArea);
+            const shapeMatches = (targetShape === '' || shape.type === targetShape);
+
+            if (areaDiff === 0 && shapeMatches) {
+                score += 100;
+                document.getElementById('score').innerText = score;
+                document.getElementById('status-msg').innerText = "✨ パーフェクト！ ✨";
+                playSound('success');
+                successEffect();
+                if (timerInterval) clearInterval(timerInterval);
+                setTimeout(setNewMission, 1200);
+            } else {
+                let failReason = !shapeMatches ? "図形が違うぞ！" : "面積が違うぞ！";
+                if (level === 1) {
+                    document.getElementById('status-msg').innerText = failReason;
+                    playSound('fail');
+                    failEffect();
+                } else {
+                    handleFail(failReason);
+                }
+            }
+        }
+
+        function successEffect(color = 'rose') {
+            const wrapper = document.getElementById('canvas-wrapper');
+            const f = document.createElement('div');
+            f.className = `absolute inset-0 bg-${color}-400 opacity-60 z-30 pointer-events-none transition-opacity duration-500`;
+            wrapper.appendChild(f);
+            setTimeout(() => f.style.opacity = '0', 50);
+            setTimeout(() => f.remove(), 500);
+        }
+
+        function failEffect() {
+            const container = document.getElementById('main-container');
+            container.classList.add('shake');
+            const f = document.createElement('div');
+            f.className = `absolute inset-0 bg-slate-800 opacity-40 z-30 pointer-events-none`;
+            document.getElementById('canvas-wrapper').appendChild(f);
+            setTimeout(() => {
+                container.classList.remove('shake');
+                f.remove();
+            }, 500);
+        }
+
+        document.getElementById('show-help').onclick = () => {
+            document.getElementById('overlay-title').innerText = "レベルを選択";
+            document.getElementById('tutorial-overlay').classList.remove('hidden');
+            document.getElementById('tutorial-overlay').style.opacity = '1';
+        };
+
+        draw();
+    </script>
+</body>
+</html>
