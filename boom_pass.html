@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOOM PASS - Math Edition (Advanced)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes pulse-red {
+            0%, 100% { background-color: #ef4444; }
+            50% { background-color: #7f1d1d; }
+        }
+        .animate-pulse-red {
+            animation: pulse-red 0.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        /* 常に震えるアニメーション。強度はJSで制御 */
+        @keyframes constant-shake {
+            0% { transform: translate(var(--shake-x, 0px), var(--shake-y, 0px)) rotate(var(--shake-r, 0deg)); }
+            25% { transform: translate(calc(-1 * var(--shake-x, 0px)), calc(-1 * var(--shake-y, 0px))) rotate(calc(-1 * var(--shake-r, 0deg))); }
+            50% { transform: translate(calc(-1.2 * var(--shake-x, 0px)), var(--shake-y, 0px)) rotate(var(--shake-r, 0deg)); }
+            75% { transform: translate(var(--shake-x, 0px)), calc(-1.2 * var(--shake-y, 0px))) rotate(calc(-1 * var(--shake-r, 0deg))); }
+            100% { transform: translate(0, 0) rotate(0); }
+        }
+        .bomb-shaking {
+            animation: constant-shake 0.1s infinite linear;
+        }
+        .keypad-btn {
+            @apply bg-gray-700 hover:bg-gray-600 active:bg-gray-500 text-2xl font-bold py-4 rounded-xl transition-all shadow-md active:scale-90;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white font-sans flex items-center justify-center min-h-screen overflow-hidden">
+
+    <div id="game-container" class="w-full max-w-md p-6 bg-gray-800 rounded-3xl shadow-2xl text-center relative mx-4 border-4 border-gray-700">
+        
+        <!-- Setup Screen -->
+        <div id="setup-screen" class="space-y-6">
+            <h1 class="text-4xl font-black italic text-yellow-400 tracking-tighter">BOOM PASS <span class="text-sm block text-red-500 not-italic">Advanced Math</span></h1>
+            <p class="text-gray-400 font-bold text-sm">小学6年生レベルの四則計算に挑戦！</p>
+            
+            <div class="space-y-2 text-left">
+                <div id="player-list" class="flex flex-wrap gap-2 justify-center py-4 min-h-[60px]"></div>
+                <div class="flex gap-2">
+                    <input type="text" id="player-input" placeholder="名前を入力" class="flex-1 px-4 py-2 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 text-white">
+                    <button onclick="addPlayer()" class="bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-2 px-4 rounded-lg transition-colors">追加</button>
+                </div>
+            </div>
+
+            <div class="pt-4 space-y-2">
+                <button id="start-btn" onclick="startGame()" disabled class="w-full py-4 bg-gray-600 text-gray-400 font-black text-xl rounded-xl transition-all cursor-not-allowed">
+                    2名以上でスタート
+                </button>
+                <p class="text-[10px] text-gray-500 italic">※音が出ますのでご注意ください</p>
+            </div>
+        </div>
+
+        <!-- Play Screen -->
+        <div id="play-screen" class="hidden space-y-4">
+            <div id="turn-indicator">
+                <span id="current-player-name" class="text-yellow-400 text-3xl font-black block underline mb-1 italic">Player</span>
+                <p class="text-xs text-gray-500 font-bold uppercase tracking-widest">Solve to Pass!</p>
+            </div>
+
+            <!-- Math Question Area -->
+            <div id="question-box" class="bg-gray-900 p-6 rounded-2xl border-4 border-gray-700 shadow-inner transition-colors duration-200">
+                <div id="math-question" class="text-4xl font-mono font-bold tracking-tight text-white mb-4">0 + 0</div>
+                <div id="answer-display" class="text-4xl font-mono text-yellow-400 h-12 border-b-4 border-yellow-500 mx-8 flex items-center justify-center bg-black/30 rounded-t-lg">?</div>
+            </div>
+
+            <!-- Bomb Visual -->
+            <div id="bomb-container" class="relative flex justify-center py-1 overflow-visible">
+                <div id="bomb-visual" class="text-7xl transition-transform duration-75 bomb-shaking" style="--shake-x:1px; --shake-y:1px; --shake-r:1deg;">💣</div>
+            </div>
+
+            <!-- Numeric Keypad -->
+            <div class="grid grid-cols-3 gap-2">
+                <button class="keypad-btn" onclick="pressKey('1')">1</button>
+                <button class="keypad-btn" onclick="pressKey('2')">2</button>
+                <button class="keypad-btn" onclick="pressKey('3')">3</button>
+                <button class="keypad-btn" onclick="pressKey('4')">4</button>
+                <button class="keypad-btn" onclick="pressKey('5')">5</button>
+                <button class="keypad-btn" onclick="pressKey('6')">6</button>
+                <button class="keypad-btn" onclick="pressKey('7')">7</button>
+                <button class="keypad-btn" onclick="pressKey('8')">8</button>
+                <button class="keypad-btn" onclick="pressKey('9')">9</button>
+                <button class="keypad-btn bg-red-900/50 hover:bg-red-800" onclick="clearAnswer(true)">C</button>
+                <button class="keypad-btn" onclick="pressKey('0')">0</button>
+                <div class="flex items-center justify-center text-[10px] text-gray-500 font-bold leading-tight">正解で<br>即パス</div>
+            </div>
+        </div>
+
+        <!-- Result Screen -->
+        <div id="result-screen" class="hidden space-y-6 py-4 animate-bounce">
+            <h2 class="text-6xl font-black text-red-500 drop-shadow-lg">BOOOOM!!</h2>
+            <div class="text-2xl">
+                <span id="loser-name" class="text-yellow-400 font-bold">Player Name</span> が爆破されました...
+            </div>
+            <div id="explosion-emoji" class="text-9xl">💥</div>
+            <button onclick="resetGame()" class="w-full py-4 bg-white text-black font-bold text-xl rounded-xl hover:bg-gray-200 shadow-lg transition-colors">
+                もう一度挑戦
+            </button>
+        </div>
+
+    </div>
+
+    <!-- Audio Synth -->
+    <script>
+        // Web Audio API による効果音生成
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+
+        function playSound(freq, type, duration, volume = 0.1) {
+            if (!audioCtx) audioCtx = new AudioCtx();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        const sounds = {
+            tick: () => playSound(150, 'sine', 0.1, 0.05),
+            heart: () => playSound(60, 'sine', 0.2, 0.2),
+            key: () => playSound(800, 'square', 0.05, 0.02),
+            pass: () => {
+                playSound(600, 'sine', 0.1, 0.1);
+                setTimeout(() => playSound(900, 'sine', 0.2, 0.1), 50);
+            },
+            wrong: () => playSound(100, 'sawtooth', 0.3, 0.1),
+            boom: () => {
+                const noise = audioCtx.createBufferSource();
+                const bufferSize = audioCtx.sampleRate * 2;
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+                noise.buffer = buffer;
+                const gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.5);
+                noise.connect(gain);
+                gain.connect(audioCtx.destination);
+                noise.start();
+            }
+        };
+
+        let players = [];
+        let currentPlayerIndex = 0;
+        let gameActive = false;
+        let initialTime = 0;
+        let timeLeft = 0;
+        let tickInterval = null;
+        
+        let currentQuestion = { a: 0, b: 0, op: '+', answer: 0 };
+        let userAnswer = "";
+
+        const setupScreen = document.getElementById('setup-screen');
+        const playScreen = document.getElementById('play-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const playerInput = document.getElementById('player-input');
+        const playerList = document.getElementById('player-list');
+        const startBtn = document.getElementById('start-btn');
+        const bombVisual = document.getElementById('bomb-visual');
+        const mathDisplay = document.getElementById('math-question');
+        const answerDisplay = document.getElementById('answer-display');
+        const questionBox = document.getElementById('question-box');
+
+        playerInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addPlayer(); });
+
+        function addPlayer() {
+            const name = playerInput.value.trim();
+            if (name && players.length < 10) {
+                players.push(name);
+                playerInput.value = '';
+                renderPlayers();
+                updateStartButton();
+                if (!audioCtx) audioCtx = new AudioCtx();
+            }
+        }
+
+        function removePlayer(index) {
+            players.splice(index, 1);
+            renderPlayers();
+            updateStartButton();
+        }
+
+        function renderPlayers() {
+            playerList.innerHTML = players.map((name, i) => `
+                <span class="inline-flex items-center bg-gray-700 px-3 py-1 rounded-full text-sm border border-gray-500 group shadow-sm">
+                    ${name}
+                    <button onclick="removePlayer(${i})" class="ml-2 text-gray-400 hover:text-red-400 font-bold">×</button>
+                </span>
+            `).join('');
+        }
+
+        function updateStartButton() {
+            const isReady = players.length >= 2;
+            startBtn.disabled = !isReady;
+            if (isReady) {
+                startBtn.className = "w-full py-4 bg-yellow-500 text-black font-bold text-xl rounded-xl hover:bg-yellow-400 transition-all shadow-lg active:scale-95";
+                startBtn.textContent = 'ゲーム開始！';
+            } else {
+                startBtn.className = "w-full py-4 bg-gray-600 text-gray-400 font-black text-xl rounded-xl cursor-not-allowed";
+                startBtn.textContent = '2名以上でスタート';
+            }
+        }
+
+        function generateQuestion() {
+            const types = ['add', 'sub', 'mul', 'div'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            let a, b, op, ans;
+
+            switch(type) {
+                case 'add':
+                    a = Math.floor(Math.random() * 800) + 100;
+                    b = Math.floor(Math.random() * 800) + 100;
+                    op = '+';
+                    ans = a + b;
+                    break;
+                case 'sub':
+                    a = Math.floor(Math.random() * 900) + 100;
+                    b = Math.floor(Math.random() * (a - 10)) + 10;
+                    op = '-';
+                    ans = a - b;
+                    break;
+                case 'mul':
+                    if (Math.random() > 0.5) {
+                        a = Math.floor(Math.random() * 40) + 11;
+                        b = Math.floor(Math.random() * 20) + 11;
+                    } else {
+                        a = Math.floor(Math.random() * 90) + 11;
+                        b = Math.floor(Math.random() * 8) + 2;
+                    }
+                    op = '×';
+                    ans = a * b;
+                    break;
+                case 'div':
+                    b = Math.floor(Math.random() * 15) + 3;
+                    ans = Math.floor(Math.random() * 30) + 2;
+                    a = b * ans;
+                    op = '÷';
+                    break;
+            }
+
+            currentQuestion = { a, b, op, answer: ans };
+            mathDisplay.textContent = `${a} ${op} ${b}`;
+            clearAnswer(false);
+        }
+
+        function pressKey(num) {
+            if (!gameActive) return;
+            sounds.key();
+            if (userAnswer.length >= 6) return;
+            
+            userAnswer += num;
+            answerDisplay.textContent = userAnswer;
+
+            if (parseInt(userAnswer) === currentQuestion.answer) {
+                sounds.pass();
+                passBomb();
+            } else if (userAnswer.length >= currentQuestion.answer.toString().length) {
+                sounds.wrong();
+                answerDisplay.classList.add('text-red-500');
+                questionBox.classList.add('border-red-500');
+                setTimeout(() => {
+                    if (gameActive) clearAnswer(false);
+                    answerDisplay.classList.remove('text-red-500');
+                    questionBox.classList.remove('border-red-500');
+                }, 300);
+            }
+        }
+
+        function clearAnswer(isManual) {
+            if (isManual) sounds.key();
+            userAnswer = "";
+            answerDisplay.textContent = "?";
+        }
+
+        function startGame() {
+            if (!audioCtx) audioCtx = new AudioCtx();
+            setupScreen.classList.add('hidden');
+            playScreen.classList.remove('hidden');
+            currentPlayerIndex = Math.floor(Math.random() * players.length);
+            
+            initialTime = Math.floor(Math.random() * 20) + 30;
+            timeLeft = initialTime;
+            gameActive = true;
+            
+            updateTurnUI();
+            generateQuestion();
+            startTicker();
+        }
+
+        function updateTurnUI() {
+            document.getElementById('current-player-name').textContent = players[currentPlayerIndex];
+        }
+
+        function passBomb() {
+            if (!gameActive) return;
+            currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+            updateTurnUI();
+            generateQuestion();
+        }
+
+        function startTicker() {
+            let lastHeartBeat = 0;
+            tickInterval = setInterval(() => {
+                timeLeft -= 0.1;
+                
+                // 震動とスケールの計算
+                const progress = 1 - (timeLeft / initialTime);
+                const shakeIntensity = 1 + (progress * 15); // 1pxから16pxまで増加
+                const rotateIntensity = 1 + (progress * 10); // 1degから11degまで増加
+                const scaleBase = 1 + (progress * 0.5); // 1倍から1.5倍まで増加
+                
+                bombVisual.style.setProperty('--shake-x', `${shakeIntensity}px`);
+                bombVisual.style.setProperty('--shake-y', `${shakeIntensity}px`);
+                bombVisual.style.setProperty('--shake-r', `${rotateIntensity}deg`);
+                
+                // ドクドクという拍動
+                const heartRate = Math.max(200, 1000 - (progress * 800)); // 1秒間隔から0.2秒間隔へ
+                if (Date.now() - lastHeartBeat > heartRate) {
+                    sounds.heart();
+                    lastHeartBeat = Date.now();
+                    bombVisual.style.transform = `scale(${scaleBase + 0.2})`;
+                    setTimeout(() => {
+                        bombVisual.style.transform = `scale(${scaleBase})`;
+                    }, 50);
+                }
+
+                if (timeLeft < 5) {
+                    document.body.classList.add('animate-pulse-red');
+                }
+
+                if (timeLeft <= 0) {
+                    explode();
+                }
+            }, 100);
+        }
+
+        function explode() {
+            gameActive = false;
+            clearInterval(tickInterval);
+            sounds.boom();
+            document.body.classList.remove('animate-pulse-red');
+            playScreen.classList.add('hidden');
+            resultScreen.classList.remove('hidden');
+            document.getElementById('loser-name').textContent = players[currentPlayerIndex];
+        }
+
+        function resetGame() {
+            resultScreen.classList.add('hidden');
+            setupScreen.classList.remove('hidden');
+            document.body.classList.remove('animate-pulse-red');
+            clearAnswer(false);
+        }
+    </script>
+</body>
+</html>
