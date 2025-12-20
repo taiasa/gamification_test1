@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>爽快ピンポンゲーム FINAL+</title>
+<style>
+body{
+  margin:0;
+  background:radial-gradient(#111,#000);
+  color:#0ff;
+  font-family:sans-serif;
+}
+canvas{
+  display:block;
+  margin:auto;
+  background:#000;
+}
+#ui{
+  position:absolute;
+  top:10px;
+  width:100%;
+  text-align:center;
+}
+#buttons{
+  position:absolute;
+  bottom:15px;
+  width:100%;
+  text-align:center;
+}
+button{
+  font-size:16px;
+  padding:8px 16px;
+  margin:0 5px;
+}
+</style>
+</head>
+<body>
+
+<div id="ui">
+  <div id="score">LEFT 0 : 0 RIGHT</div>
+  🕹 W/S ｜ ↑/↓ ｜ R:再開<br>
+  ⭐ 🔥SPEED 🌀CURVE 📏LONG（相手が有利）
+</div>
+
+<div id="buttons">
+  <button onclick="startGame()">▶ ゲームスタート</button>
+  <button onclick="resetGame()">🔄 リセット</button>
+</div>
+
+<canvas id="game" width="900" height="500"></canvas>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+const W=canvas.width,H=canvas.height;
+const WIN_SCORE=10;
+
+let baseH=100,paddleW=12;
+let left,right,ball,items=[];
+let scoreL=0,scoreR=0;
+let running=false,waiting=false,gameOver=false;
+let winnerText="";
+let curveDelay=0,curvePower=0;
+
+function init(){
+  left={x:30,y:H/2-50,h:baseH};
+  right={x:W-42,y:H/2-50,h:baseH};
+  items=[];
+  resetBall();
+}
+function resetBall(dir=1){
+  ball={x:W/2,y:H/2,vx:dir*6,vy:(Math.random()*2-1)*4,r:8,speed:1};
+  curveDelay=curvePower=0;
+}
+init();
+
+const keys={};
+addEventListener("keydown",e=>keys[e.key]=true);
+addEventListener("keyup",e=>keys[e.key]=false);
+
+function startGame(){
+  if(!running&&!gameOver){
+    running=true;
+    resetBall(Math.random()>0.5?1:-1);
+  }
+}
+function resetGame(){
+  scoreL=scoreR=0;
+  running=false;
+  waiting=false;
+  gameOver=false;
+  winnerText="";
+  init();
+  updateScore();
+}
+
+function updateScore(){
+  document.getElementById("score").textContent=
+    `LEFT ${scoreL} : ${scoreR} RIGHT`;
+}
+
+// ---------- アイテム ----------
+setInterval(()=>{
+  if(items.length<5&&running&&!gameOver){
+    items.push({
+      x:Math.random()*(W-200)+100,
+      y:Math.random()*(H-100)+50,
+      r:22,
+      type:["speed","curve","long"][Math.floor(Math.random()*3)]
+    });
+  }
+},4500);
+
+function applyItem(type,player){
+  // 取得した側 player
+  // long は「逆のバー」に効果
+  if(type==="speed") ball.speed+=1;
+
+  if(type==="curve"){
+    curveDelay=40;
+    curvePower=(Math.random()>0.5?1:-1)*(3+Math.random()*3);
+  }
+
+  if(type==="long"){
+    const target = (player===left)? right : left;
+    target.h=170;
+    setTimeout(()=>target.h=baseH,5000);
+  }
+}
+
+// ---------- 得点 ----------
+function score(leftSide){
+  if(leftSide) scoreL++; else scoreR++;
+  updateScore();
+  items=[];
+  if(scoreL>=WIN_SCORE) return triggerWin(true);
+  if(scoreR>=WIN_SCORE) return triggerWin(false);
+
+  waiting=true;
+  setTimeout(()=>{
+    resetBall(leftSide?1:-1);
+    waiting=false;
+  },2000);
+}
+
+// ---------- 勝利 ----------
+function triggerWin(leftWin){
+  gameOver=true;
+  running=false;
+  waiting=true;
+  winnerText=leftWin?"LEFT WIN!!":"RIGHT WIN!!";
+}
+
+// ---------- 更新 ----------
+function update(){
+  if(!running||waiting||gameOver) return;
+
+  if(keys["w"]) left.y-=8;
+  if(keys["s"]) left.y+=8;
+  if(keys["ArrowUp"]) right.y-=8;
+  if(keys["ArrowDown"]) right.y+=8;
+
+  left.y=Math.max(0,Math.min(H-left.h,left.y));
+  right.y=Math.max(0,Math.min(H-right.h,right.y));
+
+  ball.x+=ball.vx*ball.speed;
+  ball.y+=ball.vy*ball.speed;
+
+  if(curveDelay>0 && --curveDelay===0) ball.vy+=curvePower;
+  if(ball.y<ball.r||ball.y>H-ball.r) ball.vy*=-1;
+
+  function hit(p,isLeft){
+    if(ball.x+ball.r>p.x&&ball.x-ball.r<p.x+paddleW&&
+       ball.y>p.y&&ball.y<p.y+p.h){
+      const pos=(ball.y-(p.y+p.h/2))/(p.h/2);
+      ball.vy=pos*6;
+      ball.vx=isLeft?Math.abs(ball.vx):-Math.abs(ball.vx);
+      ball.speed+=0.05;
+    }
+  }
+  hit(left,true); hit(right,false);
+
+  if(ball.x<0) score(false);
+  if(ball.x>W) score(true);
+
+  items=items.filter(it=>{
+    if(Math.hypot(ball.x-it.x,ball.y-it.y)<ball.r+it.r){
+      applyItem(it.type,ball.vx<0?left:right);
+      return false;
+    }
+    return true;
+  });
+}
+
+// ---------- 描画 ----------
+function drawItem(it){
+  ctx.save();
+  ctx.translate(it.x,it.y);
+  ctx.textAlign="center";
+  ctx.textBaseline="middle";
+  ctx.font="bold 20px sans-serif";
+
+  if(it.type==="speed"){
+    ctx.fillStyle="#f33";
+    ctx.beginPath();
+    ctx.arc(0,0,it.r,0,Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle="#fff";
+    ctx.fillText("S",0,1);
+  }
+
+  if(it.type==="curve"){
+    ctx.strokeStyle="#3f3";
+    ctx.lineWidth=5;
+    ctx.beginPath();
+    ctx.arc(0,0,it.r,0,Math.PI*1.5);
+    ctx.stroke();
+    ctx.fillStyle="#3f3";
+    ctx.fillText("C",0,1);
+  }
+
+  if(it.type==="long"){
+    ctx.fillStyle="#ff3";
+    ctx.fillRect(-it.r,-it.r/2,it.r*2,it.r);
+    ctx.fillStyle="#000";
+    ctx.fillText("L",0,1);
+  }
+
+  ctx.restore();
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+
+  ctx.fillStyle="#333";
+  for(let y=0;y<H;y+=20) ctx.fillRect(W/2-1,y,2,10);
+
+  ctx.fillStyle="#0ff";
+  ctx.fillRect(left.x,left.y,paddleW,left.h);
+  ctx.fillRect(right.x,right.y,paddleW,right.h);
+
+  if(!waiting&&!gameOver){
+    ctx.beginPath();
+    ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);
+    ctx.fillStyle="#fff";
+    ctx.fill();
+  }
+
+  items.forEach(drawItem);
+
+  if(gameOver){
+    ctx.font="bold 72px sans-serif";
+    ctx.fillStyle="#fff";
+    ctx.textAlign="center";
+    ctx.fillText(winnerText,W/2,H/2);
+  }
+}
+
+(function loop(){
+  update(); draw();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
