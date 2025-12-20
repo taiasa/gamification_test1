@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>足して10！神経衰弱 Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .card {
+            perspective: 1000px;
+            aspect-ratio: 2/3;
+        }
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+            cursor: pointer;
+        }
+        .card.flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .card-back {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            border: 2px solid white;
+        }
+        .card-front {
+            background-color: white;
+            color: #1e40af;
+            transform: rotateY(180deg);
+            border: 2px solid #3b82f6;
+        }
+        
+        /* エフェクト：正解 */
+        .matched-effect {
+            animation: match-glow 0.8s ease-out;
+        }
+        @keyframes match-glow {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            50% { transform: scale(1.1); box-shadow: 0 0 20px 10px rgba(34, 197, 94, 0.7); border-color: #22c55e; }
+            100% { transform: scale(1); opacity: 0; }
+        }
+
+        /* エフェクト：不正解 */
+        .error-effect {
+            animation: shake 0.5s linear;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-10px); border-color: #ef4444; }
+            40%, 80% { transform: translateX(10px); border-color: #ef4444; }
+        }
+
+        .card.hidden-match {
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        @keyframes pulse-gold {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); border-color: #fbbf24; }
+            100% { transform: scale(1); }
+        }
+        .active-player {
+            animation: pulse-gold 2s infinite;
+            border: 3px solid #fbbf24;
+            background-color: #fffbeb;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-4 flex flex-col items-center font-sans">
+
+    <!-- Start Screen -->
+    <div id="setup-screen" class="bg-white p-8 rounded-xl shadow-lg text-center max-w-md w-full mt-10">
+        <h1 class="text-3xl font-bold mb-2 text-blue-600">足して10！</h1>
+        <p class="text-sm text-blue-400 font-bold mb-6">MATH MEMORY GAME</p>
+        
+        <div class="space-y-6">
+            <div>
+                <label class="block text-gray-700 font-bold mb-3">1. プレイヤー人数</label>
+                <div class="flex justify-center gap-2">
+                    <button onclick="setPlayers(1)" id="p-btn-1" class="player-btn w-12 h-12 rounded-full border-2 border-blue-500 bg-blue-500 text-white font-bold">1</button>
+                    <button onclick="setPlayers(2)" id="p-btn-2" class="player-btn w-12 h-12 rounded-full border-2 border-blue-500 text-blue-500 font-bold">2</button>
+                    <button onclick="setPlayers(3)" id="p-btn-3" class="player-btn w-12 h-12 rounded-full border-2 border-blue-500 text-blue-500 font-bold">3</button>
+                    <button onclick="setPlayers(4)" id="p-btn-4" class="player-btn w-12 h-12 rounded-full border-2 border-blue-500 text-blue-500 font-bold">4</button>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-gray-700 font-bold mb-3">2. 難易度（カード枚数）</label>
+                <div class="grid grid-cols-1 gap-2">
+                    <button onclick="startGame(1)" class="w-full py-3 bg-green-500 text-white rounded-lg font-bold hover:bg-green-600 transition shadow-md">
+                        レベル 1 (4枚)
+                    </button>
+                    <button onclick="startGame(2)" class="w-full py-3 bg-yellow-500 text-white rounded-lg font-bold hover:bg-yellow-600 transition shadow-md">
+                        レベル 2 (10枚)
+                    </button>
+                    <button onclick="startGame(3)" class="w-full py-3 bg-red-500 text-white rounded-lg font-bold hover:bg-red-600 transition shadow-md">
+                        レベル 3 (20枚)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="hidden w-full max-w-4xl">
+        <!-- Score Board -->
+        <div id="scoreboard" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4"></div>
+
+        <!-- Status Message -->
+        <div id="status-msg" class="text-center text-xl font-bold text-gray-700 mb-4 h-8 transition-all"></div>
+
+        <!-- Cards Grid -->
+        <div id="grid" class="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-5 gap-3 px-2"></div>
+
+        <div class="mt-8 text-center">
+            <button onclick="resetGame()" class="px-6 py-2 bg-gray-500 text-white rounded-full hover:bg-gray-600 transition text-sm">タイトルに戻る</button>
+        </div>
+    </div>
+
+    <!-- Result Modal -->
+    <div id="modal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
+        <div class="bg-white p-8 rounded-2xl max-w-sm w-full text-center shadow-2xl">
+            <div class="text-5xl mb-4">🏆</div>
+            <h2 class="text-2xl font-bold mb-4 text-blue-800" id="winner-text">結果発表</h2>
+            <div id="final-scores" class="space-y-2 mb-6 border-t border-b py-4"></div>
+            <button onclick="resetGame()" class="w-full py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 shadow-lg">もう一度遊ぶ</button>
+        </div>
+    </div>
+
+    <script>
+        // Audio Context for sound effects
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'flip') {
+                oscillator.type = 'triangle';
+                oscillator.frequency.setValueAtTime(440, now);
+                oscillator.frequency.exponentialRampToValueAtTime(880, now + 0.1);
+                gainNode.gain.setValueAtTime(0.1, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                oscillator.start();
+                oscillator.stop(now + 0.1);
+            } else if (type === 'match') {
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(523.25, now); // C5
+                oscillator.frequency.exponentialRampToValueAtTime(1046.5, now + 0.3); // C6
+                gainNode.gain.setValueAtTime(0.2, now);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                oscillator.start();
+                oscillator.stop(now + 0.4);
+                
+                // Second chime
+                const osc2 = audioCtx.createOscillator();
+                const gain2 = audioCtx.createGain();
+                osc2.connect(gain2);
+                gain2.connect(audioCtx.destination);
+                osc2.frequency.setValueAtTime(659.25, now + 0.1); // E5
+                osc2.frequency.exponentialRampToValueAtTime(1318.5, now + 0.4);
+                gain2.gain.setValueAtTime(0.1, now + 0.1);
+                gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                osc2.start(now + 0.1);
+                osc2.stop(now + 0.5);
+            } else if (type === 'error') {
+                oscillator.type = 'square';
+                oscillator.frequency.setValueAtTime(150, now);
+                oscillator.frequency.linearRampToValueAtTime(100, now + 0.3);
+                gainNode.gain.setValueAtTime(0.1, now);
+                gainNode.gain.linearRampToValueAtTime(0.01, now + 0.3);
+                oscillator.start();
+                oscillator.stop(now + 0.3);
+            }
+        }
+
+        let playerCount = 1;
+        let currentPlayer = 0;
+        let scores = [];
+        let flippedCards = [];
+        let lockBoard = false;
+        let matchedPairs = 0;
+        let totalPairsRequired = 0;
+
+        function setPlayers(num) {
+            playerCount = num;
+            document.querySelectorAll('.player-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-500', 'text-white');
+                btn.classList.add('text-blue-500');
+            });
+            document.getElementById(`p-btn-${num}`).classList.add('bg-blue-500', 'text-white');
+            document.getElementById(`p-btn-${num}`).classList.remove('text-blue-500');
+        }
+
+        function generateCardValues(level) {
+            let pairs = [];
+            const possiblePairs = [[1, 9], [2, 8], [3, 7], [4, 6], [5, 5]];
+            
+            if (level === 1) { // 4 cards (2 pairs)
+                totalPairsRequired = 2;
+                pairs = [[1, 9], [5, 5]];
+            } else if (level === 2) { // 10 cards (5 pairs)
+                totalPairsRequired = 5;
+                pairs = [...possiblePairs];
+            } else { // 20 cards (10 pairs)
+                totalPairsRequired = 10;
+                pairs = [...possiblePairs, ...possiblePairs];
+            }
+
+            const values = [];
+            pairs.forEach(p => values.push(...p));
+            return values;
+        }
+
+        function startGame(level) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            scores = new Array(playerCount).fill(0);
+            currentPlayer = 0;
+            matchedPairs = 0;
+            const values = generateCardValues(level);
+            
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            
+            initScoreboard();
+            initGrid(values, level);
+            updateStatus();
+        }
+
+        function initScoreboard() {
+            const board = document.getElementById('scoreboard');
+            board.innerHTML = '';
+            for (let i = 0; i < playerCount; i++) {
+                const div = document.createElement('div');
+                div.id = `player-card-${i}`;
+                div.className = `bg-white p-3 rounded-xl shadow-sm text-center border-2 transition-all ${i === 0 ? 'active-player' : 'border-gray-100'}`;
+                div.innerHTML = `
+                    <div class="text-xs text-gray-400 font-bold">PLAYER ${i + 1}</div>
+                    <div class="text-2xl font-black text-blue-600" id="score-${i}">0</div>
+                `;
+                board.appendChild(div);
+            }
+        }
+
+        function initGrid(values, level) {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+            
+            // Adjust columns based on card count
+            if (level === 1) grid.className = "grid grid-cols-2 gap-4 max-w-xs mx-auto";
+            else if (level === 2) grid.className = "grid grid-cols-2 sm:grid-cols-5 gap-3";
+            else grid.className = "grid grid-cols-4 sm:grid-cols-5 gap-3";
+
+            const shuffled = values.sort(() => Math.random() - 0.5);
+            
+            shuffled.forEach((val, index) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.dataset.value = val;
+                card.innerHTML = `
+                    <div class="card-inner" onclick="handleCardClick(this.parentElement)">
+                        <div class="card-back text-xl">？</div>
+                        <div class="card-front">${val}</div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function handleCardClick(cardElement) {
+            if (lockBoard || cardElement.classList.contains('flipped') || cardElement.classList.contains('hidden-match')) return;
+
+            playSound('flip');
+            cardElement.classList.add('flipped');
+            flippedCards.push(cardElement);
+
+            if (flippedCards.length === 2) {
+                checkMatch();
+            }
+        }
+
+        function checkMatch() {
+            lockBoard = true;
+            const [card1, card2] = flippedCards;
+            const val1 = parseInt(card1.dataset.value);
+            const val2 = parseInt(card2.dataset.value);
+
+            if (val1 + val2 === 10) {
+                // 正解エフェクトと音
+                setTimeout(() => {
+                    playSound('match');
+                    card1.querySelector('.card-inner').classList.add('matched-effect');
+                    card2.querySelector('.card-inner').classList.add('matched-effect');
+                    
+                    setTimeout(() => {
+                        card1.classList.add('hidden-match');
+                        card2.classList.add('hidden-match');
+                        scores[currentPlayer]++;
+                        matchedPairs++;
+                        updateScores();
+                        resetTurn();
+                        
+                        if (matchedPairs === totalPairsRequired) {
+                            showGameOver();
+                        }
+                    }, 800);
+                }, 400);
+            } else {
+                // 不正解エフェクトと音
+                setTimeout(() => {
+                    playSound('error');
+                    card1.querySelector('.card-inner').classList.add('error-effect');
+                    card2.querySelector('.card-inner').classList.add('error-effect');
+                    
+                    setTimeout(() => {
+                        card1.classList.remove('flipped');
+                        card2.classList.remove('flipped');
+                        card1.querySelector('.card-inner').classList.remove('error-effect');
+                        card2.querySelector('.card-inner').classList.remove('error-effect');
+                        nextPlayer();
+                        resetTurn();
+                    }, 800);
+                }, 400);
+            }
+        }
+
+        function resetTurn() {
+            flippedCards = [];
+            lockBoard = false;
+        }
+
+        function nextPlayer() {
+            if (playerCount > 1) {
+                document.getElementById(`player-card-${currentPlayer}`).classList.remove('active-player');
+                document.getElementById(`player-card-${currentPlayer}`).classList.add('border-gray-100');
+                currentPlayer = (currentPlayer + 1) % playerCount;
+                document.getElementById(`player-card-${currentPlayer}`).classList.add('active-player');
+                document.getElementById(`player-card-${currentPlayer}`).classList.remove('border-gray-100');
+                updateStatus();
+            }
+        }
+
+        function updateScores() {
+            document.getElementById(`score-${currentPlayer}`).innerText = scores[currentPlayer];
+        }
+
+        function updateStatus() {
+            const msg = document.getElementById('status-msg');
+            msg.innerHTML = `<span class="text-blue-500">Player ${currentPlayer + 1}</span> の番です`;
+        }
+
+        function showGameOver() {
+            const modal = document.getElementById('modal');
+            const finalText = document.getElementById('final-scores');
+            const winnerText = document.getElementById('winner-text');
+            
+            modal.classList.remove('hidden');
+            finalText.innerHTML = '';
+            
+            let maxScore = Math.max(...scores);
+            let winners = [];
+            
+            scores.forEach((score, i) => {
+                if (score === maxScore) winners.push(i + 1);
+                const div = document.createElement('div');
+                div.className = "flex justify-between items-center px-4 py-2 bg-gray-50 rounded-lg";
+                div.innerHTML = `
+                    <span class="font-bold text-gray-600">Player ${i + 1}</span>
+                    <span class="text-xl font-black text-blue-600">${score} <small class="text-xs">pts</small></span>
+                `;
+                finalText.appendChild(div);
+            });
+
+            if (playerCount === 1) {
+                winnerText.innerText = "ALL CLEAR!";
+            } else {
+                winnerText.innerText = winners.length > 1 ? "DRAW!" : `PLAYER ${winners[0]} WINS!`;
+            }
+        }
+
+        function resetGame() {
+            document.getElementById('modal').classList.add('hidden');
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('setup-screen').classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
