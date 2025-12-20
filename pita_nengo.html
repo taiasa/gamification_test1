@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ピタッと年号 ～日本編～</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Kiwi+Maru:wght@500&family=Noto+Serif+JP:wght@900&display=swap');
+        
+        body {
+            font-family: 'Kiwi Maru', serif;
+            background-color: #1a1a1a;
+            color: #e2e8f0;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+
+        .gold-glow {
+            text-shadow: 0 0 10px rgba(251, 191, 36, 0.8), 0 0 20px rgba(251, 191, 36, 0.4);
+        }
+
+        .timer-progress {
+            transition: width 1s linear;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .animate-slide {
+            animation: slideIn 0.4s ease-out forwards;
+        }
+
+        .era-tag {
+            background: linear-gradient(90deg, #b45309, #78350f);
+        }
+
+        .modal-bg {
+            background-color: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(8px);
+        }
+
+        .selected-btn {
+            background-color: #d97706 !important; /* amber-600 */
+            border-color: #fbbf24 !important; /* amber-400 */
+            transform: scale(1.02);
+        }
+    </style>
+</head>
+<body class="h-screen flex items-center justify-center bg-[#0f0f0f]">
+
+    <div id="game-container" class="w-full max-w-md p-6 relative h-full flex flex-col justify-center">
+        
+        <!-- Start Screen -->
+        <div id="start-screen" class="text-center space-y-6">
+            <div class="space-y-2">
+                <h1 class="text-4xl font-black text-amber-500 font-serif tracking-tighter gold-glow">ピタッと年号</h1>
+                <p class="text-amber-200/60 text-sm italic">～時代を選んで挑戦～</p>
+            </div>
+            
+            <div class="bg-amber-900/10 border border-amber-900/30 p-5 rounded-2xl space-y-6">
+                <div class="space-y-3">
+                    <span class="text-[10px] text-amber-500 font-bold uppercase block tracking-widest">挑戦する時代を選択</span>
+                    <div class="grid grid-cols-1 gap-3">
+                        <button onclick="selectEra('ancient-medieval')" id="era-ancient-medieval" class="era-btn py-4 rounded-xl bg-gray-800 border border-gray-700 transition-all text-sm font-bold leading-tight">
+                            平安・鎌倉・室町・安土桃山<br>
+                            <span class="text-[10px] text-amber-400/70 font-normal">貴族・武士の台頭から天下統一まで</span>
+                        </button>
+                        <button onclick="selectEra('edo')" id="era-edo" class="era-btn py-4 rounded-xl bg-gray-800 border border-gray-700 transition-all text-sm font-bold">
+                            江戸<br>
+                            <span class="text-[10px] text-amber-400/70 font-normal">泰平の世と幕末の動乱</span>
+                        </button>
+                        <button onclick="selectEra('modern')" id="era-modern" class="era-btn py-4 rounded-xl bg-gray-800 border border-gray-700 transition-all text-sm font-bold">
+                            明治・大正・昭和<br>
+                            <span class="text-[10px] text-amber-400/70 font-normal">近代化への歩みと激動の時代</span>
+                        </button>
+                        <button onclick="selectEra('contemporary')" id="era-contemporary" class="era-btn py-4 rounded-xl bg-gray-800 border border-gray-700 transition-all text-sm font-bold">
+                            平成・令和<br>
+                            <span class="text-[10px] text-amber-400/70 font-normal">現代日本の歩み</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="startGame()" id="start-btn" class="hidden w-full py-4 bg-amber-600 hover:bg-amber-500 text-white rounded-full font-bold text-xl shadow-[0_0_20px_rgba(217,119,6,0.3)] transition-all transform hover:scale-105 active:scale-95">
+                挑戦を開始する
+            </button>
+        </div>
+
+        <!-- Memorize Phase -->
+        <div id="memorize-screen" class="hidden space-y-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <span id="level-indicator" class="era-tag px-3 py-1 rounded text-[10px] font-bold text-white">STAGE 1</span>
+                    <h2 class="text-lg font-bold text-amber-200 mt-1">古い順に記憶せよ</h2>
+                </div>
+                <div id="timer-text" class="text-3xl font-black text-white">5</div>
+            </div>
+
+            <div class="w-full bg-gray-800 h-2 rounded-full overflow-hidden">
+                <div id="timer-bar" class="timer-progress h-full bg-amber-500 w-full"></div>
+            </div>
+
+            <div id="card-container" class="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                <!-- Cards will be injected here -->
+            </div>
+        </div>
+
+        <!-- Input Phase -->
+        <div id="input-screen" class="hidden space-y-6">
+            <div class="text-center">
+                <p id="question-count" class="text-amber-500 text-xs font-bold mb-1 uppercase tracking-widest">Question 1/1</p>
+                <h2 id="question-event" class="text-2xl font-black text-white px-4 h-16 flex items-center justify-center">???</h2>
+            </div>
+
+            <div class="flex justify-center gap-2" id="answer-slots">
+                <div class="w-12 h-16 bg-gray-900 border-2 border-amber-900/50 rounded-xl flex items-center justify-center text-3xl font-bold text-amber-400">?</div>
+                <div class="w-12 h-16 bg-gray-900 border-2 border-amber-900/50 rounded-xl flex items-center justify-center text-3xl font-bold text-amber-400">?</div>
+                <div class="w-12 h-16 bg-gray-900 border-2 border-amber-900/50 rounded-xl flex items-center justify-center text-3xl font-bold text-amber-400">?</div>
+                <div class="w-12 h-16 bg-gray-900 border-2 border-amber-900/50 rounded-xl flex items-center justify-center text-3xl font-bold text-amber-400">?</div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-3 max-w-[280px] mx-auto" id="numpad">
+                <!-- Numpad -->
+            </div>
+        </div>
+
+        <!-- Explanation Modal -->
+        <div id="explanation-modal" class="hidden fixed inset-0 z-50 modal-bg flex items-center justify-center p-6">
+            <div class="bg-gray-900 border-2 border-amber-600 rounded-3xl w-full max-w-sm overflow-hidden animate-slide">
+                <div id="modal-status-bar" class="py-2 text-center text-xs font-bold uppercase tracking-widest text-white">CORRECT</div>
+                <div class="p-6 space-y-4">
+                    <div class="text-center">
+                        <p id="modal-year" class="text-4xl font-black text-amber-500 font-mono">1185</p>
+                        <h3 id="modal-event" class="text-xl font-bold text-white mt-1">鎌倉幕府の成立</h3>
+                    </div>
+                    <div class="bg-black/40 p-4 rounded-xl">
+                        <p id="modal-desc" class="text-sm leading-relaxed text-gray-300">
+                            源頼朝が征夷大将軍に任命され、日本初の武家政権が誕生しました。
+                        </p>
+                    </div>
+                    <button id="modal-next-btn" class="w-full py-4 bg-amber-600 hover:bg-amber-500 text-white rounded-2xl font-bold transition-all transform active:scale-95">
+                        次へ進む
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Result Screen -->
+        <div id="result-screen" class="hidden text-center space-y-6">
+            <div class="space-y-2">
+                <h2 id="result-title" class="text-4xl font-black text-amber-500">結果発表</h2>
+                <p id="result-subtitle" class="text-gray-400 text-sm">今回の挑戦結果です</p>
+            </div>
+            <div class="bg-gray-900 p-8 rounded-3xl border border-amber-900/30 space-y-4">
+                <div>
+                    <p class="text-gray-500 text-[10px] uppercase tracking-widest mb-1">正解した年号の数</p>
+                    <div class="flex items-baseline justify-center gap-1">
+                        <span id="final-score" class="text-7xl font-black text-white gold-glow">0</span>
+                        <span class="text-amber-500 font-bold">問</span>
+                    </div>
+                </div>
+                <div id="performance-msg" class="text-sm text-amber-200 italic">歴史に詳しいですね！</div>
+            </div>
+            <button onclick="location.reload()" class="w-full py-4 bg-gray-800 text-white rounded-full font-bold hover:bg-gray-700 transition-all">
+                タイトルへ戻る
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        // --- 出来事データ（100問以上） ---
+        const ALL_DATA = {
+            'ancient-medieval': [
+                { year: "0794", event: "平安京遷都", desc: "桓武天皇が京都に都を移しました。鳴くよ(794)ウグイス平安京。" },
+                { year: "0894", event: "遣唐使の廃止", desc: "菅原道真の提言により停止。日本の国風文化が発達するきっかけに。" },
+                { year: "1016", event: "藤原道長が摂政に", desc: "藤原氏による摂関政治が全盛を極めました。「この世をば…」の歌が有名。" },
+                { year: "1051", event: "前九年の役の開始", desc: "源氏が奥州の安倍氏を討伐。武士の力が中央に認められるきっかけに。" },
+                { year: "1086", event: "白河上皇の院政開始", desc: "上皇が天皇に代わって政治を行う「院政」が始まりました。" },
+                { year: "1156", event: "保元の乱", desc: "崇徳上皇と後白河天皇の対立。武士が政治の主役に躍り出ます。" },
+                { year: "1159", event: "平治の乱", desc: "平清盛と源義朝の戦い。平氏の全盛期が始まります。" },
+                { year: "1167", event: "平清盛が太政大臣に", desc: "武士として初めて最高位に。日宋貿易なども積極的に行いました。" },
+                { year: "1185", event: "壇ノ浦の戦い", desc: "平氏が滅亡。源頼朝による鎌倉幕府の実質的な支配が始まります。" },
+                { year: "1221", event: "承久の乱", desc: "後鳥羽上皇が幕府に敗北。六波羅探題が設置されました。" },
+                { year: "1232", event: "御成敗式目の制定", desc: "北条泰時が制定した武士のための最初の法律です。" },
+                { year: "1274", event: "文永の役（元寇）", desc: "モンゴル軍が襲来。集団戦法とてつはうに苦戦しました。" },
+                { year: "1281", event: "弘安の役（元寇）", desc: "二度目のモンゴル襲来。防塁と暴風雨により撃退しました。" },
+                { year: "1333", event: "鎌倉幕府の滅亡", desc: "足利尊氏や新田義貞の活躍により北条氏が滅亡。" },
+                { year: "1334", event: "建武の新政", desc: "後醍醐天皇による天皇中心の政治。しかし武士の不満を買い短期間で失敗。" },
+                { year: "1336", event: "南北朝時代の開始", desc: "足利尊氏が光明天皇を立て、後醍醐天皇が吉野へ。二つの朝廷が並立。" },
+                { year: "1392", event: "南北朝の合一", desc: "三代将軍・足利義満が、対立していた南北の朝廷を一つにまとめました。" },
+                { year: "1404", event: "勘合貿易の開始", desc: "足利義満が明と貿易を開始。倭寇と区別するために勘合符を使用。" },
+                { year: "1467", event: "応仁の乱の開始", desc: "将軍の跡継ぎ争いから京都が火の海に。戦国時代の幕開け。" },
+                { year: "1488", event: "加賀の一向一揆", desc: "浄土真宗の門徒が守護を倒し、100年にわたり「百姓の持ちたる国」を作りました。" },
+                { year: "1543", event: "鉄砲の伝来", desc: "種子島にポルトガル人が漂着。戦国時代の戦術が劇的に変化。" },
+                { year: "1549", event: "キリスト教の伝来", desc: "フランシスコ・ザビエルが鹿児島に上陸。" },
+                { year: "1560", event: "桶狭間の戦い", desc: "織田信長が今川義元を撃破。信長が天下取りへ乗り出すきっかけに。" },
+                { year: "1573", event: "室町幕府の滅亡", desc: "織田信長が将軍・足利義昭を京都から追放しました。" },
+                { year: "1575", event: "長篠の戦い", desc: "信長が武田勝頼の騎馬隊を鉄砲の三段撃ちで破りました。" },
+                { year: "1582", event: "本能寺の変", desc: "明智光秀が織田信長を襲撃。信長は自害しました。" },
+                { year: "1588", event: "刀狩令の発令", desc: "豊臣秀吉が農民から武器を没収。兵農分離を進めました。" },
+                { year: "1590", event: "小田原征伐（天下統一）", desc: "北条氏を滅ぼし、秀吉が日本全国の統一を完了しました。" }
+            ],
+            'edo': [
+                { year: "1600", event: "関ヶ原の戦い", desc: "石田三成の西軍を徳川家康の東軍が撃破。「天下分け目」の戦い。" },
+                { year: "1603", event: "江戸幕府の成立", desc: "徳川家康が征夷大将軍に任命されました。" },
+                { year: "1615", event: "武家諸法度の制定", desc: "大坂夏の陣で豊臣氏が滅亡。幕府が武士を統制する法を制定。" },
+                { year: "1635", event: "参勤交代の義務化", desc: "三代将軍・家光が諸大名に対して江戸への参勤をルール化。" },
+                { year: "1637", event: "島原・天草一揆", desc: "キリシタン農民らが蜂起。幕府は禁教をさらに徹底させます。" },
+                { year: "1639", event: "ポルトガル船の来航禁止", desc: "鎖国体制がほぼ完成。オランダと中国のみ長崎で貿易を継続。" },
+                { year: "1685", event: "生類憐れみの令", desc: "五代将軍・綱吉による極端な動物保護令。" },
+                { year: "1716", event: "享保の改革の開始", desc: "八代将軍・吉宗による幕府再建。目安箱の設置や新田開発を推進。" },
+                { year: "1772", event: "田沼意次の執政開始", desc: "商業を奨励し税収増を図る。一方で賄賂が蔓延したと言われます。" },
+                { year: "1782", event: "天明の飢饉", desc: "浅間山噴火などの異常気象により、全国で深刻な飢饉が発生。" },
+                { year: "1787", event: "寛政の改革の開始", desc: "松平定信による保守的な改革。朱子学以外の学問を禁止するなど。" },
+                { year: "1825", event: "異国船打払令", desc: "近づく外国船を容赦なく追い払うよう命じた法令。" },
+                { year: "1837", event: "大塩平八郎の乱", desc: "元幕府役人が飢饉に苦しむ民衆のために大坂で挙兵。" },
+                { year: "1841", event: "天保の改革の開始", desc: "水野忠邦による改革。株仲間の解散などを行うも反発を買い失敗。" },
+                { year: "1853", event: "ペリー来航", desc: "浦賀に黒船が現れ、鎖国を続けてきた日本に開国を要求。" },
+                { year: "1854", event: "日米和親条約", desc: "下田・函館の開港を決定。日本の開国。" },
+                { year: "1858", event: "日米修好通商条約", desc: "井伊直弼が無勅許で調印。不平等条約の始まり。" },
+                { year: "1859", event: "安政の大獄", desc: "井伊直弼が反対派を厳しく処罰。吉田松陰らが処刑される。" },
+                { year: "1860", event: "桜田門外の変", desc: "水戸浪士らが井伊直弼を暗殺。" },
+                { year: "1862", event: "生麦事件", desc: "薩摩藩士がイギリス人を殺傷。薩英戦争の原因に。" },
+                { year: "1863", event: "八月十八日の政変", desc: "薩摩・会津藩が長州藩を京都から追放。" },
+                { year: "1866", event: "薩長同盟の成立", desc: "坂本龍馬らの仲介で、対立していた薩摩と長州が密かに同盟。" },
+                { year: "1867", event: "大政奉還", desc: "徳川慶喜が政権を朝廷に返上し、江戸幕府が終了。" },
+                { year: "1868", event: "鳥羽・伏見の戦い", desc: "戊辰戦争の開始。旧幕府軍と新政府軍の戦い。" }
+            ],
+            'modern': [
+                { year: "1871", event: "廃藩置県", desc: "藩を廃止して県を設置。中央集権体制を確立。" },
+                { year: "1872", event: "学制の発布", desc: "国民全員が小学校教育を受ける仕組み。富岡製糸場も設立。" },
+                { year: "1873", event: "地租改正の開始", desc: "土地の価格を基準に、現金で税を納める仕組みへ変更。" },
+                { year: "1877", event: "西南戦争", desc: "西郷隆盛率いる士族による最大にして最後の反乱。" },
+                { year: "1885", event: "内閣制度の発足", desc: "初代総理大臣に伊藤博文が就任しました。" },
+                { year: "1889", event: "大日本帝国憲法の発布", desc: "アジア初の近代憲法が発布されました。" },
+                { year: "1894", event: "日清戦争の開始", desc: "朝鮮の支配権を巡り清と開戦。領事裁判権の撤廃も。" },
+                { year: "1902", event: "日英同盟の締結", desc: "ロシアの南下を防ぐため、イギリスと同盟を結びました。" },
+                { year: "1904", event: "日露戦争の開始", desc: "ロシアと満州・朝鮮の権益をめぐり開戦。" },
+                { year: "1910", event: "韓国併合", desc: "大韓帝国を完全に日本の統治下に入れました。" },
+                { year: "1911", event: "関税自主権の回復", desc: "小村寿太郎が不平等条約の完全改正に成功。" },
+                { year: "1914", event: "第一次世界大戦の開始", desc: "日英同盟を理由にドイツに宣戦。好景気が訪れる。" },
+                { year: "1918", event: "米騒動", desc: "シベリア出兵による米価高騰。史上初の本格的政党内閣（原敬）へ。" },
+                { year: "1923", event: "関東大震災", desc: "東京を中心とする巨大地震。甚大な被害と混乱が発生。" },
+                { year: "1925", event: "普通選挙法の成立", desc: "25歳以上の全男子に選挙権。同時に治安維持法も成立。" },
+                { year: "1931", event: "満州事変", desc: "柳条湖事件をきっかけに関東軍が軍事行動を開始。" },
+                { year: "1932", event: "五・一五事件", desc: "海軍の若手将校らが犬養毅首相を暗殺。政党政治の終焉。" },
+                { year: "1936", event: "二・二六事件", desc: "陸軍の急進派将校らがクーデターを図り、重臣らを殺傷。" },
+                { year: "1937", event: "日中戦争の開始", desc: "盧溝橋事件を機に中国との全面戦争に突入。" },
+                { year: "1941", event: "真珠湾攻撃（太平洋戦争開始）", desc: "アメリカとの戦争が始まり、戦火はアジア全体へ拡大。" },
+                { year: "1945", event: "ポツダム宣言受諾（終戦）", desc: "広島・長崎への原爆、ソ連参戦を経て敗戦を認めました。" },
+                { year: "1946", event: "日本国憲法の公布", desc: "国権の発動としての戦争の放棄、国民主権などを規定。" },
+                { year: "1951", event: "サンフランシスコ平和条約", desc: "日本の主権回復と同時に日米安全保障条約も調印。" },
+                { year: "1956", event: "日ソ共同宣言", desc: "ソ連との国交回復。日本の国際連合加盟が実現。" },
+                { year: "1960", event: "安保闘争", desc: "日米安全保障条約の改定に反対する激しいデモが発生。" },
+                { year: "1964", event: "東京オリンピック", desc: "東海道新幹線の開業とともに戦後復興の象徴に。" },
+                { year: "1972", event: "日中国交正常化", desc: "田中角栄首相が訪中し、共同声明に調印。" },
+                { year: "1985", event: "プラザ合意", desc: "円高が急速に進行し、後のバブル経済へと繋がる。" },
+                { year: "1989", event: "昭和天皇の崩御", desc: "昭和から平成へ時代が移り変わりました。" }
+            ],
+            'contemporary': [
+                { year: "1991", event: "バブル経済の崩壊", desc: "株価や地価が急落し、長期的な景気後退へ突入。" },
+                { year: "1993", event: "細川連立内閣の発足", desc: "自民党が下野し、38年ぶりに政権交代が実現。" },
+                { year: "1995", event: "阪神・淡路大震災 / 地下鉄サリン事件", desc: "激動の1年。震災とカルト教団によるテロが発生。" },
+                { year: "1997", event: "京都議定書の採択", desc: "地球温暖化防止のための国際的な枠組みが決まる。" },
+                { year: "1998", event: "長野冬季オリンピック", desc: "スキージャンプ団体での金メダルなどが話題に。" },
+                { year: "2001", event: "小泉内閣の発足 / 9.11テロ", desc: "「聖域なき構造改革」を掲げる。米国では同時多発テロ。" },
+                { year: "2002", event: "日朝首脳会談", desc: "小泉首相が訪朝し、拉致問題を初めて北朝鮮が認めました。" },
+                { year: "2005", event: "郵政民営化関連法の成立", desc: "衆議院解散を経て、郵政事業の民営化が決定。" },
+                { year: "2008", event: "リーマン・ショック", desc: "米国の金融危機が波及し、世界同時不況が発生。" },
+                { year: "2009", event: "民主党政権の発足", desc: "鳩山由紀夫首相が誕生し、二度目の大きな政権交代。" },
+                { year: "2011", event: "東日本大震災", desc: "巨大津波と原発事故。日本社会に大きな衝撃。" },
+                { year: "2012", event: "東京スカイツリー完成 / 第2次安倍内閣", desc: "アベノミクスによる経済政策を推進。" },
+                { year: "2016", event: "リオ五輪 / 熊本地震", desc: "多くの感動とともに、熊本で大規模な地震が発生。" },
+                { year: "2019", event: "令和への改元 / ラグビーW杯日本開催", desc: "天皇退位に伴い、新しい時代「令和」がスタート。" },
+                { year: "2020", event: "新型コロナウイルス感染症の拡大", desc: "パンデミックにより世界中で行動制限が行われました。" },
+                { year: "2021", event: "東京2020オリンピック・パラリンピック", desc: "1年延期を経て、原則無観客での開催。" },
+                { year: "2022", event: "安倍晋三元首相銃撃事件", desc: "選挙演説中の暗殺事件が日本を震撼させました。" },
+                { year: "2024", event: "能登半島地震", desc: "元日に発生した大地震により、甚大な被害が出ました。" }
+            ]
+        };
+
+        let level = 1;
+        let selectedEraKey = null;
+        let currentPool = [];
+        let currentItems = [];
+        let currentQuestionIdx = 0;
+        let totalCorrect = 0;
+        let inputBuffer = "";
+        let timer;
+        let audioCtx;
+        let gameActive = false;
+
+        function selectEra(key) {
+            selectedEraKey = key;
+            document.querySelectorAll('.era-btn').forEach(btn => btn.classList.remove('selected-btn'));
+            document.getElementById(`era-${key}`).classList.add('selected-btn');
+            document.getElementById('start-btn').classList.remove('hidden');
+        }
+
+        function playSound(freq, duration = 0.1) {
+            try {
+                if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e) {}
+        }
+
+        function startGame() {
+            currentPool = [...ALL_DATA[selectedEraKey]];
+            level = 1;
+            totalCorrect = 0;
+            gameActive = true;
+            startLevel();
+        }
+
+        function startLevel() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('memorize-screen').classList.remove('hidden');
+            document.getElementById('input-screen').classList.add('hidden');
+            document.getElementById('explanation-modal').classList.add('hidden');
+
+            document.getElementById('level-indicator').innerText = `STAGE ${level}`;
+            
+            // 出題数：最初は1問、レベルアップごとに最大5問まで増加
+            const count = Math.min(Math.floor((level-1) / 2) + 1, 5);
+            
+            // ランダムに選んで、年代順に並べる
+            const selected = [...currentPool].sort(() => 0.5 - Math.random()).slice(0, count);
+            currentItems = selected.sort((a, b) => parseInt(a.year) - parseInt(b.year));
+            
+            const container = document.getElementById('card-container');
+            container.innerHTML = "";
+            currentItems.forEach((item, i) => {
+                const card = document.createElement('div');
+                card.className = "bg-gray-900 border-l-4 border-amber-600 p-4 rounded-r-xl flex justify-between items-center animate-slide";
+                card.style.animationDelay = `${i * 0.1}s`;
+                card.innerHTML = `
+                    <span class="text-sm font-bold flex-1 pr-4">${item.event}</span>
+                    <span class="text-2xl font-black text-amber-500 font-mono">${item.year}</span>
+                `;
+                container.appendChild(card);
+            });
+
+            const baseTime = 5 + (count * 2);
+            startTimer(Math.max(baseTime - level * 0.3, 4));
+        }
+
+        function startTimer(seconds) {
+            let timeLeft = Math.ceil(seconds);
+            const bar = document.getElementById('timer-bar');
+            const text = document.getElementById('timer-text');
+            
+            bar.style.transition = 'none';
+            bar.style.width = '100%';
+            void bar.offsetWidth;
+            bar.style.transition = `width ${seconds}s linear`;
+            bar.style.width = '0%';
+
+            text.innerText = timeLeft;
+            clearInterval(timer);
+            timer = setInterval(() => {
+                timeLeft--;
+                text.innerText = Math.max(0, timeLeft);
+                if(timeLeft <= 0) {
+                    clearInterval(timer);
+                    startInputPhase();
+                }
+            }, 1000);
+        }
+
+        function startInputPhase() {
+            document.getElementById('memorize-screen').classList.add('hidden');
+            document.getElementById('input-screen').classList.remove('hidden');
+            currentQuestionIdx = 0;
+            showNextQuestion();
+            renderNumpad();
+        }
+
+        function showNextQuestion() {
+            const target = currentItems[currentQuestionIdx];
+            document.getElementById('question-count').innerText = `Question ${currentQuestionIdx + 1}/${currentItems.length}`;
+            document.getElementById('question-event').innerText = target.event;
+            inputBuffer = "";
+            updateAnswerSlots();
+        }
+
+        function renderNumpad() {
+            const pad = document.getElementById('numpad');
+            pad.innerHTML = "";
+            [1,2,3,4,5,6,7,8,9,0].forEach(n => {
+                const btn = document.createElement('button');
+                btn.className = "bg-gray-800 hover:bg-amber-700 text-white font-bold py-4 rounded-xl text-xl transition-all active:scale-90";
+                btn.innerText = n;
+                btn.onclick = () => handleInput(n.toString());
+                pad.appendChild(btn);
+            });
+            const del = document.createElement('button');
+            del.className = "col-span-2 bg-red-900/40 text-red-400 font-bold py-4 rounded-xl";
+            del.innerText = "消去";
+            del.onclick = () => { inputBuffer = ""; updateAnswerSlots(); };
+            pad.appendChild(del);
+        }
+
+        function handleInput(n) {
+            if(!gameActive || !document.getElementById('explanation-modal').classList.contains('hidden')) return;
+            if(inputBuffer.length < 4) {
+                inputBuffer += n;
+                playSound(440 + (inputBuffer.length * 100));
+                updateAnswerSlots();
+                if(inputBuffer.length === 4) {
+                    setTimeout(checkAnswer, 300);
+                }
+            }
+        }
+
+        function updateAnswerSlots() {
+            const slots = document.getElementById('answer-slots').children;
+            for(let i=0; i<4; i++) {
+                slots[i].innerText = inputBuffer[i] || "?";
+                slots[i].classList.toggle('border-amber-500', !!inputBuffer[i]);
+            }
+        }
+
+        function checkAnswer() {
+            const target = currentItems[currentQuestionIdx];
+            if(inputBuffer === target.year) {
+                totalCorrect++;
+                showExplanation(target, true);
+            } else {
+                showExplanation(target, false);
+            }
+        }
+
+        function showExplanation(target, correct) {
+            const modal = document.getElementById('explanation-modal');
+            const statusBar = document.getElementById('modal-status-bar');
+            const nextBtn = document.getElementById('modal-next-btn');
+            
+            modal.classList.remove('hidden');
+            document.getElementById('modal-year').innerText = target.year;
+            document.getElementById('modal-event').innerText = target.event;
+            document.getElementById('modal-desc').innerText = target.desc;
+            
+            if(correct) {
+                playSound(880, 0.3);
+                statusBar.innerText = "正解 / CORRECT";
+                statusBar.className = "py-2 text-center text-xs font-bold uppercase tracking-widest text-white bg-green-600";
+                nextBtn.innerText = "次へ進む";
+                nextBtn.className = "w-full py-4 bg-amber-600 hover:bg-amber-500 text-white rounded-2xl font-bold transition-all transform active:scale-95";
+                nextBtn.onclick = proceedGame;
+            } else {
+                playSound(110, 0.5);
+                statusBar.innerText = "不正解 / WRONG";
+                statusBar.className = "py-2 text-center text-xs font-bold uppercase tracking-widest text-white bg-red-600";
+                nextBtn.innerText = "結果を確認する";
+                nextBtn.className = "w-full py-4 bg-gray-700 hover:bg-gray-600 text-white rounded-2xl font-bold transition-all transform active:scale-95";
+                nextBtn.onclick = showFinalResult;
+            }
+        }
+
+        function proceedGame() {
+            document.getElementById('explanation-modal').classList.add('hidden');
+            currentQuestionIdx++;
+            if(currentQuestionIdx < currentItems.length) {
+                showNextQuestion();
+            } else {
+                level++;
+                startLevel();
+            }
+        }
+
+        function showFinalResult() {
+            gameActive = false;
+            document.getElementById('explanation-modal').classList.add('hidden');
+            document.getElementById('input-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            document.getElementById('final-score').innerText = totalCorrect;
+            
+            let msg = "素晴らしい挑戦でした！";
+            if(totalCorrect >= 30) msg = "完璧です！歴史学者の域に達しています！";
+            else if(totalCorrect >= 15) msg = "かなりの知識量ですね！素晴らしい！";
+            else if(totalCorrect >= 5) msg = "いい調子です！この調子で暗記しましょう！";
+            
+            document.getElementById('performance-msg').innerText = msg;
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if(e.key >= '0' && e.key <= '9') handleInput(e.key);
+            else if(e.key === 'Backspace') { inputBuffer = ""; updateAnswerSlots(); }
+        });
+    </script>
+</body>
+</html>
