@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>トーナメント表メーカー</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap');
+        body { font-family: 'Noto Sans JP', sans-serif; background-color: #f0f4f8; overflow-x: hidden; }
+        
+        .tournament-container { 
+            display: flex; 
+            overflow-x: auto; 
+            padding: 40px; 
+            gap: 60px; 
+            min-height: 600px;
+            scroll-behavior: smooth;
+        }
+        
+        .round-column { 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-around; 
+            min-width: 180px; 
+        }
+
+        .match-card { 
+            position: relative;
+            border: 2px solid #cbd5e0; 
+            border-radius: 12px; 
+            background: white; 
+            margin: 15px 0; 
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 10;
+        }
+
+        .match-card.active { 
+            border-color: #4299e1; 
+            box-shadow: 0 0 20px rgba(66, 153, 225, 0.4); 
+            transform: scale(1.05);
+            z-index: 20;
+        }
+
+        .player-slot { 
+            padding: 12px 16px; 
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .player-slot:first-child { border-bottom: 1px solid #edf2f7; border-top-left-radius: 10px; border-top-right-radius: 10px; }
+        .player-slot:last-child { border-bottom-left-radius: 10px; border-bottom-right-radius: 10px; }
+
+        .winner-anim {
+            animation: winner-pulse 0.5s ease-out;
+            background-color: #ebf8ff !important;
+            color: #2b6cb0 !important;
+            font-weight: bold;
+        }
+
+        @keyframes winner-pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); background-color: #bee3f8; }
+            100% { transform: scale(1); }
+        }
+
+        .seed { font-style: italic; color: #a0aec0; font-size: 0.8rem; }
+        
+        /* 表彰式アニメーション */
+        @keyframes celebrate {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .ceremony-card { animation: celebrate 0.8s ease-out forwards; opacity: 0; }
+
+        /* 勝ち上がりアニメーション用 */
+        .moving-player {
+            position: fixed;
+            pointer-events: none;
+            background: #4299e1;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            z-index: 100;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: all 0.6s cubic-bezier(0.45, 0, 0.55, 1);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <!-- Start Screen -->
+    <div id="start-screen" class="fixed inset-0 flex flex-col items-center justify-center bg-white z-[100]">
+        <h1 class="text-4xl font-bold mb-8 text-blue-600">トーナメントメーカー</h1>
+        <div class="bg-blue-50 p-8 rounded-2xl shadow-xl w-80">
+            <label class="block text-sm font-medium mb-2 text-slate-600">参加人数を入力</label>
+            <input type="number" id="player-count" min="2" max="64" value="8" class="w-full p-3 border rounded-lg mb-4 text-xl text-center focus:ring-2 focus:ring-blue-400 outline-none">
+            <button onclick="setupTournament()" class="w-full bg-blue-600 text-white py-4 rounded-lg font-bold hover:bg-blue-700 transition transform active:scale-95 shadow-lg">
+                トーナメント作成
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Game UI -->
+    <div id="app" class="hidden min-h-screen flex flex-col">
+        <header class="bg-white shadow-sm p-4 flex justify-between items-center sticky top-0 z-30">
+            <div class="flex items-center gap-4">
+                <h2 class="text-xl font-bold text-slate-700">トーナメント表</h2>
+                <span id="status-badge" class="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-bold rounded-full">確認中</span>
+            </div>
+            <div class="flex gap-2">
+                <button id="start-btn" onclick="startTournament()" class="bg-green-500 text-white px-6 py-2 rounded-full font-bold hover:bg-green-600 transition shadow-md">
+                    トーナメント開始！
+                </button>
+                <button onclick="location.reload()" class="bg-slate-200 text-slate-600 px-4 py-2 rounded-full text-sm font-bold hover:bg-slate-300">
+                    最初から
+                </button>
+            </div>
+        </header>
+        
+        <main id="tournament-display" class="tournament-container flex-grow">
+            <!-- Rounds will be injected here -->
+        </main>
+    </div>
+
+    <!-- Match Overlay -->
+    <div id="match-overlay" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-2xl border border-white/20">
+            <h3 id="round-title" class="text-blue-500 font-bold mb-2 uppercase tracking-widest text-sm">ROUND 1</h3>
+            <p class="text-2xl font-bold mb-8 text-slate-800">勝者はどちらですか？</p>
+            
+            <div class="grid grid-cols-1 gap-4">
+                <button id="p1-btn" onclick="selectWinner(0)" class="group relative overflow-hidden p-6 border-2 border-slate-100 rounded-2xl hover:border-blue-400 hover:bg-blue-50 transition-all text-2xl font-bold text-slate-700">
+                    <span class="relative z-10">プレイヤー 1</span>
+                </button>
+                <div class="flex items-center justify-center gap-4">
+                    <div class="h-[1px] bg-slate-200 flex-grow"></div>
+                    <div class="text-slate-300 font-black italic">VS</div>
+                    <div class="h-[1px] bg-slate-200 flex-grow"></div>
+                </div>
+                <button id="p2-btn" onclick="selectWinner(1)" class="group relative overflow-hidden p-6 border-2 border-slate-100 rounded-2xl hover:border-red-400 hover:bg-red-50 transition-all text-2xl font-bold text-slate-700">
+                    <span class="relative z-10">プレイヤー 2</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Award Ceremony -->
+    <div id="award-ceremony" class="hidden fixed inset-0 bg-slate-900 z-[100] flex flex-col items-center justify-center text-white overflow-hidden">
+        <div id="confetti-container" class="absolute inset-0 pointer-events-none"></div>
+        <h2 class="text-5xl font-black mb-12 drop-shadow-2xl ceremony-card">🎉 最終結果発表 🎉</h2>
+        
+        <div class="flex flex-col gap-6 w-full max-w-lg px-4">
+            <div class="ceremony-card flex items-center bg-gradient-to-r from-yellow-400 to-amber-500 p-8 rounded-3xl shadow-[0_0_40px_rgba(245,158,11,0.4)] border-2 border-yellow-200">
+                <span class="text-6xl mr-6 filter drop-shadow-md">🏆</span>
+                <div>
+                    <p class="text-yellow-100 font-bold text-sm tracking-widest">優勝 (CHAMPION)</p>
+                    <p id="rank-1" class="text-5xl font-black">---</p>
+                </div>
+            </div>
+            
+            <div class="ceremony-card flex items-center bg-slate-800/80 p-6 rounded-2xl backdrop-blur-md border border-slate-600" style="animation-delay: 0.5s">
+                <span class="text-4xl mr-6 opacity-80">🥈</span>
+                <div>
+                    <p class="text-slate-400 font-bold text-sm">準優勝</p>
+                    <p id="rank-2" class="text-2xl font-bold">---</p>
+                </div>
+            </div>
+
+            <div class="ceremony-card flex items-center bg-slate-800/80 p-6 rounded-2xl backdrop-blur-md border border-slate-600" style="animation-delay: 1s">
+                <span class="text-4xl mr-6 opacity-80">🥉</span>
+                <div>
+                    <p class="text-slate-400 font-bold text-sm">第3位（準決勝敗退者）</p>
+                    <div class="flex gap-4">
+                        <p id="rank-3a" class="text-xl font-bold">---</p>
+                        <p id="rank-3b" class="text-xl font-bold">---</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <button onclick="location.reload()" class="mt-16 bg-white text-slate-900 px-10 py-4 rounded-full font-bold shadow-2xl hover:bg-blue-50 transition transform hover:scale-105 ceremony-card" style="animation-delay: 1.5s">
+            新しい大会を始める
+        </button>
+    </div>
+
+    <script>
+        let players = [];
+        let tournamentData = [];
+        let currentRoundIdx = 0;
+        let currentMatchIdx = 0;
+        let thirdPlaceCandidates = [];
+        let isStarted = false;
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playSound(type) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'select') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(500, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
+            } else if (type === 'fanfare') {
+                const now = audioCtx.currentTime;
+                [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                    const o = audioCtx.createOscillator();
+                    const g = audioCtx.createGain();
+                    o.type = 'square';
+                    o.frequency.setValueAtTime(freq, now + i * 0.12);
+                    o.connect(g);
+                    g.connect(audioCtx.destination);
+                    g.gain.setValueAtTime(0, now + i * 0.12);
+                    g.gain.linearRampToValueAtTime(0.05, now + i * 0.12 + 0.05);
+                    g.gain.exponentialRampToValueAtTime(0.01, now + i * 0.12 + 1);
+                    o.start(now + i * 0.12);
+                    o.stop(now + i * 0.12 + 1.2);
+                });
+            } else if (type === 'move') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(600, audioCtx.currentTime + 0.5);
+                gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.5);
+            }
+        }
+
+        function setupTournament() {
+            const count = parseInt(document.getElementById('player-count').value);
+            if (count < 2) return;
+
+            players = Array.from({length: count}, (_, i) => `No.${i + 1}`);
+            players = players.sort(() => Math.random() - 0.5);
+
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('app').classList.remove('hidden');
+
+            generateInitialRound();
+            renderTournament();
+        }
+
+        function startTournament() {
+            isStarted = true;
+            document.getElementById('start-btn').classList.add('hidden');
+            document.getElementById('status-badge').innerText = '試合中';
+            document.getElementById('status-badge').classList.replace('bg-gray-100', 'bg-blue-100');
+            document.getElementById('status-badge').classList.replace('text-gray-600', 'text-blue-600');
+            playSound('select');
+            promptNextMatch();
+        }
+
+        function generateInitialRound() {
+            const matches = [];
+            let i = 0;
+            while (i < players.length) {
+                if (i + 1 < players.length) {
+                    matches.push({ p1: players[i], p2: players[i+1], winner: null, id: `r0-m${matches.length}` });
+                    i += 2;
+                } else {
+                    matches.push({ p1: players[i], p2: "SEED", winner: players[i], id: `r0-m${matches.length}` });
+                    i += 1;
+                }
+            }
+            tournamentData = [matches];
+        }
+
+        function renderTournament() {
+            const container = document.getElementById('tournament-display');
+            container.innerHTML = '';
+
+            tournamentData.forEach((round, rIdx) => {
+                const col = document.createElement('div');
+                col.className = 'round-column';
+                
+                const title = document.createElement('h3');
+                title.className = 'text-center font-bold text-slate-400 mb-6 text-sm tracking-widest';
+                
+                // ラウンド名表示
+                if (rIdx === tournamentData.length - 1 && round.length === 1) {
+                    title.innerText = 'FINAL';
+                } else if (rIdx === tournamentData.length - 1 && round.length === 2) {
+                    title.innerText = 'SEMI-FINAL';
+                } else {
+                    title.innerText = `ROUND ${rIdx + 1}`;
+                }
+                
+                col.appendChild(title);
+
+                round.forEach((match, mIdx) => {
+                    const card = document.createElement('div');
+                    card.id = `card-${rIdx}-${mIdx}`;
+                    card.className = `match-card ${isStarted && rIdx === currentRoundIdx && mIdx === currentMatchIdx ? 'active' : ''}`;
+                    
+                    const p1Class = match.winner === match.p1 ? 'winner-anim' : '';
+                    const p2Class = match.winner === match.p2 ? 'winner-anim' : '';
+                    const p2Label = match.p2 === 'SEED' ? '<span class="seed">SEED</span>' : match.p2 || '???';
+
+                    card.innerHTML = `
+                        <div id="slot-${rIdx}-${mIdx}-0" class="player-slot ${p1Class}">${match.p1 || '???'}</div>
+                        <div id="slot-${rIdx}-${mIdx}-1" class="player-slot ${p2Class}">${p2Label}</div>
+                    `;
+                    col.appendChild(card);
+                });
+                container.appendChild(col);
+            });
+        }
+
+        function promptNextMatch() {
+            if (!isStarted) return;
+            const round = tournamentData[currentRoundIdx];
+            const match = round[currentMatchIdx];
+
+            if (match.p2 === "SEED") {
+                handleMatchEnd(match.p1);
+                return;
+            }
+
+            renderTournament();
+            
+            document.getElementById('round-title').innerText = 
+                (round.length === 1) ? "決勝戦" : 
+                (round.length === 2) ? "準決勝 第" + (currentMatchIdx + 1) + "試合" :
+                `ROUND ${currentRoundIdx + 1} - MATCH ${currentMatchIdx + 1}`;
+
+            document.getElementById('p1-btn').innerText = match.p1;
+            document.getElementById('p2-btn').innerText = match.p2;
+            
+            setTimeout(() => {
+                document.getElementById('match-overlay').classList.remove('hidden');
+            }, 500);
+        }
+
+        function selectWinner(side) {
+            playSound('select');
+            const match = tournamentData[currentRoundIdx][currentMatchIdx];
+            const winner = side === 0 ? match.p1 : match.p2;
+            const loser = side === 0 ? match.p2 : match.p1;
+            
+            match.winner = winner;
+            
+            // 準決勝（現在のラウンドが準決勝＝残り試合が2試合）の場合、負けた人を3位候補に
+            if (tournamentData[currentRoundIdx].length === 2) {
+                thirdPlaceCandidates.push(loser);
+            }
+            
+            // 決勝（残り1試合）の場合、負けた人を準優勝者に
+            if (tournamentData[currentRoundIdx].length === 1) {
+                window.runnerUp = loser;
+            }
+
+            document.getElementById('match-overlay').classList.add('hidden');
+            animateProgression(winner, side);
+        }
+
+        function animateProgression(playerName, side) {
+            const currentSlot = document.getElementById(`slot-${currentRoundIdx}-${currentMatchIdx}-${side}`);
+            const rect = currentSlot.getBoundingClientRect();
+            
+            const nextRoundIdx = currentRoundIdx + 1;
+            const nextMatchIdx = Math.floor(currentMatchIdx / 2);
+            const nextSide = currentMatchIdx % 2;
+            
+            ensureNextRoundExists();
+            renderTournament();
+            
+            const targetSlot = document.getElementById(`slot-${nextRoundIdx}-${nextMatchIdx}-${nextSide}`);
+            if (!targetSlot) {
+                handleMatchEnd(playerName);
+                return;
+            }
+
+            const targetRect = targetSlot.getBoundingClientRect();
+
+            const mover = document.createElement('div');
+            mover.className = 'moving-player';
+            mover.innerText = playerName;
+            mover.style.left = rect.left + 'px';
+            mover.style.top = rect.top + 'px';
+            mover.style.width = rect.width + 'px';
+            document.body.appendChild(mover);
+
+            playSound('move');
+
+            setTimeout(() => {
+                mover.style.left = targetRect.left + 'px';
+                mover.style.top = targetRect.top + 'px';
+                mover.style.width = targetRect.width + 'px';
+                mover.style.opacity = '0.5';
+            }, 50);
+
+            setTimeout(() => {
+                document.body.removeChild(mover);
+                handleMatchEnd(playerName);
+            }, 650);
+        }
+
+        function ensureNextRoundExists() {
+            if (tournamentData.length <= currentRoundIdx + 1) {
+                const currentMatches = tournamentData[currentRoundIdx];
+                if (currentMatches.length === 1) return; // 決勝なら不要
+
+                const nextMatches = [];
+                const nextCount = Math.ceil(currentMatches.length / 2);
+                
+                for (let i = 0; i < nextCount; i++) {
+                    nextMatches.push({ p1: null, p2: null, winner: null });
+                }
+                tournamentData.push(nextMatches);
+            }
+        }
+
+        function handleMatchEnd(winner) {
+            const nextRoundIdx = currentRoundIdx + 1;
+            const nextMatchIdx = Math.floor(currentMatchIdx / 2);
+            const nextSide = currentMatchIdx % 2;
+
+            if (tournamentData[nextRoundIdx] && tournamentData[nextRoundIdx][nextMatchIdx]) {
+                if (nextSide === 0) tournamentData[nextRoundIdx][nextMatchIdx].p1 = winner;
+                else tournamentData[nextRoundIdx][nextMatchIdx].p2 = winner;
+            }
+
+            currentMatchIdx++;
+            
+            if (currentMatchIdx >= tournamentData[currentRoundIdx].length) {
+                if (tournamentData[currentRoundIdx].length === 1) {
+                    showCeremony(winner);
+                    return;
+                }
+                currentRoundIdx++;
+                currentMatchIdx = 0;
+            }
+
+            renderTournament();
+            setTimeout(promptNextMatch, 400);
+        }
+
+        function showCeremony(winner) {
+            playSound('fanfare');
+            
+            document.getElementById('rank-1').innerText = winner;
+            document.getElementById('rank-2').innerText = window.runnerUp || "---";
+            
+            // 3位候補者の整理
+            const p3a = thirdPlaceCandidates[0] || "---";
+            const p3b = thirdPlaceCandidates[1] || "";
+            document.getElementById('rank-3a').innerText = p3a;
+            document.getElementById('rank-3b').innerText = p3b;
+            
+            document.getElementById('award-ceremony').classList.remove('hidden');
+            createConfetti();
+        }
+
+        function createConfetti() {
+            const container = document.getElementById('confetti-container');
+            const colors = ['#ffd700', '#ffffff', '#ff4500', '#00bfff', '#ff69b4'];
+            for (let i = 0; i < 150; i++) {
+                const conf = document.createElement('div');
+                conf.style.position = 'absolute';
+                conf.style.width = Math.random() * 12 + 5 + 'px';
+                conf.style.height = Math.random() * 8 + 5 + 'px';
+                conf.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                conf.style.left = Math.random() * 100 + 'vw';
+                conf.style.top = '-20px';
+                conf.style.zIndex = '110';
+                container.appendChild(conf);
+
+                conf.animate([
+                    { top: '-20px', transform: `rotate(0deg) translateX(0)` },
+                    { top: '105vh', transform: `rotate(${Math.random() * 1500}deg) translateX(${Math.random() * 100 - 50}px)` }
+                ], {
+                    duration: (2 + Math.random() * 3) * 1000,
+                    iterations: Infinity,
+                    delay: Math.random() * 3000
+                });
+            }
+        }
+    </script>
+</body>
+</html>
