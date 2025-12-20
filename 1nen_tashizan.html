@@ -30,7 +30,7 @@
 
         @keyframes bounce {
             from { transform: translateY(0); }
-            to { transform: translateY(-20px); }
+            to { transform: translateY(-15px); }
         }
 
         .sparkle {
@@ -53,52 +53,52 @@
 
         @keyframes pop {
             0% { transform: scale(0.5); opacity: 0; }
-            100% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1.1); opacity: 1; }
         }
 
         .btn-number {
-            box-shadow: 0 4px 0 #d97706;
+            box-shadow: 0 3px 0 #d97706;
             transition: all 0.1s;
         }
 
         .btn-number:active {
-            transform: translateY(4px);
+            transform: translateY(3px);
             box-shadow: none;
         }
 
         .btn-check {
-            box-shadow: 0 4px 0 #059669;
+            box-shadow: 0 3px 0 #059669;
             transition: all 0.1s;
         }
 
         .btn-check:active {
-            transform: translateY(4px);
+            transform: translateY(3px);
             box-shadow: none;
         }
 
         .message-bubble {
             position: relative;
             background: #ffffff;
-            border: 3px solid #fbbf24;
-            border-radius: 15px;
+            border: 2px solid #fbbf24;
+            border-radius: 12px;
         }
 
         .message-bubble::after {
             content: '';
             position: absolute;
-            bottom: -12px;
+            bottom: -8px;
             left: 50%;
-            margin-left: -12px;
-            border-width: 12px 12px 0;
+            margin-left: -8px;
+            border-width: 8px 8px 0;
             border-style: solid;
             border-color: #fbbf24 transparent;
         }
 
         #user-input-display {
-            min-width: 1.5em;
+            min-width: 1.2em;
             display: inline-block;
-            border-bottom: 4px solid #3b82f6;
-            min-height: 1.2em;
+            border-bottom: 3px solid #3b82f6;
+            min-height: 1.1em;
         }
 
         .char-select-btn {
@@ -107,58 +107,63 @@
             border: 2px solid transparent;
         }
         .char-select-btn:hover {
-            transform: scale(1.2);
+            transform: scale(1.1);
         }
         .char-selected {
             background: white;
             border-color: #fbbf24;
             border-radius: 50%;
-            box-shadow: 0 2px 10px rgba(251, 191, 36, 0.3);
+            box-shadow: 0 2px 8px rgba(251, 191, 36, 0.3);
+        }
+        
+        /* スクロールバー非表示 */
+        #selector-area::-webkit-scrollbar {
+            display: none;
         }
     </style>
 </head>
-<body class="flex flex-col items-center justify-center min-h-screen p-2" id="game-body">
+<body class="flex flex-col items-center justify-center min-h-screen p-1" id="game-body">
 
     <!-- Game Header -->
-    <div class="fixed top-2 left-0 right-0 flex justify-center gap-2 items-center px-2 z-10 flex-wrap">
-        <div class="bg-white px-3 py-1 rounded-full border-2 border-yellow-400 font-bold text-yellow-700 text-xs shadow-sm">
+    <div class="fixed top-1 left-0 right-0 flex justify-center gap-1 items-center px-1 z-10 flex-wrap">
+        <div class="bg-white px-2 py-0.5 rounded-full border border-yellow-400 font-bold text-yellow-700 text-[10px] shadow-sm">
             せいかい：<span id="score">0</span>
         </div>
-        <div class="bg-white px-3 py-1 rounded-full border-2 border-pink-400 font-bold text-pink-700 text-xs shadow-sm">
+        <div class="bg-white px-2 py-0.5 rounded-full border border-pink-400 font-bold text-pink-700 text-[10px] shadow-sm">
             ランク：<span id="rank">はじめて</span>
         </div>
-        <button onclick="resetGame()" class="bg-blue-400 hover:bg-blue-500 text-white px-3 py-1 rounded-full border-2 border-blue-200 font-bold text-xs shadow-sm transition-colors">
+        <button onclick="resetGame()" class="bg-blue-400 hover:bg-blue-500 text-white px-2 py-0.5 rounded-full border border-blue-200 font-bold text-[10px] shadow-sm transition-colors">
             はじめから
         </button>
     </div>
 
     <!-- Character Selector -->
-    <div id="selector-area" class="flex gap-2 mb-2 mt-12 bg-white/60 p-2 rounded-full overflow-x-auto max-w-full">
-        <div onclick="changeChar('bear')" id="btn-bear" class="char-select-btn char-selected text-2xl p-2">🐻</div>
-        <div onclick="changeChar('cat')" id="btn-cat" class="char-select-btn text-2xl p-2">🐱</div>
-        <div onclick="changeChar('panda')" id="btn-panda" class="char-select-btn text-2xl p-2">🐼</div>
-        <div onclick="changeChar('giraffe')" id="btn-giraffe" class="char-select-btn text-2xl p-2">🦒</div>
-        <div onclick="changeChar('lion')" id="btn-lion" class="char-select-btn text-2xl p-2">🦁</div>
-        <div onclick="changeChar('elephant')" id="btn-elephant" class="char-select-btn text-2xl p-2">🐘</div>
-        <div onclick="changeChar('hamster')" id="btn-hamster" class="char-select-btn text-2xl p-2">🐹</div>
+    <div id="selector-area" class="flex gap-1 mb-1 mt-8 bg-white/60 p-1 rounded-full overflow-x-auto max-w-[90vw]">
+        <div onclick="changeChar('bear')" id="btn-bear" class="char-select-btn char-selected text-xl p-1.5">🐻</div>
+        <div onclick="changeChar('cat')" id="btn-cat" class="char-select-btn text-xl p-1.5">🐱</div>
+        <div onclick="changeChar('panda')" id="btn-panda" class="char-select-btn text-xl p-1.5">🐼</div>
+        <div onclick="changeChar('giraffe')" id="btn-giraffe" class="char-select-btn text-xl p-1.5">🦒</div>
+        <div onclick="changeChar('lion')" id="btn-lion" class="char-select-btn text-xl p-1.5">🦁</div>
+        <div onclick="changeChar('elephant')" id="btn-elephant" class="char-select-btn text-xl p-1.5">🐘</div>
+        <div onclick="changeChar('hamster')" id="btn-hamster" class="char-select-btn text-xl p-1.5">🐹</div>
     </div>
 
     <!-- Main Game Area -->
-    <div class="w-full max-w-sm bg-white/90 backdrop-blur-sm rounded-3xl p-4 shadow-xl border-4 border-white flex flex-col items-center">
+    <div class="w-full max-w-[320px] bg-white/90 backdrop-blur-sm rounded-2xl p-3 shadow-lg border-2 border-white flex flex-col items-center">
         
         <!-- Character Area -->
-        <div id="character" class="char-container mb-2 relative">
-            <div id="combo-container" class="absolute -top-12 -right-8 pointer-events-none"></div>
+        <div id="character" class="char-container mb-1 relative">
+            <div id="combo-container" class="absolute -top-8 -right-6 pointer-events-none"></div>
             
-            <div id="bubble" class="message-bubble px-4 py-1 mb-3 text-lg font-bold text-yellow-800 text-center min-w-[160px]">
+            <div id="bubble" class="message-bubble px-3 py-0.5 mb-2 text-sm font-bold text-yellow-800 text-center min-w-[140px]">
                 いっしょに あそぼう♪
             </div>
-            <div id="char-icon" class="text-7xl select-none text-center">🐻</div>
+            <div id="char-icon" class="text-5xl select-none text-center">🐻</div>
         </div>
 
         <!-- Question Area -->
-        <div class="bg-yellow-50 rounded-2xl p-4 mb-4 w-full text-center border-2 border-yellow-100">
-            <div class="text-4xl font-bold text-gray-800 flex justify-center items-center gap-3">
+        <div class="bg-yellow-50 rounded-xl p-2 mb-3 w-full text-center border border-yellow-100">
+            <div class="text-3xl font-bold text-gray-800 flex justify-center items-center gap-2">
                 <span id="num1">?</span>
                 <span>+</span>
                 <span id="num2">?</span>
@@ -168,18 +173,18 @@
         </div>
 
         <!-- Input Area -->
-        <div id="numpad" class="grid grid-cols-3 gap-3 w-full"></div>
-        <div class="grid grid-cols-3 gap-3 w-full mt-3">
-            <button onclick="addNumber(0)" class="btn-number bg-yellow-400 hover:bg-yellow-500 text-white text-2xl font-bold py-3 rounded-xl">0</button>
-            <button onclick="clearInput()" class="btn-number bg-gray-400 hover:bg-gray-500 text-white text-2xl font-bold py-3 rounded-xl">けす</button>
-            <button onclick="submitAnswer()" class="btn-check bg-emerald-500 hover:bg-emerald-600 text-white text-xl font-bold py-3 rounded-xl">これ！</button>
+        <div id="numpad" class="grid grid-cols-3 gap-2 w-full"></div>
+        <div class="grid grid-cols-3 gap-2 w-full mt-2">
+            <button onclick="addNumber(0)" class="btn-number bg-yellow-400 hover:bg-yellow-500 text-white text-xl font-bold py-2 rounded-lg">0</button>
+            <button onclick="clearInput()" class="btn-number bg-gray-400 hover:bg-gray-500 text-white text-lg font-bold py-2 rounded-lg">けす</button>
+            <button onclick="submitAnswer()" class="btn-check bg-emerald-500 hover:bg-emerald-600 text-white text-lg font-bold py-2 rounded-lg">これ！</button>
         </div>
         
-        <p class="mt-4 text-[10px] text-gray-400 font-bold text-center">すうじキー：にゅうりょく / Enter：けってい / Backspace：けす</p>
+        <p class="mt-2 text-[8px] text-gray-400 font-bold text-center">Enter：けってい / Backspace：けす</p>
     </div>
 
     <div id="overlay" class="fixed inset-0 pointer-events-none flex items-center justify-center z-50 opacity-0 transition-opacity duration-300">
-        <div id="overlay-icon" class="text-8xl">✨💮✨</div>
+        <div id="overlay-icon" class="text-6xl">✨💮✨</div>
     </div>
 
     <script>
@@ -217,10 +222,10 @@
         const gameBody = document.getElementById('game-body');
 
         const messages = {
-            correct: ["すごーい！", "てんさいだね！", "やったね！", "だいせいかい！", "そのちょうし♪"],
-            wrong: ["おしいなぁ、もういっかい！", "あれれ？もうすこし！", "ゆっくり かんがえてみてね"],
-            combo: ["ノリノリだねっ！", "とまらなーい！", "すごすぎるよ！", "キラキラだね！"],
-            sleepy: ["ふぁ〜あ、ねむくなっちゃった...", "ちょっと おやすみするね...", "また あとで あそぼうね♪"]
+            correct: ["すごーい！", "てんさい！", "やったね！", "せいかい！", "いいかんじ♪"],
+            wrong: ["おしいなぁ！", "あれれ？", "ゆっくり かんがえてね"],
+            combo: ["ノリノリ！", "とまらない！", "すごすぎる！", "キラキラ☆"],
+            sleepy: ["ふぁ〜、ねむいよ...", "おやすみするね...", "またあそぼうね♪"]
         };
 
         window.addEventListener('keydown', (e) => {
@@ -251,7 +256,7 @@
             pad.innerHTML = '';
             for (let i = 1; i <= 9; i++) {
                 const btn = document.createElement('button');
-                btn.className = "btn-number bg-yellow-400 hover:bg-yellow-500 text-white text-3xl font-bold py-3 rounded-xl";
+                btn.className = "btn-number bg-yellow-400 hover:bg-yellow-500 text-white text-xl font-bold py-2 rounded-lg";
                 btn.innerText = i;
                 btn.onclick = () => addNumber(i);
                 pad.appendChild(btn);
@@ -293,7 +298,7 @@
             scoreEl.innerText = score;
             rankEl.innerText = ranks[0];
             comboContainer.innerHTML = '';
-            bubble.innerText = "さいしょから あそぼう！";
+            bubble.innerText = "がんばろう！";
             charIcon.innerText = charData[currentChar].base;
             generateQuestion();
         }
@@ -301,7 +306,7 @@
         function showComboEffect() {
             if (combo < 2) return;
             const comboEl = document.createElement('div');
-            comboEl.className = 'combo-text text-3xl font-black italic whitespace-nowrap';
+            comboEl.className = 'combo-text text-xl font-black italic whitespace-nowrap';
             comboEl.innerText = `${combo}コンボ！`;
             comboContainer.innerHTML = '';
             comboContainer.appendChild(comboEl);
@@ -316,7 +321,6 @@
             charIcon.innerText = charData[currentChar].sleepy;
             bubble.innerText = messages.sleepy[Math.floor(Math.random() * messages.sleepy.length)];
             
-            // 3秒間おやすみしてからリセット
             setTimeout(() => {
                 resetGame();
             }, 3000);
@@ -336,11 +340,11 @@
                 charIcon.parentElement.classList.add('bounce');
                 
                 const randomMsg = messages.correct[Math.floor(Math.random() * messages.correct.length)];
-                bubble.innerText = combo >= 3 ? `${combo}コンボ！すごいっ！` : randomMsg;
+                bubble.innerText = combo >= 3 ? `${combo}かい め！` : randomMsg;
                 
                 showComboEffect();
                 overlay.style.opacity = '1';
-                createSparkles(combo >= 5 ? 40 : 15);
+                createSparkles(combo >= 5 ? 30 : 12);
 
                 setTimeout(() => {
                     if (!isSleepy) {
@@ -377,9 +381,9 @@
                 s.innerHTML = items[Math.floor(Math.random() * items.length)];
                 s.style.left = '50%';
                 s.style.top = '40%';
-                s.style.fontSize = (Math.random() * 20 + 20) + 'px';
+                s.style.fontSize = (Math.random() * 15 + 15) + 'px';
                 const angle = Math.random() * Math.PI * 2;
-                const dist = Math.random() * 250 + 50;
+                const dist = Math.random() * 200 + 40;
                 s.style.setProperty('--x', Math.cos(angle) * dist + 'px');
                 s.style.setProperty('--y', Math.sin(angle) * dist + 'px');
                 document.body.appendChild(s);
