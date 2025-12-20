@@ -3,21 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>図形お絵描きクエスト：面積の魔法使い</title>
+    <title>面積の魔法使い - Jumbo Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
             touch-action: none;
             user-select: none;
-            overflow: hidden; /* 画面外へのスクロールを抑制 */
+            background-color: #f8fafc;
+            overflow-y: auto;
         }
         .canvas-container {
             position: relative;
             background-color: #ffffff;
             background-image: 
-                linear-gradient(to right, #e2e8f0 1px, transparent 1px),
-                linear-gradient(to bottom, #e2e8f0 1px, transparent 1px);
-            background-size: 15px 15px; /* グリッドも少し小さく */
+                linear-gradient(to right, #f1f5f9 1px, transparent 1px),
+                linear-gradient(to bottom, #f1f5f9 1px, transparent 1px);
+            background-size: 30px 30px;
             cursor: crosshair;
         }
         .canvas-container::before {
@@ -25,24 +26,16 @@
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
             background-image: 
-                linear-gradient(to right, #cbd5e1 1px, transparent 1px),
-                linear-gradient(to bottom, #cbd5e1 1px, transparent 1px);
-            background-size: 75px 75px;
+                linear-gradient(to right, #e2e8f0 1px, transparent 1px),
+                linear-gradient(to bottom, #e2e8f0 1px, transparent 1px);
+            background-size: 150px 150px;
             pointer-events: none;
         }
-        .monster-bounce {
-            animation: bounce 2s infinite;
-        }
-        @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
-        }
-        .overlay {
-            backdrop-filter: blur(4px);
-            transition: opacity 0.3s ease;
-        }
-        #timer-bar {
-            transition: width 0.1s linear;
+        .mode-btn-active {
+            background-color: #059669 !important;
+            color: white !important;
+            border-bottom-width: 0px !important;
+            transform: translateY(2px);
         }
         .shake {
             animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
@@ -51,120 +44,140 @@
             10%, 90% { transform: translate3d(-1px, 0, 0); }
             20%, 80% { transform: translate3d(2px, 0, 0); }
             30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
-            40%, 60% { transform: translate3d(4px, 0, 0); }
         }
-        .heart-active { color: #f43f5e; filter: drop-shadow(0 0 2px #fda4af); }
-        .heart-empty { color: #e2e8f0; }
     </style>
 </head>
-<body class="bg-slate-200 min-h-screen flex flex-col items-center p-2 font-sans text-slate-800">
+<body class="flex flex-col items-center p-2 font-sans text-slate-800">
 
-    <!-- レベル選択オーバーレイ -->
-    <div id="tutorial-overlay" class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 overlay">
-        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl text-center">
-            <h2 id="overlay-title" class="text-2xl font-black text-emerald-600 mb-4">レベルを選択</h2>
-            <div class="space-y-3 mb-4">
-                <button onclick="setLevel(1)" class="w-full text-left p-3 bg-blue-50 rounded-xl border-2 border-blue-200 hover:border-blue-500 transition-all group">
-                    <h3 class="font-bold text-blue-700 text-center">初級：見習い</h3>
-                    <p class="text-[10px] text-blue-600/80 text-center">練習モード。ライフ減少なし。</p>
+    <!-- 初期レベル選択オーバーレイ（説明付き） -->
+    <div id="tutorial-overlay" class="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <h2 class="text-3xl font-black text-emerald-600 mb-2 text-center">面積の魔法使い</h2>
+            
+            <!-- ゲーム説明セクション -->
+            <div class="bg-emerald-50 rounded-2xl p-5 mb-6 text-sm text-slate-700 leading-relaxed border border-emerald-100">
+                <p class="font-bold text-emerald-800 mb-2">✨ あそびかた</p>
+                <ul class="space-y-2 list-disc list-inside">
+                    <li>モンスターがだす<span class="font-bold text-rose-600">「もくひょうの面積」</span>にぴったり合うように、マス目に図形を描きましょう。</li>
+                    <li>描きたい図形のボタンを選んで、マス目を<span class="font-bold text-blue-600">ドラッグ（なぞる）</span>すると図形が描けます。</li>
+                    <li>準備ができたら<span class="font-bold text-emerald-600">「魔法発動！」</span>ボタンでこうげき！</li>
+                    <li>中級からは<span class="font-bold text-blue-600">図形の形</span>も指定されます。自分で計算して魔法を完成させましょう！</li>
+                </ul>
+            </div>
+
+            <p class="text-center font-bold text-slate-500 mb-4 tracking-tighter">ちょうせんするレベルをえらんでね！</p>
+            
+            <div class="grid gap-3">
+                <button onclick="changeLevel(1)" class="group flex flex-col items-center justify-center py-4 bg-blue-50 text-blue-700 rounded-2xl border-2 border-blue-200 hover:bg-blue-100 transition-all">
+                    <span class="text-xl font-black">初級：見習い</span>
+                    <span class="text-xs font-bold opacity-70">ヒントあり・ライフなし</span>
                 </button>
-                <button onclick="setLevel(2)" class="w-full text-left p-3 bg-amber-50 rounded-xl border-2 border-amber-200 hover:border-amber-500 transition-all group">
-                    <h3 class="font-bold text-amber-700 text-center">中級：一人前</h3>
-                    <p class="text-[10px] text-amber-600/80 text-center">ライフ3。図形を指定されます。</p>
+                <button onclick="changeLevel(2)" class="group flex flex-col items-center justify-center py-4 bg-amber-50 text-amber-700 rounded-2xl border-2 border-amber-200 hover:bg-amber-100 transition-all">
+                    <span class="text-xl font-black">中級：一人前</span>
+                    <span class="text-xs font-bold opacity-70">ヒントなし・形指定あり</span>
                 </button>
-                <button onclick="setLevel(3)" class="w-full text-left p-3 bg-purple-50 rounded-xl border-2 border-purple-200 hover:border-purple-500 transition-all group">
-                    <h3 class="font-bold text-purple-700 text-center">上級：伝説</h3>
-                    <p class="text-[10px] text-purple-600/80 text-center">ライフ3。図形指定＋20秒制限！</p>
+                <button onclick="changeLevel(3)" class="group flex flex-col items-center justify-center py-4 bg-purple-50 text-purple-700 rounded-2xl border-2 border-purple-200 hover:bg-purple-100 transition-all">
+                    <span class="text-xl font-black">上級：伝説</span>
+                    <span class="text-xs font-bold opacity-70">ヒントなし・20秒の時間制限</span>
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- ヘッダー (コンパクト) -->
-    <div class="w-full max-w-md bg-white rounded-xl shadow-md p-3 mb-2 flex justify-between items-center border-b-2 border-slate-300">
-        <div class="flex flex-col">
-            <div class="flex items-center gap-2">
-                <h1 id="show-help" class="text-lg font-bold text-emerald-600 cursor-pointer">面積の魔法使い ℹ️</h1>
-                <div id="life-container" class="flex gap-0.5 ml-2 hidden">
-                    <span class="heart text-sm heart-active">❤️</span>
-                    <span class="heart text-sm heart-active">❤️</span>
-                    <span class="heart text-sm heart-active">❤️</span>
-                </div>
-            </div>
-            <div class="flex gap-1 mt-1">
-                <button id="lvl-btn-1" class="px-2 py-0.5 rounded-full text-[8px] font-bold uppercase bg-slate-200 text-slate-500">初級</button>
-                <button id="lvl-btn-2" class="px-2 py-0.5 rounded-full text-[8px] font-bold uppercase bg-slate-200 text-slate-500">中級</button>
-                <button id="lvl-btn-3" class="px-2 py-0.5 rounded-full text-[8px] font-bold uppercase bg-slate-200 text-slate-500">上級</button>
-            </div>
-        </div>
-        <div class="text-right">
-            <div class="text-[8px] font-bold uppercase text-slate-400">Score</div>
-            <div id="score" class="text-xl font-black text-emerald-500 leading-none">0</div>
-        </div>
-    </div>
-
-    <!-- メインエリア -->
-    <div id="main-container" class="w-full max-w-md bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col border border-white">
+    <div id="main-wrapper" class="w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col border border-slate-200">
         
-        <div id="timer-container" class="h-1.5 w-full bg-slate-100 hidden">
-            <div id="timer-bar" class="h-full bg-rose-500 w-full"></div>
-        </div>
-
-        <div id="mission-panel" class="p-3 bg-emerald-50 border-b border-emerald-100 flex items-center gap-3">
-            <div id="monster-emoji" class="text-4xl monster-bounce">👾</div>
-            <div class="flex-1">
-                <div class="flex gap-2 items-center">
-                    <div class="bg-white px-2 py-1 rounded-lg border border-emerald-200 shadow-sm">
-                        <span class="text-[10px] font-bold text-slate-500">面積:</span>
-                        <span id="target-area" class="text-lg font-black text-rose-500">12</span>
-                    </div>
-                    <div id="target-shape-panel" class="bg-white px-2 py-1 rounded-lg border border-blue-200 shadow-sm hidden">
-                        <span class="text-[10px] font-bold text-slate-500">図形:</span>
-                        <span id="target-shape-name" class="text-sm font-black text-blue-600">長方形</span>
+        <!-- Header -->
+        <div class="bg-slate-800 text-white p-3 flex justify-between items-center">
+            <div class="flex flex-col gap-2">
+                <div class="flex items-center gap-3">
+                    <span class="text-sm font-black text-emerald-400 tracking-widest">AREA MAGE</span>
+                    <div id="life-container" class="flex gap-1">
+                        <span class="heart text-base">❤️</span>
+                        <span class="heart text-base">❤️</span>
+                        <span class="heart text-base">❤️</span>
                     </div>
                 </div>
+                <div class="flex gap-2">
+                    <button onclick="changeLevel(1)" id="lvl-1" class="px-3 py-1 rounded text-xs font-bold bg-slate-700 hover:bg-blue-600 transition-colors">初級</button>
+                    <button onclick="changeLevel(2)" id="lvl-2" class="px-3 py-1 rounded text-xs font-bold bg-slate-700 hover:bg-amber-600 transition-colors">中級</button>
+                    <button onclick="changeLevel(3)" id="lvl-3" class="px-3 py-1 rounded text-xs font-bold bg-slate-700 hover:bg-purple-600 transition-colors">上級</button>
+                </div>
+            </div>
+            <div class="text-right">
+                <div class="text-xs text-slate-400 uppercase font-bold">Score</div>
+                <div id="score" class="text-3xl font-black leading-none text-emerald-400">0</div>
             </div>
         </div>
 
-        <div class="p-3 flex flex-col items-center bg-slate-50 relative">
-            <div id="beginner-hud" class="absolute top-4 left-4 z-20 bg-white/90 px-2 py-1 rounded-lg border border-blue-200 text-[10px] shadow-sm hidden">
-                <div id="hud-dimensions" class="font-bold text-blue-600"></div>
-            </div>
+        <div id="timer-container" class="h-2 w-full bg-slate-200 hidden">
+            <div id="timer-bar" class="h-full bg-rose-500 w-full transition-all"></div>
+        </div>
 
-            <div id="canvas-wrapper" class="canvas-container border-2 border-slate-300 rounded-lg shadow-inner relative overflow-hidden" 
-                 style="width: 300px; height: 300px;">
-                <canvas id="gameCanvas" width="300" height="300"></canvas>
+        <!-- Mission Area & Action Buttons -->
+        <div class="px-4 py-3 bg-emerald-50 border-b border-emerald-100 flex items-center justify-between gap-4">
+            <div class="flex items-center gap-4 flex-1">
+                <div id="monster-emoji" class="text-4xl">👾</div>
+                <div class="flex flex-col">
+                    <div class="flex items-center gap-2">
+                        <div class="bg-white border border-emerald-200 px-3 py-2 rounded-lg shadow-sm flex items-baseline gap-1">
+                            <span class="text-xs font-bold text-slate-400">もくひょう:</span>
+                            <span id="target-area" class="text-2xl font-black text-rose-500">12</span>
+                            <span class="text-sm font-bold text-slate-500">㎠</span>
+                        </div>
+                        <div id="target-shape-panel" class="bg-white border border-blue-200 px-3 py-2 rounded-lg shadow-sm hidden">
+                            <span id="target-shape-name" class="text-base font-black text-blue-600">長方形</span>
+                        </div>
+                    </div>
+                </div>
             </div>
             
-            <div id="mode-buttons" class="mt-3 grid grid-cols-4 gap-1 w-full max-w-[300px]">
-                <button id="btn-rect" onclick="setMode('rect')" class="mode-btn py-2 rounded-lg text-[10px] font-bold transition-all bg-emerald-600 text-white border-b-2 border-emerald-800">長方形</button>
-                <button id="btn-tri" onclick="setMode('tri')" class="mode-btn py-2 rounded-lg text-[10px] font-bold transition-all bg-slate-300 text-slate-700 border-b-2 border-slate-400">三角形</button>
-                <button id="btn-para" onclick="setMode('para')" class="mode-btn py-2 rounded-lg text-[10px] font-bold transition-all bg-slate-300 text-slate-700 border-b-2 border-slate-400">平行四辺形</button>
-                <button id="btn-rhombus" onclick="setMode('rhombus')" class="mode-btn py-2 rounded-lg text-[10px] font-bold transition-all bg-slate-300 text-slate-700 border-b-2 border-slate-400">ひし形</button>
+            <div class="flex gap-2">
+                <button onclick="clearCanvas()" class="px-3 py-2 bg-rose-100 text-rose-600 rounded-xl text-xs font-bold border-b-4 border-rose-300 active:translate-y-1 active:border-b-0 transition-all">
+                    図形消去
+                </button>
+                <button id="attack-btn" onclick="performAttack()" class="px-6 py-2 bg-emerald-600 text-white rounded-xl font-black text-lg shadow-md border-b-4 border-emerald-800 active:border-b-0 active:translate-y-1 transition-all">
+                    魔法発動！
+                </button>
             </div>
         </div>
 
-        <div class="p-3 bg-white flex justify-between items-center border-t border-slate-200">
-            <div id="area-display-container" class="flex flex-col items-center px-2">
-                <div class="text-[8px] text-slate-400 font-bold uppercase">現在の面積</div>
-                <div id="current-area" class="text-2xl font-black text-slate-700">0.0</div>
-            </div>
-            <div class="flex flex-col items-end flex-1 ml-4">
-                <div id="status-msg" class="text-[10px] font-bold text-emerald-600 mb-1">描いて発動！</div>
-                <div class="flex gap-2">
-                    <button onclick="clearCanvas()" class="px-3 py-2 bg-rose-100 text-rose-600 rounded-lg text-xs font-bold border-b-2 border-rose-300">消去</button>
-                    <button id="attack-btn" onclick="performAttack()" class="px-6 py-2 bg-emerald-600 text-white rounded-lg font-black text-lg shadow-md hover:bg-emerald-700 border-b-4 border-emerald-900">
-                        魔法！
-                    </button>
+        <!-- Game Area (横並び) -->
+        <div class="flex p-4 gap-6 bg-slate-50 items-start justify-center">
+            <!-- Left Side Buttons -->
+            <div class="flex flex-col gap-2 w-28">
+                <button id="btn-rect" onclick="setMode('rect')" class="mode-btn py-4 text-xs font-bold bg-slate-200 rounded-xl border-b-4 border-slate-400">長方形</button>
+                <button id="btn-tri" onclick="setMode('tri')" class="mode-btn py-4 text-xs font-bold bg-slate-200 rounded-xl border-b-4 border-slate-400">三角形</button>
+                <button id="btn-para" onclick="setMode('para')" class="mode-btn py-4 text-xs font-bold bg-slate-200 rounded-xl border-b-4 border-slate-400">平行四辺形</button>
+                <button id="btn-rhombus" onclick="setMode('rhombus')" class="mode-btn py-4 text-xs font-bold bg-slate-200 rounded-xl border-b-4 border-slate-400">ひし形</button>
+                
+                <!-- いまの面積表示（初級のみ表示） -->
+                <div id="current-area-display" class="mt-6 p-3 bg-white rounded-xl border border-slate-200 text-center shadow-sm">
+                    <span class="text-xs font-bold text-slate-400 block">いまの面積</span>
+                    <span id="current-area" class="text-2xl font-black text-slate-700">0.0</span>
+                    <span class="text-sm font-bold text-slate-500">㎠</span>
                 </div>
             </div>
+
+            <!-- Canvas Container -->
+            <div class="relative">
+                <div id="beginner-hud" class="absolute top-2 left-2 z-20 bg-white/90 px-3 py-1 rounded-lg border-2 border-blue-400 text-sm font-bold text-blue-700 shadow-md hidden"></div>
+                <div id="canvas-wrapper" class="canvas-container border-4 border-slate-400 rounded-2xl shadow-lg overflow-hidden" 
+                     style="width: 420px; height: 420px;">
+                    <canvas id="gameCanvas" width="420" height="420"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Message -->
+        <div id="status-msg" class="bg-white px-4 py-3 text-center text-sm font-bold text-emerald-600 border-t border-slate-100">
+            図形をドラッグして魔法を組み立てよう！
         </div>
     </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const GRID_SIZE = 15; // グリッドを少し細かく/小さく
+        const GRID_SIZE = 30;
         
         let score = 0;
         let lives = 3;
@@ -176,94 +189,52 @@
         let isDrawing = false;
         let startX, startY, currentX, currentY;
         let shapes = [];
-        
-        let timeLeft = 20;
         let timerInterval = null;
-        const TIME_LIMIT = 20;
-        let audioCtx = null;
+        let timeLeft = 20;
 
         const shapeNames = { 'rect': '長方形', 'tri': '三角形', 'para': '平行四辺形', 'rhombus': 'ひし形' };
 
         function getGridCoord(val) { return Math.round(val / GRID_SIZE) * GRID_SIZE; }
 
-        function playSound(type) {
-            try {
-                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.connect(gain); gain.connect(audioCtx.destination);
-                const now = audioCtx.currentTime;
-                if (type === 'success') {
-                    osc.frequency.setValueAtTime(523, now); osc.frequency.exponentialRampToValueAtTime(1046, now + 0.1);
-                    gain.gain.setValueAtTime(0.2, now); osc.start(); osc.stop(now + 0.3);
-                } else if (type === 'fail') {
-                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(110, now);
-                    gain.gain.setValueAtTime(0.1, now); osc.start(); osc.stop(now + 0.4);
-                }
-            } catch (e) {}
-        }
-
-        function setLevel(l) {
-            level = l; lives = 3; score = 0;
+        function changeLevel(l) {
+            level = l;
+            lives = 3;
+            score = 0;
             document.getElementById('score').innerText = score;
             document.getElementById('tutorial-overlay').classList.add('hidden');
-            updateLevelUI(); updateHearts(); setNewMission();
-        }
-
-        function updateLevelUI() {
-            [1, 2, 3].forEach(l => {
-                const btn = document.getElementById(`lvl-btn-${l}`);
-                if (level === l) btn.className = `px-2 py-0.5 rounded-full text-[8px] font-bold uppercase text-white bg-emerald-500`;
-                else btn.className = `px-2 py-0.5 rounded-full text-[8px] font-bold uppercase bg-slate-200 text-slate-500`;
+            
+            [1, 2, 3].forEach(lv => {
+                const btn = document.getElementById(`lvl-${lv}`);
+                btn.classList.remove('bg-blue-600', 'bg-amber-600', 'bg-purple-600');
+                if (lv === level) {
+                    const colors = { 1: 'bg-blue-600', 2: 'bg-amber-600', 3: 'bg-purple-600' };
+                    btn.classList.add(colors[level]);
+                }
             });
-            document.getElementById('area-display-container').style.visibility = (level === 1) ? 'visible' : 'hidden';
-            document.getElementById('beginner-hud').style.display = (level === 1) ? 'block' : 'none';
+
             document.getElementById('timer-container').classList.toggle('hidden', level !== 3);
             document.getElementById('life-container').classList.toggle('hidden', level === 1);
+            
+            // 初級(1)のみ表示する要素の制御
+            document.getElementById('beginner-hud').classList.toggle('hidden', level !== 1);
+            document.getElementById('current-area-display').classList.toggle('hidden', level !== 1);
+            
+            updateHearts();
+            setNewMission();
+            setMode(mode);
         }
 
         function updateHearts() {
             const hearts = document.querySelectorAll('.heart');
-            hearts.forEach((h, i) => h.className = i < lives ? "heart text-sm heart-active" : "heart text-sm heart-empty");
-        }
-
-        function startTimer() {
-            if (timerInterval) clearInterval(timerInterval);
-            if (level !== 3) return;
-            timeLeft = TIME_LIMIT;
-            timerInterval = setInterval(() => {
-                timeLeft -= 0.1;
-                document.getElementById('timer-bar').style.width = (timeLeft / TIME_LIMIT * 100) + "%";
-                if (timeLeft <= 0) { clearInterval(timerInterval); handleFail("時間切れ！"); }
-            }, 100);
-        }
-
-        function handleFail(reason) {
-            lives--; updateHearts(); playSound('fail'); failEffect();
-            document.getElementById('status-msg').innerText = reason;
-            if (lives <= 0) setTimeout(gameOver, 800);
-            else setTimeout(setNewMission, 1200);
-        }
-
-        function gameOver() {
-            document.getElementById('overlay-title').innerText = "GAME OVER";
-            document.getElementById('tutorial-overlay').classList.remove('hidden');
-        }
-
-        function generateValidArea() {
-            let minSide = 2, maxSide = level === 1 ? 6 : (level === 2 ? 8 : 10);
-            const side1 = Math.floor(Math.random() * (maxSide - minSide + 1)) + minSide;
-            const side2 = Math.floor(Math.random() * (maxSide - minSide + 1)) + minSide;
-            const currentShapeType = targetShape || 'rect';
-
-            if (currentShapeType === 'rect' || currentShapeType === 'para') targetArea = side1 * side2;
-            else {
-                const s1 = side1 % 2 === 0 ? side1 : side1 + 1;
-                targetArea = (s1 * side2) / 2;
-            }
+            hearts.forEach((h, i) => {
+                h.innerText = i < lives ? "❤️" : "🖤";
+                h.style.opacity = i < lives ? "1" : "0.3";
+            });
         }
 
         function setNewMission() {
+            if (timerInterval) clearInterval(timerInterval);
+            
             if (level > 1) {
                 const keys = Object.keys(shapeNames);
                 targetShape = keys[Math.floor(Math.random() * keys.length)];
@@ -273,20 +244,45 @@
                 targetShape = '';
                 document.getElementById('target-shape-panel').classList.add('hidden');
             }
-            generateValidArea();
+
+            let minS = 2, maxS = level === 1 ? 5 : (level === 2 ? 7 : 9);
+            const side1 = Math.floor(Math.random() * (maxS - minS + 1)) + minS;
+            const side2 = Math.floor(Math.random() * (maxS - minS + 1)) + minS;
+            const currentShapeType = targetShape || 'rect';
+
+            if (currentShapeType === 'rect' || currentShapeType === 'para') targetArea = side1 * side2;
+            else {
+                const s1 = side1 % 2 === 0 ? side1 : side1 + 1;
+                targetArea = (s1 * side2) / 2;
+            }
+
             document.getElementById('target-area').innerText = targetArea;
-            document.getElementById('status-msg').innerText = "描いて発動！";
+            document.getElementById('status-msg').innerText = "正しい面積を描いて発動しよう！";
             clearCanvas();
-            if (level === 3) startTimer();
+
+            if (level === 3) {
+                timeLeft = 20;
+                timerInterval = setInterval(() => {
+                    timeLeft -= 0.1;
+                    document.getElementById('timer-bar').style.width = (timeLeft / 20 * 100) + "%";
+                    if (timeLeft <= 0) { handleFail("時間切れ！"); }
+                }, 100);
+            }
         }
 
-        function updateAreaHUD(w, h) {
-            document.getElementById('current-area').innerText = currentArea.toFixed(1);
-            if (level === 1) {
-                const hud = document.getElementById('hud-dimensions');
-                if (mode === 'rect') hud.innerHTML = `縦:${h} 横:${w}`;
-                else if (mode === 'tri' || mode === 'para') hud.innerHTML = `底:${w} 高:${h}`;
-                else if (mode === 'rhombus') hud.innerHTML = `対1:${w} 対2:${h}`;
+        function handleFail(msg) {
+            if (timerInterval) clearInterval(timerInterval);
+            lives--;
+            updateHearts();
+            document.getElementById('status-msg').innerText = msg;
+            document.getElementById('main-wrapper').classList.add('shake');
+            setTimeout(() => document.getElementById('main-wrapper').classList.remove('shake'), 500);
+
+            if (lives <= 0) {
+                document.getElementById('status-msg').innerText = "ゲームオーバー！レベルを選び直してね";
+                setTimeout(() => { document.getElementById('tutorial-overlay').classList.remove('hidden'); }, 1500);
+            } else {
+                setTimeout(setNewMission, 1200);
             }
         }
 
@@ -299,7 +295,7 @@
         function drawShape(s, isPreview = false) {
             ctx.fillStyle = isPreview ? 'rgba(59, 130, 246, 0.3)' : 'rgba(16, 185, 129, 0.4)';
             ctx.strokeStyle = isPreview ? '#2563eb' : '#059669';
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 4;
             const {x1, y1, x2, y2, type} = s;
             const minX = Math.min(x1, x2), maxX = Math.max(x1, x2), minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
             const w = maxX - minX, h = maxY - minY;
@@ -329,7 +325,17 @@
             const rect = canvas.getBoundingClientRect();
             currentX = getGridCoord(e.clientX - rect.left); currentY = getGridCoord(e.clientY - rect.top);
             currentArea = calculateArea(startX, startY, currentX, currentY, mode);
-            updateAreaHUD(Math.abs(currentX - startX) / GRID_SIZE, Math.abs(currentY - startY) / GRID_SIZE);
+            
+            if (level === 1) {
+                document.getElementById('current-area').innerText = currentArea.toFixed(1);
+                const w = Math.abs(currentX - startX) / GRID_SIZE;
+                const h = Math.abs(currentY - startY) / GRID_SIZE;
+                let label = "";
+                if(mode==='rect') label=`たて:${h}㎝ よこ:${w}㎝`;
+                else if(mode==='tri' || mode==='para') label=`底辺:${w}㎝ 高さ:${h}㎝`;
+                else if(mode==='rhombus') label=`対角線:${w}㎝ / ${h}㎝`;
+                document.getElementById('beginner-hud').innerText = label;
+            }
             draw();
         });
 
@@ -342,12 +348,21 @@
         function setMode(m) {
             mode = m;
             document.querySelectorAll('.mode-btn').forEach(b => {
-                b.className = b.id === `btn-${m}` ? "mode-btn py-2 rounded-lg text-[10px] font-bold transition-all bg-emerald-600 text-white border-b-2 border-emerald-800" : "mode-btn py-2 rounded-lg text-[10px] font-bold transition-all bg-slate-300 text-slate-700 border-b-2 border-slate-400";
+                b.classList.remove('mode-btn-active');
+                if (b.id === `btn-${m}`) b.classList.add('mode-btn-active');
             });
             clearCanvas();
         }
 
-        function clearCanvas() { shapes = []; currentArea = 0; updateAreaHUD(0, 0); draw(); }
+        function clearCanvas() { 
+            shapes = []; 
+            currentArea = 0; 
+            if (level === 1) {
+                document.getElementById('current-area').innerText = "0.0";
+                document.getElementById('beginner-hud').innerText = "";
+            }
+            draw(); 
+        }
 
         function performAttack() {
             if (shapes.length === 0) return;
@@ -356,27 +371,19 @@
 
             if (areaMatches && shapeMatches) {
                 score += 100; document.getElementById('score').innerText = score;
-                document.getElementById('status-msg').innerText = "成功！"; playSound('success');
+                document.getElementById('status-msg').innerText = "成功！✨ 面積はピッタリ " + targetArea + "㎠ だ！";
                 if (timerInterval) clearInterval(timerInterval);
-                setTimeout(setNewMission, 800);
+                setTimeout(setNewMission, 1200);
             } else {
-                if (level === 1) { document.getElementById('status-msg').innerText = "おしい！"; playSound('fail'); failEffect(); }
-                else handleFail(shapeMatches ? "面積が違う！" : "図形が違う！");
+                if (level === 1) {
+                    document.getElementById('status-msg').innerText = "面積や図形がちがうみたいだ...";
+                } else {
+                    handleFail(shapeMatches ? "面積がちがうぞ！" : "図形の形がちがう！");
+                }
             }
         }
 
-        function failEffect() {
-            const container = document.getElementById('main-container');
-            container.classList.add('shake');
-            setTimeout(() => container.classList.remove('shake'), 500);
-        }
-
-        document.getElementById('show-help').onclick = () => {
-            document.getElementById('overlay-title').innerText = "レベルを選択";
-            document.getElementById('tutorial-overlay').classList.remove('hidden');
-        };
-
-        draw();
+        setMode('rect');
     </script>
 </body>
 </html>
