@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>爆速キャンバス - 伝言ゲーム</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Kiwi+Maru:wght@500&display=swap');
+        body {
+            font-family: 'Kiwi Maru', serif;
+            background: #f0f4f8;
+            overflow-x: hidden;
+        }
+        .canvas-container {
+            touch-action: none;
+            cursor: crosshair;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+        .timer-bar {
+            transition: width 0.1s linear;
+        }
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+        .result-card {
+            animation: slideIn 0.5s ease-out forwards;
+            opacity: 0;
+        }
+        @keyframes slideIn {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-indigo-50 min-h-screen flex items-center justify-center p-4">
+
+    <div id="game-container" class="max-w-2xl w-full bg-white rounded-3xl p-6 md:p-8 shadow-2xl">
+        <!-- SETUP SCREEN -->
+        <div id="setup-screen" class="space-y-6 text-center">
+            <h1 class="text-4xl font-bold text-indigo-600 mb-2">🎨 爆速キャンバス</h1>
+            <p class="text-gray-600">最後の人は回答するだけ！爆速伝言ゲーム</p>
+            
+            <div class="grid grid-cols-2 gap-4 text-left">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">プレイヤー人数</label>
+                    <input type="number" id="player-count" value="3" min="2" max="10" class="w-full border-2 border-indigo-200 rounded-xl px-4 py-2 focus:border-indigo-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">制限時間 (秒)</label>
+                    <input type="number" id="time-limit" value="10" min="5" max="60" class="w-full border-2 border-indigo-200 rounded-xl px-4 py-2 focus:border-indigo-500 outline-none">
+                </div>
+            </div>
+
+            <button onclick="startGame()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl transition-all transform hover:scale-105 shadow-lg">
+                ゲーム開始！
+            </button>
+        </div>
+
+        <!-- READY SCREEN -->
+        <div id="ready-screen" class="hidden space-y-6 text-center">
+            <h2 id="player-turn-label" class="text-3xl font-bold text-indigo-600">プレイヤー 1 の番</h2>
+            <div id="prompt-box" class="bg-indigo-100 p-8 rounded-2xl border-4 border-dashed border-indigo-300">
+                <p class="text-sm text-indigo-500 uppercase tracking-widest font-bold">あなたへのお題</p>
+                <p id="current-prompt" class="text-4xl font-black text-indigo-900 mt-2">お題を読み込み中...</p>
+            </div>
+            <p id="next-instruction" class="text-gray-600 italic">準備ができたらボタンを押してね</p>
+            <button onclick="startAction()" class="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-4 rounded-2xl transition-all shadow-lg">
+                進む！
+            </button>
+        </div>
+
+        <!-- DRAWING SCREEN -->
+        <div id="drawing-screen" class="hidden space-y-4">
+            <div class="flex justify-between items-end">
+                <h2 id="drawing-header" class="text-xl font-bold text-gray-700">プレイヤー 1 が描画中...</h2>
+                <div id="timer-text" class="text-2xl font-black text-pink-600">10</div>
+            </div>
+            <div class="w-full bg-gray-200 h-3 rounded-full overflow-hidden">
+                <div id="timer-bar" class="timer-bar h-full bg-pink-500" style="width: 100%"></div>
+            </div>
+            <div class="canvas-container bg-white border-4 border-indigo-200 rounded-2xl overflow-hidden relative aspect-square">
+                <canvas id="main-canvas" class="w-full h-full"></canvas>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="clearCanvas()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 rounded-xl">やり直し</button>
+                <button onclick="finishDrawing()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-xl">描き終えた！</button>
+            </div>
+        </div>
+
+        <!-- GUESS SCREEN -->
+        <div id="guess-screen" class="hidden space-y-6 text-center">
+            <h2 id="guess-header" class="text-3xl font-bold text-indigo-600">何を描いたと思う？</h2>
+            <div class="border-4 border-indigo-200 rounded-2xl overflow-hidden bg-white aspect-square max-w-sm mx-auto shadow-inner">
+                <img id="prev-drawing" class="w-full h-full object-contain" src="" alt="前の人の絵">
+            </div>
+            <div class="space-y-2 text-left">
+                <label class="block text-sm font-bold text-gray-700 text-center">あなたの予想を入力してください</label>
+                <input type="text" id="guess-input" placeholder="例：ゴリラ" class="w-full border-2 border-indigo-200 rounded-xl px-4 py-3 focus:border-indigo-500 outline-none text-xl text-center shadow-sm">
+            </div>
+            <button onclick="submitGuess()" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-4 rounded-2xl transition-all shadow-lg">
+                決定
+            </button>
+        </div>
+
+        <!-- RESULT SCREEN -->
+        <div id="result-screen" class="hidden space-y-8 overflow-y-auto max-h-[85vh] px-2 pb-8">
+            <div class="text-center pt-4">
+                <h2 class="text-4xl font-black text-indigo-600">結果発表！</h2>
+            </div>
+            
+            <!-- Comparison Table -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-indigo-100 p-4 rounded-2xl text-center border-2 border-indigo-200">
+                    <p class="text-xs font-bold text-indigo-500 uppercase">最初のお題</p>
+                    <p id="first-prompt-result" class="text-2xl font-black text-indigo-900"></p>
+                </div>
+                <div id="final-guess-box" class="p-4 rounded-2xl text-center border-2">
+                    <p class="text-xs font-bold uppercase opacity-75">最終回答</p>
+                    <p id="final-guess-result" class="text-2xl font-black"></p>
+                </div>
+            </div>
+
+            <div id="judgement-text" class="text-center text-3xl font-black italic"></div>
+
+            <div class="border-t-2 border-dashed border-indigo-100 pt-4">
+                <p class="text-center text-gray-400 text-sm mb-4">伝言のあゆみ</p>
+                <div id="history-container" class="space-y-6">
+                    <!-- 履歴がここに挿入される -->
+                </div>
+            </div>
+
+            <button onclick="resetGame()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl transition-all shadow-lg">
+                もう一度遊ぶ
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const prompts = [
+            "ライオン", "スカイツリー", "すし", "宇宙飛行士", "ゴリラ", "フラダンス", "ドラえもん", "パンケーキ", 
+            "お化け屋敷", "サッカー選手", "カマキリ", "新幹線", "タピオカ", "自由の女神", "キャンプファイヤー", 
+            "富士山", "バイオリニスト", "ペンギン", "ラーメン", "宇宙人", "ひまわり", "消防車", "シンデレラ", 
+            "たこ焼き", "ジェットコースター", "コアラ", "ハンバーガー", "カンガルー", "スフィンクス", "人魚", 
+            "ボクシング", "海賊", "メリーゴーランド", "かき氷", "フラミンゴ", "忍者", "力士", "ドーナツ", 
+            "ピラミッド", "バレリーナ", "トナカイ", "サンタクロース", "ホットドッグ", "サボテン", "恐竜", 
+            "サーフィン", "カウボーイ", "金魚すくい", "気球", "潜水艦", "目玉焼き", "クリオネ", "カメレオン", 
+            "キリン", "シャンデリア", "チンパンジー", "マトリョーシカ", "モアイ像", "ユニコーン", "ドライヤー",
+            "おにぎり", "オムライス", "メロンパン", "たぬき", "ハチ公", "エッフェル塔", "ヘリコプター", 
+            "パラシュート", "お辞儀", "歯磨き", "スキージャンプ", "綱引き", "福笑い", "線香花火"
+        ];
+        
+        let playerCount = 3;
+        let timeLimit = 10;
+        let currentPlayer = 1;
+        let history = []; 
+        let firstPrompt = "";
+        let currentDrawing = "";
+        
+        const canvas = document.getElementById('main-canvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+        let timerInterval;
+        let timeLeft;
+
+        function resizeCanvas() {
+            const rect = canvas.parentNode.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = '#4338ca';
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        canvas.addEventListener('mousedown', startPos);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', endPos);
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startPos(e.touches[0]); });
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e.touches[0]); });
+        canvas.addEventListener('touchend', (e) => { e.preventDefault(); endPos(); });
+
+        function startPos(e) {
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            lastX = e.clientX - rect.left;
+            lastY = e.clientY - rect.top;
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            
+            [lastX, lastY] = [x, y];
+        }
+
+        function endPos() {
+            isDrawing = false;
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function startGame() {
+            playerCount = parseInt(document.getElementById('player-count').value);
+            timeLimit = parseInt(document.getElementById('time-limit').value);
+            currentPlayer = 1;
+            history = [];
+            firstPrompt = prompts[Math.floor(Math.random() * prompts.length)];
+            currentDrawing = "";
+            
+            showScreen('ready-screen');
+            updateReadyScreen();
+        }
+
+        function updateReadyScreen() {
+            document.getElementById('player-turn-label').innerText = `プレイヤー ${currentPlayer} の番`;
+            const promptBox = document.getElementById('prompt-box');
+            const currentPromptEl = document.getElementById('current-prompt');
+            const instruction = document.getElementById('next-instruction');
+
+            if (currentPlayer === 1) {
+                promptBox.classList.remove('hidden');
+                currentPromptEl.innerText = firstPrompt;
+                instruction.innerText = "お題を覚えたらボタンを押してね";
+            } else if (currentPlayer === playerCount) {
+                promptBox.classList.add('hidden');
+                instruction.innerText = "最後の人！前の人の絵を当てて終了だよ";
+            } else {
+                promptBox.classList.add('hidden');
+                instruction.innerText = "前の人の絵を当てる準備はいい？";
+            }
+        }
+
+        function startAction() {
+            if (currentPlayer === 1) {
+                startDrawing();
+            } else {
+                showGuessScreen();
+            }
+        }
+
+        function startDrawing() {
+            showScreen('drawing-screen');
+            resizeCanvas();
+            clearCanvas();
+            document.getElementById('drawing-header').innerText = `プレイヤー ${currentPlayer} 描画中...`;
+            
+            timeLeft = timeLimit;
+            updateTimerUI();
+            
+            timerInterval = setInterval(() => {
+                timeLeft -= 0.1;
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    finishDrawing();
+                }
+                updateTimerUI();
+            }, 100);
+        }
+
+        function updateTimerUI() {
+            const percentage = Math.max(0, (timeLeft / timeLimit) * 100);
+            document.getElementById('timer-bar').style.width = `${percentage}%`;
+            document.getElementById('timer-text').innerText = Math.ceil(Math.max(0, timeLeft));
+            
+            const timerBar = document.getElementById('timer-bar');
+            if (timeLeft < 3) {
+                document.getElementById('timer-text').classList.add('shake');
+                timerBar.classList.remove('bg-pink-500');
+                timerBar.classList.add('bg-red-500');
+            } else {
+                document.getElementById('timer-text').classList.remove('shake');
+                timerBar.classList.remove('bg-red-500');
+                timerBar.classList.add('bg-pink-500');
+            }
+        }
+
+        function finishDrawing() {
+            clearInterval(timerInterval);
+            currentDrawing = canvas.toDataURL();
+            history.push({ type: 'draw', content: currentDrawing, player: currentPlayer });
+
+            currentPlayer++;
+            showScreen('ready-screen');
+            updateReadyScreen();
+        }
+
+        function showGuessScreen() {
+            showScreen('guess-screen');
+            document.getElementById('guess-header').innerText = `プレイヤー ${currentPlayer} さん`;
+            document.getElementById('prev-drawing').src = currentDrawing;
+            document.getElementById('guess-input').value = "";
+            setTimeout(() => document.getElementById('guess-input').focus(), 100);
+        }
+
+        function submitGuess() {
+            const guess = document.getElementById('guess-input').value.trim() || "（無回答）";
+            history.push({ type: 'guess', content: guess, player: currentPlayer });
+
+            if (currentPlayer === playerCount) {
+                showResults();
+            } else {
+                startDrawing();
+            }
+        }
+
+        function showResults() {
+            showScreen('result-screen');
+            
+            const firstPromptEl = document.getElementById('first-prompt-result');
+            const finalGuessEl = document.getElementById('final-guess-result');
+            const finalGuessBox = document.getElementById('final-guess-box');
+            const judgementText = document.getElementById('judgement-text');
+            const container = document.getElementById('history-container');
+            
+            container.innerHTML = "";
+            firstPromptEl.innerText = firstPrompt;
+
+            const lastGuessObj = history[history.length - 1];
+            const finalGuessValue = lastGuessObj ? lastGuessObj.content : "（なし）";
+            finalGuessEl.innerText = finalGuessValue;
+
+            if (finalGuessValue === firstPrompt) {
+                judgementText.innerText = "SUCCESS! 🎉";
+                judgementText.className = "text-center text-4xl font-black italic text-green-500";
+                finalGuessBox.className = "p-4 rounded-2xl text-center border-2 border-green-500 bg-green-50 text-green-700";
+            } else {
+                judgementText.innerText = "FAILED... 😱";
+                judgementText.className = "text-center text-4xl font-black italic text-red-500";
+                finalGuessBox.className = "p-4 rounded-2xl text-center border-2 border-red-500 bg-red-50 text-red-700";
+            }
+            
+            history.forEach((item, index) => {
+                const card = document.createElement('div');
+                card.className = "result-card bg-white border-2 border-gray-100 rounded-3xl p-4 shadow-sm flex flex-col items-center gap-3";
+                card.style.animationDelay = `${index * 0.1}s`;
+                
+                if (item.type === 'draw') {
+                    card.innerHTML = `
+                        <div class="w-full flex justify-between items-center text-gray-400 text-xs px-2 font-bold">
+                            <span>PLAYER ${item.player}</span>
+                            <span class="bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full">絵をかいた</span>
+                        </div>
+                        <img src="${item.content}" class="w-full max-w-sm border-2 border-indigo-50 rounded-xl bg-indigo-50/30">
+                    `;
+                } else {
+                    card.innerHTML = `
+                        <div class="w-full flex justify-between items-center text-gray-400 text-xs px-2 font-bold">
+                            <span>PLAYER ${item.player}</span>
+                            <span class="bg-pink-100 text-pink-600 px-2 py-0.5 rounded-full">${item.player === playerCount ? '最終回答' : '予想した'}</span>
+                        </div>
+                        <p class="text-2xl font-black text-indigo-900 mt-1">「${item.content}」</p>
+                    `;
+                }
+                container.appendChild(card);
+            });
+        }
+
+        function showScreen(screenId) {
+            ['setup-screen', 'ready-screen', 'drawing-screen', 'guess-screen', 'result-screen'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            document.getElementById(screenId).classList.remove('hidden');
+        }
+
+        function resetGame() {
+            showScreen('setup-screen');
+        }
+    </script>
+</body>
+</html>
