@@ -93,12 +93,10 @@
         <canvas id="gameCanvas"></canvas>
         
         <div id="ui-layer">
-            <!-- Time Progress Bar -->
             <div id="timer-bar-container">
                 <div id="timer-bar-fill"></div>
             </div>
 
-            <!-- Top: Target Display -->
             <div class="pt-8 px-4 w-full">
                 <div class="bg-black/60 p-4 rounded-2xl border border-blue-500/40 shadow-[0_0_20px_rgba(59,130,246,0.3)] text-center">
                     <div class="text-[10px] text-blue-400 font-bold uppercase tracking-[0.2em] mb-1">TARGET IDIOM</div>
@@ -106,7 +104,6 @@
                 </div>
             </div>
 
-            <!-- Bottom: Stats around the Launcher -->
             <div class="absolute bottom-6 w-full px-6 flex justify-between items-end">
                 <div class="bg-black/40 p-2 rounded-lg border border-white/10 min-w-[100px]">
                     <div class="text-[10px] text-slate-400 font-bold uppercase mb-0.5">Time</div>
@@ -122,27 +119,20 @@
 
         <div id="overlay" class="overlay">
             <h1 id="overlay-title" class="text-4xl font-black mb-4 text-blue-500 italic tracking-tighter leading-none">四字熟語<br>パチンコバスター</h1>
-            
             <div id="overlay-desc" class="mb-6 text-slate-300"></div>
-
             <div id="how-to-play" class="bg-white/5 p-5 rounded-2xl border border-white/10 mb-8 w-full max-w-xs text-left">
                 <p class="text-blue-400 font-bold text-xs mb-3 uppercase tracking-widest">How to play</p>
                 <ul class="text-sm space-y-3 text-slate-200">
                     <li class="flex items-start gap-3">
                         <span class="bg-blue-600 text-[10px] rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
-                        <span>画面下部を<b>下にひっぱって</b>狙う</span>
+                        <span>画面下部を<b>強くひっぱって</b>狙う</span>
                     </li>
                     <li class="flex items-start gap-3">
                         <span class="bg-blue-600 text-[10px] rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
-                        <span>指を<b>はなして</b>発射！</span>
-                    </li>
-                    <li class="flex items-start gap-3">
-                        <span class="bg-blue-600 text-[10px] rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
-                        <span>正しい意味のゲートを狙え！</span>
+                        <span>はなすとボールが<b>ハイスピード</b>で発射！</span>
                     </li>
                 </ul>
             </div>
-
             <button onclick="startGame()" class="px-12 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-black shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-transform active:scale-95">
                 START MISSION
             </button>
@@ -183,7 +173,7 @@
                 osc.connect(gain); gain.connect(this.ctx.destination);
                 osc.start(); osc.stop(this.ctx.currentTime + duration);
             },
-            fire() { this.play(440, 'sine', 0.2, 0.2); },
+            fire() { this.play(500, 'sine', 0.2, 0.2); },
             bounce() { this.play(150, 'square', 0.05, 0.1); },
             correct() { 
                 this.play(523.25, 'triangle', 0.5, 0.2);
@@ -209,8 +199,8 @@
         const launcher = { x: 0, y: 0, isDragging: false, dragX: 0, dragY: 0 };
         let obstacles = [];
         const gates = [
-            { x: 0, y: 180, w: 0, h: 75, label: "" },
-            { x: 0, y: 180, w: 0, h: 75, label: "" }
+            { x: 0, y: 160, w: 0, h: 80, label: "" },
+            { x: 0, y: 160, w: 0, h: 80, label: "" }
         ];
 
         function resize() {
@@ -219,9 +209,9 @@
             canvas.width = width;
             canvas.height = height;
             ball.x = width / 2;
-            ball.y = height - 40;
+            ball.y = height - 60;
             launcher.x = width / 2;
-            launcher.y = height - 40;
+            launcher.y = height - 60;
             gates[0].w = width * 0.44;
             gates[0].x = width * 0.04;
             gates[1].w = width * 0.44;
@@ -260,10 +250,15 @@
         function endDrag() {
             if (!launcher.isDragging) return;
             launcher.isDragging = false;
+            
             const dx = launcher.x - launcher.dragX;
             const dy = launcher.y - launcher.dragY;
-            ball.vx = Math.max(-18, Math.min(18, dx * 0.15));
-            ball.vy = Math.max(-32, Math.min(-8, dy * 0.15));
+            
+            // パワー係数を引き上げ (0.15 -> 0.25)
+            // 最大・最小のリミットを調整してゲートに届きやすく修正
+            ball.vx = Math.max(-25, Math.min(25, dx * 0.25));
+            ball.vy = Math.max(-45, Math.min(-15, dy * 0.25));
+            
             ball.isFlying = true;
             Sound.fire();
         }
@@ -298,7 +293,7 @@
 
         function resetBall() {
             ball.x = width / 2;
-            ball.y = height - 40;
+            ball.y = height - 60;
             ball.vx = 0;
             ball.vy = 0;
             ball.isFlying = false;
@@ -309,13 +304,13 @@
             const areaTop = gates[0].y + gates[0].h + 60;
             const areaBottom = height * 0.75;
             const areaHeight = areaBottom - areaTop;
-            const obstacleCount = 3 + Math.floor(Math.random() * 2);
+            const obstacleCount = 2 + Math.floor(Math.random() * 3);
             for (let i = 0; i < obstacleCount; i++) {
-                const obsWidth = 80 + Math.random() * 80;
+                const obsWidth = 70 + Math.random() * 70;
                 obstacles.push({
                     x: obsWidth / 2 + Math.random() * (width - obsWidth),
                     y: areaTop + (areaHeight / obstacleCount) * i,
-                    w: obsWidth, h: 14, vx: (Math.random() - 0.5) * 4
+                    w: obsWidth, h: 14, vx: (Math.random() - 0.5) * 6
                 });
             }
         }
@@ -323,10 +318,16 @@
         function draw() {
             ctx.clearRect(0, 0, width, height);
             
+            // Launcher base
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.arc(launcher.x, launcher.y, 25, 0, Math.PI, true);
+            ctx.fill();
+
             if (launcher.isDragging) {
                 ctx.setLineDash([4, 6]);
-                ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
-                ctx.lineWidth = 2;
+                ctx.strokeStyle = 'rgba(59, 130, 246, 0.6)';
+                ctx.lineWidth = 3;
                 ctx.beginPath();
                 ctx.moveTo(launcher.x, launcher.y);
                 const dx = launcher.x - launcher.dragX;
@@ -338,7 +339,7 @@
 
             obstacles.forEach(obs => {
                 ctx.fillStyle = '#475569';
-                ctx.strokeStyle = '#94a3b8';
+                ctx.strokeStyle = '#60a5fa';
                 ctx.lineWidth = 2;
                 ctx.beginPath();
                 ctx.roundRect(obs.x - obs.w/2, obs.y - obs.h/2, obs.w, obs.h, 4);
@@ -346,9 +347,9 @@
             });
 
             gates.forEach((gate, i) => {
-                ctx.fillStyle = '#1e293b';
+                ctx.fillStyle = '#0f172a';
                 ctx.strokeStyle = '#3b82f6';
-                ctx.lineWidth = 3;
+                ctx.lineWidth = 4;
                 ctx.beginPath();
                 ctx.roundRect(gate.x, gate.y, gate.w, gate.h, 12);
                 ctx.fill(); ctx.stroke();
@@ -356,15 +357,16 @@
                 ctx.fillStyle = 'white';
                 ctx.font = 'bold 11px Noto Sans JP';
                 ctx.textAlign = 'center';
-                wrapText(ctx, gate.label, gate.x + gate.w/2, gate.y + 25, gate.w - 15, 16);
+                wrapText(ctx, gate.label, gate.x + gate.w/2, gate.y + 28, gate.w - 15, 16);
             });
 
-            ctx.fillStyle = '#3b82f6';
-            ctx.shadowBlur = 15; ctx.shadowColor = '#3b82f6';
+            // Ball with glowing effect
+            ctx.fillStyle = '#60a5fa';
+            ctx.shadowBlur = 20; ctx.shadowColor = '#3b82f6';
             ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2); ctx.fill();
             ctx.shadowBlur = 0;
-            ctx.fillStyle = 'rgba(255,255,255,0.4)';
-            ctx.beginPath(); ctx.arc(ball.x - 4, ball.y - 4, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = 'white';
+            ctx.beginPath(); ctx.arc(ball.x - 4, ball.y - 4, 4, 0, Math.PI * 2); ctx.fill();
         }
 
         function update(currentTime) {
@@ -373,7 +375,6 @@
             lastTime = currentTime;
             timeLeft -= deltaTime;
             
-            // Update UI
             const timerFill = document.getElementById('timer-bar-fill');
             const pct = Math.max(0, (timeLeft / gameDuration) * 100);
             timerFill.style.width = `${pct}%`;
@@ -388,22 +389,23 @@
             }
             
             if (ball.isFlying) {
-                ball.x += ball.vx; ball.y += ball.vy; ball.vy += 0.35; 
+                ball.x += ball.vx; ball.y += ball.vy; 
+                ball.vy += 0.45; // 重力
                 
                 if (ball.x < ball.r || ball.x > width - ball.r) {
-                    ball.vx *= -0.75; ball.x = ball.x < ball.r ? ball.r : width - ball.r;
+                    ball.vx *= -0.7; ball.x = ball.x < ball.r ? ball.r : width - ball.r;
                     Sound.bounce();
                 }
                 
                 if (ball.y < ball.r) {
-                    ball.vy *= -0.75; ball.y = ball.r; Sound.bounce();
+                    ball.vy *= -0.7; ball.y = ball.r; Sound.bounce();
                 }
 
                 obstacles.forEach(obs => {
                     const hw = obs.w / 2, hh = obs.h / 2;
                     if (ball.x + ball.r > obs.x - hw && ball.x - ball.r < obs.x + hw &&
                         ball.y + ball.r > obs.y - hh && ball.y - ball.r < obs.y + hh) {
-                        if (Math.abs(ball.x - obs.x) < hw - 4) {
+                        if (Math.abs(ball.x - obs.x) < hw - 6) {
                             ball.vy *= -0.7; ball.y = ball.y < obs.y ? obs.y - hh - ball.r : obs.y + hh + ball.r;
                         } else {
                             ball.vx *= -0.7; ball.x = ball.x < obs.x ? obs.x - hw - ball.r : obs.x + hw + ball.r;
@@ -427,7 +429,7 @@
 
         function resolveGate(i) {
             if (i === correctGateIdx) {
-                score += 100; timeLeft += 3;
+                score += 100; timeLeft += 5; // 正解ボーナスも+5sに強化
                 Sound.correct();
                 document.getElementById('score-display').innerText = score;
                 spawnQuestion();
