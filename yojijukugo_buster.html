@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>四字熟語パチンコバスター</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=DotGothic16&family=Noto+Sans+JP:wght@900&display=swap');
+        
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: #020617;
+            margin: 0;
+            overflow: hidden;
+            color: white;
+            touch-action: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            max-width: 500px;
+            max-height: 800px;
+            background: #0f172a;
+            border: 4px solid #1e293b;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            background: radial-gradient(circle, #1e293b 0%, #020617 100%);
+        }
+
+        .pixel-font {
+            font-family: 'DotGothic16', sans-serif;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(2, 6, 23, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            text-align: center;
+            padding: 1.5rem;
+            pointer-events: auto;
+        }
+
+        #timer-bar-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            z-index: 60;
+        }
+
+        #timer-bar-fill {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #3b82f6, #a855f7);
+            transition: width 0.1s linear;
+        }
+
+        .timer-warning {
+            animation: pulse-red 0.5s infinite alternate;
+        }
+
+        @keyframes pulse-red {
+            from { background: #ef4444; }
+            to { background: #7f1d1d; }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen">
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="ui-layer">
+            <!-- Time Progress Bar -->
+            <div id="timer-bar-container">
+                <div id="timer-bar-fill"></div>
+            </div>
+
+            <!-- Top: Target Display -->
+            <div class="pt-8 px-4 w-full">
+                <div class="bg-black/60 p-4 rounded-2xl border border-blue-500/40 shadow-[0_0_20px_rgba(59,130,246,0.3)] text-center">
+                    <div class="text-[10px] text-blue-400 font-bold uppercase tracking-[0.2em] mb-1">TARGET IDIOM</div>
+                    <div id="target-display" class="text-3xl font-black tracking-tight">---</div>
+                </div>
+            </div>
+
+            <!-- Bottom: Stats around the Launcher -->
+            <div class="absolute bottom-6 w-full px-6 flex justify-between items-end">
+                <div class="bg-black/40 p-2 rounded-lg border border-white/10 min-w-[100px]">
+                    <div class="text-[10px] text-slate-400 font-bold uppercase mb-0.5">Time</div>
+                    <div id="time-text" class="text-xl font-bold pixel-font text-blue-400">30.0s</div>
+                </div>
+                
+                <div class="bg-black/40 p-2 rounded-lg border border-white/10 min-w-[100px] text-right">
+                    <div class="text-[10px] text-slate-400 font-bold uppercase mb-0.5">Score</div>
+                    <div id="score-display" class="text-xl font-bold pixel-font text-yellow-400">0</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="overlay" class="overlay">
+            <h1 id="overlay-title" class="text-4xl font-black mb-4 text-blue-500 italic tracking-tighter leading-none">四字熟語<br>パチンコバスター</h1>
+            
+            <div id="overlay-desc" class="mb-6 text-slate-300"></div>
+
+            <div id="how-to-play" class="bg-white/5 p-5 rounded-2xl border border-white/10 mb-8 w-full max-w-xs text-left">
+                <p class="text-blue-400 font-bold text-xs mb-3 uppercase tracking-widest">How to play</p>
+                <ul class="text-sm space-y-3 text-slate-200">
+                    <li class="flex items-start gap-3">
+                        <span class="bg-blue-600 text-[10px] rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
+                        <span>画面下部を<b>下にひっぱって</b>狙う</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <span class="bg-blue-600 text-[10px] rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
+                        <span>指を<b>はなして</b>発射！</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <span class="bg-blue-600 text-[10px] rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
+                        <span>正しい意味のゲートを狙え！</span>
+                    </li>
+                </ul>
+            </div>
+
+            <button onclick="startGame()" class="px-12 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-full font-black shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-transform active:scale-95">
+                START MISSION
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const WORD_DATA = [
+            { word: "切磋琢磨", yomi: "せっさたくま", meaning: "互いに励まし合って向上すること" },
+            { word: "温故知新", yomi: "おんこちしん", meaning: "古いことを学び新しい知識を得ること" },
+            { word: "傍若無人", yomi: "ぼうじゃくぶじん", meaning: "他を気にせず勝手気ままに振る舞うこと" },
+            { word: "一致団結", yomi: "いっちだんけつ", meaning: "心を一つにして協力すること" },
+            { word: "一期一会", yomi: "いちごいちえ", meaning: "一生に一度限りの大切な出会い" },
+            { word: "臥薪嘗胆", yomi: "がしんしょうたん", meaning: "目的のために苦労を耐え忍ぶこと" },
+            { word: "疑心暗鬼", yomi: "ぎしんあんき", meaning: "疑い始めると何でも疑わしく見える" },
+            { word: "四面楚歌", yomi: "しめんそか", meaning: "周囲がすべて敵や反対者である" },
+            { word: "付和雷同", yomi: "ふわらいどう", meaning: "考えなく他人の意見に同調すること" },
+            { word: "本末転倒", yomi: "ほんまつてんとう", meaning: "大事な事とつまらない事を取り違える" },
+            { word: "勇往邁進", yomi: "ゆうおうまいしん", meaning: "目標に向かってひたすら突き進む" },
+            { word: "五里霧中", yomi: "ごりむちゅう", meaning: "状況が不明で方針が立たないこと" },
+            { word: "天衣無縫", yomi: "てんいむほう", meaning: "自然で飾り気がなく純真な様子" }
+        ];
+
+        const Sound = {
+            ctx: null,
+            init() { 
+                if (this.ctx) return;
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)(); 
+            },
+            play(freq, type, duration, vol) {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(); osc.stop(this.ctx.currentTime + duration);
+            },
+            fire() { this.play(440, 'sine', 0.2, 0.2); },
+            bounce() { this.play(150, 'square', 0.05, 0.1); },
+            correct() { 
+                this.play(523.25, 'triangle', 0.5, 0.2);
+                setTimeout(() => this.play(659.25, 'triangle', 0.5, 0.2), 100);
+            },
+            wrong() { this.play(100, 'sawtooth', 0.4, 0.2); }
+        };
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('game-container');
+
+        let width, height;
+        let gameActive = false;
+        let score = 0;
+        let gameDuration = 30;
+        let timeLeft = gameDuration;
+        let lastTime = 0;
+        let currentWord = null;
+        let correctGateIdx = 0;
+
+        const ball = { x: 0, y: 0, r: 14, vx: 0, vy: 0, isFlying: false };
+        const launcher = { x: 0, y: 0, isDragging: false, dragX: 0, dragY: 0 };
+        let obstacles = [];
+        const gates = [
+            { x: 0, y: 180, w: 0, h: 75, label: "" },
+            { x: 0, y: 180, w: 0, h: 75, label: "" }
+        ];
+
+        function resize() {
+            width = container.clientWidth;
+            height = container.clientHeight;
+            canvas.width = width;
+            canvas.height = height;
+            ball.x = width / 2;
+            ball.y = height - 40;
+            launcher.x = width / 2;
+            launcher.y = height - 40;
+            gates[0].w = width * 0.44;
+            gates[0].x = width * 0.04;
+            gates[1].w = width * 0.44;
+            gates[1].x = width * 0.52;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        canvas.addEventListener('mousedown', startDrag);
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrag(e.touches[0]); }, {passive: false});
+        window.addEventListener('mousemove', moveDrag);
+        window.addEventListener('touchmove', (e) => { e.preventDefault(); moveDrag(e.touches[0]); }, {passive: false});
+        window.addEventListener('mouseup', endDrag);
+        window.addEventListener('touchend', endDrag);
+
+        function startDrag(e) {
+            if (!gameActive || ball.isFlying) return;
+            Sound.init();
+            const rect = canvas.getBoundingClientRect();
+            const my = e.clientY - rect.top;
+            if (my > height * 0.7) { 
+                launcher.isDragging = true;
+                launcher.dragX = e.clientX - rect.left;
+                launcher.dragY = my;
+            }
+        }
+
+        function moveDrag(e) {
+            if (!launcher.isDragging) return;
+            const rect = canvas.getBoundingClientRect();
+            launcher.dragX = e.clientX - rect.left;
+            launcher.dragY = e.clientY - rect.top;
+        }
+
+        function endDrag() {
+            if (!launcher.isDragging) return;
+            launcher.isDragging = false;
+            const dx = launcher.x - launcher.dragX;
+            const dy = launcher.y - launcher.dragY;
+            ball.vx = Math.max(-18, Math.min(18, dx * 0.15));
+            ball.vy = Math.max(-32, Math.min(-8, dy * 0.15));
+            ball.isFlying = true;
+            Sound.fire();
+        }
+
+        function startGame() {
+            Sound.init();
+            score = 0;
+            timeLeft = gameDuration;
+            gameActive = true;
+            lastTime = performance.now();
+            document.getElementById('overlay').classList.add('hidden');
+            document.getElementById('score-display').innerText = score;
+            spawnQuestion();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function spawnQuestion() {
+            const idx = Math.floor(Math.random() * WORD_DATA.length);
+            currentWord = WORD_DATA[idx];
+            correctGateIdx = Math.floor(Math.random() * 2);
+            let dummyIdx;
+            do { dummyIdx = Math.floor(Math.random() * WORD_DATA.length); } 
+            while (dummyIdx === idx);
+
+            document.getElementById('target-display').innerHTML = `${currentWord.word} <span class="text-sm font-normal text-blue-400">(${currentWord.yomi})</span>`;
+            gates[correctGateIdx].label = currentWord.meaning;
+            gates[1 - correctGateIdx].label = WORD_DATA[dummyIdx].meaning;
+
+            resetBall();
+            createObstacles();
+        }
+
+        function resetBall() {
+            ball.x = width / 2;
+            ball.y = height - 40;
+            ball.vx = 0;
+            ball.vy = 0;
+            ball.isFlying = false;
+        }
+
+        function createObstacles() {
+            obstacles = [];
+            const areaTop = gates[0].y + gates[0].h + 60;
+            const areaBottom = height * 0.75;
+            const areaHeight = areaBottom - areaTop;
+            const obstacleCount = 3 + Math.floor(Math.random() * 2);
+            for (let i = 0; i < obstacleCount; i++) {
+                const obsWidth = 80 + Math.random() * 80;
+                obstacles.push({
+                    x: obsWidth / 2 + Math.random() * (width - obsWidth),
+                    y: areaTop + (areaHeight / obstacleCount) * i,
+                    w: obsWidth, h: 14, vx: (Math.random() - 0.5) * 4
+                });
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, width, height);
+            
+            if (launcher.isDragging) {
+                ctx.setLineDash([4, 6]);
+                ctx.strokeStyle = 'rgba(59, 130, 246, 0.4)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(launcher.x, launcher.y);
+                const dx = launcher.x - launcher.dragX;
+                const dy = launcher.y - launcher.dragY;
+                ctx.lineTo(launcher.x + dx * 2, launcher.y + dy * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            obstacles.forEach(obs => {
+                ctx.fillStyle = '#475569';
+                ctx.strokeStyle = '#94a3b8';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.roundRect(obs.x - obs.w/2, obs.y - obs.h/2, obs.w, obs.h, 4);
+                ctx.fill(); ctx.stroke();
+            });
+
+            gates.forEach((gate, i) => {
+                ctx.fillStyle = '#1e293b';
+                ctx.strokeStyle = '#3b82f6';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.roundRect(gate.x, gate.y, gate.w, gate.h, 12);
+                ctx.fill(); ctx.stroke();
+                
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 11px Noto Sans JP';
+                ctx.textAlign = 'center';
+                wrapText(ctx, gate.label, gate.x + gate.w/2, gate.y + 25, gate.w - 15, 16);
+            });
+
+            ctx.fillStyle = '#3b82f6';
+            ctx.shadowBlur = 15; ctx.shadowColor = '#3b82f6';
+            ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            ctx.beginPath(); ctx.arc(ball.x - 4, ball.y - 4, 5, 0, Math.PI * 2); ctx.fill();
+        }
+
+        function update(currentTime) {
+            if (!gameActive) return;
+            const deltaTime = (currentTime - lastTime) / 1000;
+            lastTime = currentTime;
+            timeLeft -= deltaTime;
+            
+            // Update UI
+            const timerFill = document.getElementById('timer-bar-fill');
+            const pct = Math.max(0, (timeLeft / gameDuration) * 100);
+            timerFill.style.width = `${pct}%`;
+            document.getElementById('time-text').innerText = `${Math.max(0, timeLeft).toFixed(1)}s`;
+            
+            if (timeLeft <= 5) timerFill.classList.add('timer-warning');
+            else timerFill.classList.remove('timer-warning');
+            
+            if (timeLeft <= 0) { 
+                gameOver("TIME UP!", "ミッション終了！"); 
+                return; 
+            }
+            
+            if (ball.isFlying) {
+                ball.x += ball.vx; ball.y += ball.vy; ball.vy += 0.35; 
+                
+                if (ball.x < ball.r || ball.x > width - ball.r) {
+                    ball.vx *= -0.75; ball.x = ball.x < ball.r ? ball.r : width - ball.r;
+                    Sound.bounce();
+                }
+                
+                if (ball.y < ball.r) {
+                    ball.vy *= -0.75; ball.y = ball.r; Sound.bounce();
+                }
+
+                obstacles.forEach(obs => {
+                    const hw = obs.w / 2, hh = obs.h / 2;
+                    if (ball.x + ball.r > obs.x - hw && ball.x - ball.r < obs.x + hw &&
+                        ball.y + ball.r > obs.y - hh && ball.y - ball.r < obs.y + hh) {
+                        if (Math.abs(ball.x - obs.x) < hw - 4) {
+                            ball.vy *= -0.7; ball.y = ball.y < obs.y ? obs.y - hh - ball.r : obs.y + hh + ball.r;
+                        } else {
+                            ball.vx *= -0.7; ball.x = ball.x < obs.x ? obs.x - hw - ball.r : obs.x + hw + ball.r;
+                        }
+                        Sound.bounce();
+                    }
+                });
+
+                gates.forEach((gate, i) => {
+                    if (ball.y < gate.y + gate.h && ball.y > gate.y && ball.x > gate.x && ball.x < gate.x + gate.w) resolveGate(i);
+                });
+
+                if (ball.y > height + 50) resetBall();
+            }
+
+            obstacles.forEach(obs => {
+                obs.x += obs.vx;
+                if (obs.x < obs.w/2 + 5 || obs.x > width - obs.w/2 - 5) obs.vx *= -1;
+            });
+        }
+
+        function resolveGate(i) {
+            if (i === correctGateIdx) {
+                score += 100; timeLeft += 3;
+                Sound.correct();
+                document.getElementById('score-display').innerText = score;
+                spawnQuestion();
+            } else {
+                timeLeft -= 5;
+                Sound.wrong();
+                resetBall();
+            }
+        }
+
+        function gameOver(title, msg) {
+            gameActive = false;
+            document.getElementById('overlay-title').innerText = title;
+            const desc = document.getElementById('overlay-desc');
+            if (desc) {
+                desc.innerHTML = `${msg}<br><br>FINAL SCORE: <span class="text-white text-3xl font-bold">${score}</span>`;
+            }
+            document.getElementById('overlay').classList.remove('hidden');
+        }
+
+        function gameLoop(currentTime) {
+            if (!gameActive) return;
+            update(currentTime); 
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function wrapText(context, text, x, y, maxWidth, lineHeight) {
+            const words = text.split('');
+            let line = '';
+            for(let n = 0; n < words.length; n++) {
+                let testLine = line + words[n];
+                if (context.measureText(testLine).width > maxWidth && n > 0) {
+                    context.fillText(line, x, y);
+                    line = words[n]; y += lineHeight;
+                } else { line = testLine; }
+            }
+            context.fillText(line, x, y);
+        }
+    </script>
+</body>
+</html>
