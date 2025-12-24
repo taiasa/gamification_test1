@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>割合マスター 決定版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        body {
+            background: linear-gradient(-45deg, #FF9A8B, #FF6A88, #FF99AC, #FFC3A0);
+            background-size: 400% 400%;
+            animation: gradient 10s ease infinite;
+        }
+        .visual-box {
+            transition: height 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border-radius: 12px 12px 0 0;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 40px;
+            width: 40px;
+            border-radius: 50%;
+            background: #FFD700;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            border: 4px solid #ffffff;
+        }
+        .guide-line {
+            position: absolute;
+            width: 100%;
+            border-top: 4px dashed rgba(0,0,0,0.15);
+            pointer-events: none;
+            z-index: 10;
+        }
+        .pop-in {
+            animation: pop 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        @keyframes pop {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center font-sans p-4">
+
+    <div id="game-container" class="bg-white/95 backdrop-blur-md p-8 rounded-[2.5rem] shadow-2xl w-full max-w-md border-4 border-yellow-300">
+        <!-- スタート画面 -->
+        <div id="start-screen" class="text-center py-8">
+            <div class="text-7xl mb-6">🍭</div>
+            <h1 class="text-4xl font-black text-pink-500 mb-2 tracking-tighter">割合マスター</h1>
+            <p class="text-orange-400 font-bold mb-8 italic">〜 ぴったり あててみよう！ 〜</p>
+            <p class="text-gray-600 mb-10 leading-relaxed font-bold text-lg">
+                もんだいの「大きさ」を<br>
+                バーをうごかして<br>
+                あててみてね！
+            </p>
+            <button onclick="startGame()" class="bg-pink-500 hover:bg-pink-600 text-white font-black py-5 px-16 rounded-[2rem] shadow-[0_8px_0_rgb(190,24,93)] hover:shadow-[0_4px_0_rgb(190,24,93)] hover:translate-y-[4px] transition-all active:translate-y-[8px] active:shadow-none text-2xl">
+                あそぶ！
+            </button>
+        </div>
+
+        <!-- クイズ画面 -->
+        <div id="quiz-screen" class="hidden">
+            <div class="flex justify-between items-center mb-6">
+                <span id="question-number" class="px-5 py-2 bg-pink-100 text-pink-600 rounded-full text-md font-black italic">だい 1 もん</span>
+                <div class="flex flex-col items-end">
+                    <span class="text-gray-400 text-[10px] font-black uppercase">のこり じかん</span>
+                    <span id="timer" class="text-3xl font-mono font-black text-rose-500 leading-none">15.00</span>
+                </div>
+            </div>
+
+            <div class="bg-gradient-to-br from-yellow-400 to-orange-500 p-6 rounded-[2rem] mb-8 shadow-lg relative overflow-hidden">
+                <div class="absolute -top-2 -right-2 opacity-20 text-7xl">✨</div>
+                <h2 id="question-text" class="text-3xl font-black text-white drop-shadow-md text-center italic tracking-tighter">20 の 50%</h2>
+            </div>
+
+            <div class="flex justify-around items-end h-64 mb-4 gap-6">
+                <!-- 基準のバー -->
+                <div class="flex flex-col items-center w-full h-full relative">
+                    <div class="relative w-full h-full bg-gray-100 rounded-2xl overflow-hidden shadow-inner flex flex-col justify-end">
+                        <div id="ref-visual" class="w-full bg-gray-300" style="height: 50%;"></div>
+                        <!-- ガイドライン -->
+                        <div id="ref-guide" class="guide-line" style="bottom: 50%;"></div>
+                    </div>
+                </div>
+
+                <!-- 回答のバー -->
+                <div class="flex flex-col items-center w-full h-full relative">
+                    <div class="relative w-full h-full bg-gray-100 rounded-2xl overflow-hidden shadow-inner flex flex-col justify-end">
+                        <div id="user-visual" class="w-full bg-gradient-to-t from-pink-500 to-yellow-400 h-0 visual-box shadow-[0_0_20px_rgba(236,72,153,0.3)]"></div>
+                        <!-- 回答側の100%ガイドライン -->
+                        <div id="user-guide" class="guide-line" style="bottom: 50%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ラベルエリア：数値を隠して感覚で答えさせる -->
+            <div class="flex justify-around mb-8">
+                <div class="text-center w-full">
+                    <div class="text-xs font-black text-gray-400 uppercase mb-1">もとの大きさ</div>
+                    <div class="bg-gray-200 py-1 px-3 rounded-lg text-2xl font-black text-gray-700 inline-block min-w-[60px]" id="ref-label">20</div>
+                </div>
+                <div class="text-center w-full">
+                    <div class="text-xs font-black text-pink-500 uppercase mb-1">きみの かいとう</div>
+                    <div class="bg-pink-50 py-1 px-3 rounded-lg text-2xl font-black text-pink-500 inline-block min-w-[60px]" id="live-user-status">？</div>
+                </div>
+            </div>
+
+            <div class="mb-10 text-center">
+                <p class="text-sm font-black text-gray-400 mb-4 tracking-tighter">↓ ここで 大きさを かえよう ↓</p>
+                <input id="ratio-slider" type="range" min="0" max="200" value="0" class="w-full h-5 bg-pink-100 rounded-full appearance-none cursor-pointer">
+            </div>
+
+            <button onclick="submitAnswer()" class="w-full bg-sky-400 hover:bg-sky-500 text-white font-black py-6 rounded-[2rem] shadow-[0_10px_0_rgb(14,165,233)] hover:shadow-[0_5px_0_rgb(14,165,233)] hover:translate-y-[5px] transition-all active:translate-y-[8px] active:shadow-none text-2xl tracking-widest">
+                できた！
+            </button>
+        </div>
+
+        <!-- 結果画面 -->
+        <div id="result-screen" class="hidden text-center py-8">
+            <h2 class="text-3xl font-black text-gray-800 mb-2">ごうけい スコア</h2>
+            <div class="text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-yellow-500 mb-8" id="final-score">0</div>
+            <div class="bg-yellow-50 p-6 rounded-[2rem] mb-10 border-4 border-dotted border-yellow-200">
+                <p id="rank-message" class="text-xl font-bold text-gray-700 leading-relaxed"></p>
+            </div>
+            <button onclick="location.reload()" class="bg-pink-100 hover:bg-pink-200 text-pink-500 font-black py-5 px-12 rounded-2xl transition-all text-xl">
+                もういちど あそぶ
+            </button>
+        </div>
+    </div>
+
+    <!-- 判定ポップアップ -->
+    <div id="feedback-overlay" class="fixed inset-0 bg-pink-900/60 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white p-8 rounded-[3rem] text-center shadow-2xl w-full max-w-sm pop-in border-8 border-yellow-200">
+            <h3 id="feedback-title" class="text-5xl font-black mb-6 italic tracking-tighter"></h3>
+            <div class="grid grid-cols-2 gap-4 mb-8">
+                <!-- 左にせいかい、右にきみのこたえ -->
+                <div class="bg-pink-50 p-4 rounded-2xl border-2 border-pink-100">
+                    <p class="text-[10px] font-black text-pink-400 uppercase mb-1">せいかい</p>
+                    <p id="correct-ans-val" class="text-2xl font-black text-pink-500"></p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-2xl">
+                    <p class="text-[10px] font-black text-gray-400 uppercase mb-1">きみのこたえ</p>
+                    <p id="user-ans-val" class="text-2xl font-black text-gray-800"></p>
+                </div>
+            </div>
+            <p id="feedback-score" class="text-xl font-black mb-8 text-orange-500 bg-orange-50 py-3 rounded-full"></p>
+            <button onclick="nextQuestion()" class="w-full bg-sky-400 text-white py-4 rounded-2xl font-black text-xl shadow-lg active:scale-95 transition-transform">つぎへ すすむ！</button>
+        </div>
+    </div>
+
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playTone(freq, type, duration, vol = 0.1) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        const sounds = {
+            click: () => playTone(800, 'sine', 0.1, 0.1),
+            perfect: () => {
+                playTone(523.25, 'sine', 0.5); 
+                setTimeout(() => playTone(659.25, 'sine', 0.5), 100); 
+                setTimeout(() => playTone(783.99, 'sine', 0.8), 200); 
+            },
+            good: () => playTone(880, 'sine', 0.3),
+            close: () => playTone(440, 'triangle', 0.3),
+            miss: () => playTone(150, 'sawtooth', 0.5, 0.2)
+        };
+
+        const baseValues = [10, 20, 30, 40, 50, 60, 80, 100];
+        let currentQuestion = 0;
+        let totalScore = 0;
+        let targetRatio = 0; 
+        let baseValue = 0;
+        let baseHeightPercent = 50; 
+        let timerInterval;
+        let timeLeft = 15;
+        const totalQuestions = 10;
+
+        const startScreen = document.getElementById('start-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const slider = document.getElementById('ratio-slider');
+        const userVisual = document.getElementById('user-visual');
+        const feedbackOverlay = document.getElementById('feedback-overlay');
+
+        slider.addEventListener('input', () => {
+            const val = slider.value; 
+            const actualHeight = (val / 100) * baseHeightPercent;
+            userVisual.style.height = `${actualHeight}%`;
+            // 数値は見せずに、動かしているサインだけ出す
+            document.getElementById('live-user-status').innerText = val > 0 ? "OK!" : "？";
+        });
+
+        function startGame() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            sounds.click();
+            startScreen.classList.add('hidden');
+            quizScreen.classList.remove('hidden');
+            nextQuestion();
+        }
+
+        function generateQuestion() {
+            baseHeightPercent = Math.floor(Math.random() * 41) + 30;
+            
+            const refVisual = document.getElementById('ref-visual');
+            const refGuide = document.getElementById('ref-guide');
+            const userGuide = document.getElementById('user-guide');
+            
+            refVisual.style.height = `${baseHeightPercent}%`;
+            refGuide.style.bottom = `${baseHeightPercent}%`;
+            userGuide.style.bottom = `${baseHeightPercent}%`;
+            
+            baseValue = baseValues[Math.floor(Math.random() * baseValues.length)];
+            const types = ['percent', 'increase', 'decrease', 'decimal', 'wari'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            
+            let text = "";
+            let ratio = 0;
+
+            switch(type) {
+                case 'percent':
+                    const p = (Math.floor(Math.random() * 30) + 1) * 5; 
+                    text = `${baseValue} の ${p}%`;
+                    ratio = p / 100;
+                    break;
+                case 'increase':
+                    const inc = (Math.floor(Math.random() * 8) + 1) * 10;
+                    text = `${baseValue} の ${inc}% 増し`;
+                    ratio = 1 + (inc / 100);
+                    break;
+                case 'decrease':
+                    const dec = (Math.floor(Math.random() * 8) + 1) * 10;
+                    text = `${baseValue} の ${dec}% 引き`;
+                    ratio = 1 - (dec / 100);
+                    break;
+                case 'decimal':
+                    const d = (Math.floor(Math.random() * 16) + 2) / 10; 
+                    text = `${baseValue} の ${d.toFixed(1)} 倍`;
+                    ratio = d;
+                    break;
+                case 'wari':
+                    const w = Math.floor(Math.random() * 12) + 1; 
+                    text = `${baseValue} の ${w} 割`;
+                    ratio = w / 10;
+                    break;
+            }
+
+            document.getElementById('question-text').innerText = text;
+            document.getElementById('ref-label').innerText = baseValue;
+            document.getElementById('live-user-status').innerText = "？";
+            targetRatio = ratio;
+        }
+
+        function startTimer() {
+            timeLeft = 15;
+            updateTimerDisplay();
+            timerInterval = setInterval(() => {
+                timeLeft -= 0.01;
+                if (timeLeft <= 0) {
+                    timeLeft = 0;
+                    submitAnswer();
+                }
+                updateTimerDisplay();
+            }, 10);
+        }
+
+        function updateTimerDisplay() {
+            document.getElementById('timer').innerText = timeLeft.toFixed(2);
+            if(timeLeft < 5) {
+                document.getElementById('timer').classList.add('animate-pulse');
+            } else {
+                document.getElementById('timer').classList.remove('animate-pulse');
+            }
+        }
+
+        function nextQuestion() {
+            sounds.click();
+            feedbackOverlay.classList.add('hidden');
+            currentQuestion++;
+            if (currentQuestion > totalQuestions) {
+                showResults();
+                return;
+            }
+            
+            document.getElementById('question-number').innerText = `だい ${currentQuestion}/${totalQuestions} もん`;
+            slider.value = 0;
+            userVisual.style.height = '0%';
+            generateQuestion();
+            startTimer();
+        }
+
+        function submitAnswer() {
+            clearInterval(timerInterval);
+            const userRatio = slider.value / 100;
+            
+            // すべて整数で扱うように丸める
+            const userValInt = Math.round(baseValue * userRatio);
+            const targetValInt = Math.round(baseValue * targetRatio);
+            
+            const diff = Math.abs(targetValInt - userValInt);
+            const tolerance = baseValue * 0.1; // 10%以内のズレを許容
+            
+            let resultTitle = "";
+            let baseScore = 0;
+            let titleClass = "";
+
+            if (diff === 0) {
+                resultTitle = "ぴったり！";
+                baseScore = 100;
+                titleClass = "text-green-500";
+                sounds.perfect();
+            } else if (diff <= tolerance) {
+                resultTitle = "ほぼ せいかい！";
+                baseScore = 80;
+                titleClass = "text-blue-500";
+                sounds.good();
+            } else if (diff <= tolerance * 2) {
+                resultTitle = "おしい！";
+                baseScore = 40;
+                titleClass = "text-orange-400";
+                sounds.close();
+            } else {
+                resultTitle = "まちがい…";
+                baseScore = 0;
+                titleClass = "text-rose-500";
+                sounds.miss();
+            }
+
+            const timeBonus = baseScore > 0 ? Math.floor((timeLeft / 15) * 50) : 0;
+            const roundScore = baseScore + timeBonus;
+            totalScore += roundScore;
+
+            const titleElem = document.getElementById('feedback-title');
+            titleElem.innerText = resultTitle;
+            titleElem.className = `text-5xl font-black mb-6 ${titleClass}`;
+            
+            document.getElementById('user-ans-val').innerText = userValInt;
+            document.getElementById('correct-ans-val').innerText = targetValInt;
+            document.getElementById('feedback-score').innerText = `+${roundScore} ポイント`;
+            
+            feedbackOverlay.classList.remove('hidden');
+        }
+
+        function showResults() {
+            quizScreen.classList.add('hidden');
+            resultScreen.classList.remove('hidden');
+            document.getElementById('final-score').innerText = totalScore;
+
+            let rank = "";
+            if (totalScore >= 1300) rank = "【かみレベル】<br>わりあいの てんさいだ！きみの かんかくは 完ぺき！";
+            else if (totalScore >= 1000) rank = "【プロレベル】<br>わりあいを マスターしたね！すごい！";
+            else if (totalScore >= 600) rank = "【ふつうレベル】<br>いい かんじだね。もっと ぴったりを めざそう！";
+            else rank = "【見ならいレベル】<br>これから れんしゅうして、わりあい はかせに なろう！";
+            
+            document.getElementById('rank-message').innerHTML = rank;
+        }
+
+    </script>
+</body>
+</html>
