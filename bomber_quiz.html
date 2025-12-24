@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bomber Quiz Arena Gold</title>
+    <title>Bomber Quiz Arena 100</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
-            background-color: #111;
+            background-color: #0f172a;
             color: white;
             font-family: 'Hiragino Kaku Gothic Pro', 'Meiryo', sans-serif;
             margin: 0;
@@ -20,19 +20,21 @@
         }
         #game-container {
             position: relative;
-            box-shadow: 0 0 60px rgba(0,0,0,0.7);
-            border: 4px solid #444;
-            background-color: #1e3a1a;
+            box-shadow: 0 0 60px rgba(0,0,0,0.8);
+            border: 4px solid #334155;
+            background-color: #064e3b;
+            border-radius: 8px;
+            overflow: hidden;
         }
         canvas { display: block; }
         .ui-panel {
-            background: rgba(15, 15, 15, 0.95);
-            padding: 2rem;
-            border-radius: 24px;
+            background: rgba(15, 23, 42, 0.95);
+            padding: 2.5rem;
+            border-radius: 32px;
             text-align: center;
-            max-width: 520px;
-            border: 2px solid #555;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            max-width: 550px;
+            border: 2px solid #475569;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
         }
         #quiz-modal {
             display: none;
@@ -40,73 +42,71 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: #0a0a0a;
-            padding: 2rem;
-            border: 4px solid #fbbf24;
-            border-radius: 24px;
+            background: #020617;
+            padding: 2.5rem;
+            border: 5px solid #fbbf24;
+            border-radius: 32px;
             z-index: 100;
             width: 90%;
-            max-width: 500px;
+            max-width: 600px;
             text-align: center;
-            box-shadow: 0 0 150px rgba(0,0,0,0.9);
+            box-shadow: 0 0 200px rgba(0,0,0,1);
         }
         .choice-btn {
-            background: #222;
-            border: 2px solid #444;
-            padding: 1.2rem;
-            border-radius: 12px;
+            background: #1e293b;
+            border: 2px solid #334155;
+            padding: 1.25rem;
+            border-radius: 16px;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             font-weight: bold;
             font-size: 1.1rem;
             width: 100%;
+            color: #f1f5f9;
         }
-        .choice-btn:hover { background: #333; border-color: #fbbf24; transform: translateY(-2px); }
-        .choice-btn:active { transform: scale(0.96); }
+        .choice-btn:hover { background: #334155; border-color: #fbbf24; transform: translateY(-3px); }
+        .choice-btn:active { transform: scale(0.95); }
+        .stat-badge {
+            background: rgba(0,0,0,0.5);
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-family: monospace;
+        }
     </style>
 </head>
 <body>
 
     <!-- Lobby UI -->
     <div id="lobby" class="ui-panel">
-        <h1 class="text-4xl font-black mb-6 text-yellow-500 tracking-tighter italic drop-shadow-lg">BOMBER QUIZ ARENA GOLD</h1>
+        <h1 class="text-5xl font-black mb-2 text-yellow-500 italic drop-shadow-2xl">BOMBER QUIZ</h1>
+        <div class="text-yellow-200 text-sm font-bold mb-8 tracking-widest uppercase">Elite 100 Edition</div>
         
         <div class="grid grid-cols-2 gap-4 mb-8 text-sm text-left">
-            <div class="bg-gray-900 p-3 rounded-xl border-l-4 border-yellow-500">
-                <div class="text-yellow-400 font-bold mb-1 flex items-center gap-1">🎮 ルール</div>
-                <ul class="text-gray-300 text-[11px] leading-relaxed">
-                    <li>・爆弾でブロックを壊せ</li>
-                    <li>・「？」に触れてクイズ開始</li>
-                    <li>・正解で10秒間スーパー化！</li>
-                    <li>・最後まで生き残れば勝利</li>
-                </ul>
+            <div class="bg-slate-900 p-4 rounded-2xl border-l-4 border-yellow-500">
+                <div class="text-yellow-400 font-bold mb-2 flex items-center gap-2">🕹️ 操作</div>
+                <div class="text-[11px] space-y-1 text-slate-300">
+                    <p>移動: 十字キー / WASD / UHJK / 8456</p>
+                    <p>爆弾: Enter / Space / Y / 0</p>
+                </div>
             </div>
-            <div class="bg-gray-900 p-3 rounded-xl border-l-4 border-blue-500">
-                <div class="text-blue-400 font-bold mb-1 flex items-center gap-1">🚀 報酬</div>
-                <div class="flex flex-col gap-1 text-[10px] text-gray-300">
-                    <span>🔥 火力MAX: 爆風が端まで届く</span>
-                    <span>⚡ スピード: 移動速度が大幅UP</span>
-                    <span>💎 貫通: ブロックを抜ける炎</span>
-                    <span>💣 爆弾+: 最大設置数がUP(永続)</span>
+            <div class="bg-slate-900 p-4 rounded-2xl border-l-4 border-blue-500">
+                <div class="text-blue-400 font-bold mb-2 flex items-center gap-2">🎓 学習効果</div>
+                <div class="text-[11px] text-slate-300">
+                    全100問のクイズを収録。<br>正解すると10秒間、特殊能力（スピード・火力・貫通）が付与されます。
                 </div>
             </div>
         </div>
 
-        <div class="flex gap-3 justify-center mb-6">
-            <button onclick="startGame(2)" class="bg-blue-600 hover:bg-blue-700 px-6 py-4 rounded-2xl font-bold transition flex-1 text-lg shadow-xl border-b-4 border-blue-800">2人対戦</button>
-            <button onclick="startGame(3)" class="bg-green-600 hover:bg-green-700 px-6 py-4 rounded-2xl font-bold transition flex-1 text-lg shadow-xl border-b-4 border-green-800">3人対戦</button>
-            <button onclick="startGame(4)" class="bg-red-600 hover:bg-red-700 px-6 py-4 rounded-2xl font-bold transition flex-1 text-lg shadow-xl border-b-4 border-red-800">4人対戦</button>
+        <div class="flex flex-wrap gap-3 justify-center mb-6">
+            <button onclick="startGame(2)" class="bg-blue-600 hover:bg-blue-700 px-8 py-5 rounded-2xl font-black transition flex-1 text-xl shadow-xl border-b-4 border-blue-900">2人対戦</button>
+            <button onclick="startGame(3)" class="bg-emerald-600 hover:bg-emerald-700 px-8 py-5 rounded-2xl font-black transition flex-1 text-xl shadow-xl border-b-4 border-emerald-900">3人対戦</button>
+            <button onclick="startGame(4)" class="bg-rose-600 hover:bg-rose-700 px-8 py-5 rounded-2xl font-black transition flex-1 text-xl shadow-xl border-b-4 border-rose-900">4人対戦</button>
         </div>
-
-        <div class="text-[10px] text-gray-500 flex justify-between px-2 font-mono">
-            <span>P1:WASD/Space</span>
-            <span>P2:矢印/Enter</span>
-            <span>P3:UHJK/Y</span>
-            <span>P4:Num8456/0</span>
-        </div>
+        <p class="text-slate-500 text-xs mt-2">※爆風に当たると脱落。最後まで残った人が勝者！</p>
     </div>
 
     <!-- Status UI -->
-    <div id="game-info" class="hidden flex gap-3 mb-2"></div>
+    <div id="game-info" class="hidden flex gap-4 mb-3"></div>
 
     <!-- Canvas -->
     <div id="game-container" class="hidden">
@@ -115,21 +115,21 @@
 
     <!-- Quiz Modal -->
     <div id="quiz-modal">
-        <div id="quiz-player-tag" class="inline-block px-5 py-1 rounded-full text-xs font-bold mb-3 uppercase tracking-widest shadow-lg"></div>
-        <div id="quiz-subject" class="text-yellow-500 font-bold text-lg mb-1">科目</div>
-        <div id="quiz-question" class="text-2xl font-bold text-white mb-8 px-2 leading-tight">問題文</div>
+        <div id="quiz-player-tag" class="inline-block px-6 py-1.5 rounded-full text-sm font-black mb-4 uppercase tracking-tighter"></div>
+        <div id="quiz-subject" class="text-cyan-400 font-bold text-xl mb-1">科目</div>
+        <div id="quiz-question" class="text-2xl font-bold text-white mb-8 px-4 leading-relaxed min-h-[4rem]">問題文</div>
         <div id="quiz-choices" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8"></div>
-        <div id="quiz-timer-container" class="w-full bg-gray-800 h-3 rounded-full overflow-hidden mb-1 border border-gray-700">
-            <div id="quiz-timer-bar" class="bg-gradient-to-r from-red-600 to-yellow-500 h-full w-full transition-all duration-100 ease-linear"></div>
+        <div id="quiz-timer-container" class="w-full bg-slate-800 h-4 rounded-full overflow-hidden mb-2">
+            <div id="quiz-timer-bar" class="bg-gradient-to-r from-rose-500 via-orange-400 to-yellow-400 h-full w-full transition-all duration-100 linear"></div>
         </div>
-        <div id="quiz-timer-text" class="text-red-500 font-mono font-black text-xl">10.0s</div>
+        <div id="quiz-timer-text" class="text-rose-500 font-mono font-black text-2xl">10.0s</div>
     </div>
 
     <!-- Game Over Overlay -->
-    <div id="game-over" class="hidden absolute inset-0 bg-black bg-opacity-95 flex flex-col items-center justify-center z-50">
-        <div class="text-gray-500 font-bold mb-2 tracking-widest uppercase">Battle Result</div>
-        <h2 id="winner-text" class="text-7xl font-black text-yellow-400 mb-12 drop-shadow-2xl">PLAYER 1 WIN!</h2>
-        <button onclick="location.reload()" class="bg-yellow-500 text-black px-16 py-6 rounded-full font-black text-3xl hover:bg-white transition transform hover:scale-110 shadow-[0_0_30px_rgba(234,179,8,0.4)]">TITLE</button>
+    <div id="game-over" class="hidden absolute inset-0 bg-slate-950 bg-opacity-95 flex flex-col items-center justify-center z-50">
+        <div class="text-slate-500 font-bold mb-4 tracking-[0.5em] uppercase">Victory Achieved</div>
+        <h2 id="winner-text" class="text-8xl font-black text-yellow-400 mb-16 italic">PLAYER 1 WIN!</h2>
+        <button onclick="location.reload()" class="bg-white text-black px-20 py-8 rounded-full font-black text-3xl hover:bg-yellow-400 transition transform hover:scale-110 shadow-2xl">再挑戦</button>
     </div>
 
     <script>
@@ -159,7 +159,7 @@
 
         const COLORS = {
             P1: '#3b82f6', P2: '#ef4444', P3: '#10b981', P4: '#f59e0b',
-            WALL: '#374151', BLOCK: '#78350f', BOMB: '#111', FIRE: '#ea580c', ITEM: '#fde047'
+            WALL: '#1e293b', BLOCK: '#4b5563', BOMB: '#020617', FIRE: '#f97316', ITEM: '#fbbf24'
         };
 
         const CONTROL_SCHEMES = [
@@ -169,6 +169,115 @@
             { up: '8', left: '4', down: '5', right: '6', action: '0' }
         ];
 
+        // --- クイズデータ (全100問) ---
+        const QUIZ_BANK = [
+            // 算数 (20)
+            {s:"算数",q:"12 × 12 = ?",c:["124","144","164","142"],a:1},
+            {s:"算数",q:"半径5cmの円の直径は？",c:["5cm","10cm","15.7cm","25cm"],a:1},
+            {s:"算数",q:"1kmは何メートル？",c:["100m","1000m","10000m","10m"],a:1},
+            {s:"算数",q:"25%を小数で表すと？",c:["2.5","0.25","0.025","25"],a:1},
+            {s:"算数",q:"2/5 + 1/5 = ?",c:["3/10","3/5","2/25","1/5"],a:1},
+            {s:"算数",q:"六角形の内角の和は？",c:["360度","540度","720度","900度"],a:2},
+            {s:"算数",q:"1時間は何秒？",c:["60秒","600秒","3600秒","360秒"],a:2},
+            {s:"算数",q:"81の平方根は？",c:["7","8","9","10"],a:2},
+            {s:"算数",q:"1ダースは何本？",c:["10本","12本","14本","24本"],a:1},
+            {s:"算数",q:"正三角形の1つの角の大きさは？",c:["30度","45度","60度","90度"],a:2},
+            {s:"算数",q:"3.14 × 2 = ?",c:["6.24","6.28","6.42","6.18"],a:1},
+            {s:"算数",q:"最小の素数は？",c:["0","1","2","3"],a:2},
+            {s:"算数",q:"1Lは何mL？",c:["100mL","500mL","1000mL","10000mL"],a:2},
+            {s:"算数",q:"5の3乗(5×5×5)は？",c:["15","25","125","625"],a:2},
+            {s:"算数",q:"台形の面積は？",c:["底辺×高","(上底+下底)×高÷2","底辺×高÷2","辺×辺"],a:1},
+            {s:"算数",q:"0.125を分数にすると？",c:["1/4","1/5","1/8","1/10"],a:2},
+            {s:"算数",q:"40の30%は？",c:["12","15","20","30"],a:0},
+            {s:"算数",q:"直角三角形で一番長い辺を何という？",c:["底辺","高さ","斜辺","対角線"],a:2},
+            {s:"算数",q:"2, 3, 5, 7, 11... 次の素数は？",c:["12","13","15","17"],a:1},
+            {s:"算数",q:"5角形の対角線の本数は？",c:["2本","3本","5本","10本"],a:2},
+            // 国語 (20)
+            {s:"国語",q:"「海女」の読み方は？",c:["うみおんな","あま","かいじょ","うみめ"],a:1},
+            {s:"国語",q:"「杞憂」の意味は？",c:["喜び","取り越し苦労","勇気","悲しみ"],a:1},
+            {s:"国語",q:"「案ずるより（　）が易し」",c:["生む","聞く","行く","産む"],a:3},
+            {s:"国語",q:"「月下（　）人」",c:["氷","雪","華","風"],a:0},
+            {s:"国語",q:"「未曾有」の読み方は？",c:["みぞう","みぞうゆう","みぞうい","みそあ"],a:0},
+            {s:"国語",q:"「おもむろに」の意味は？",c:["突然に","ゆっくりと","激しく","密かに"],a:1},
+            {s:"国語",q:"「五月雨」の読み方は？",c:["さみだれ","ごがつあめ","さつきあめ","さだれ"],a:0},
+            {s:"国語",q:"「忖度」の読み方は？",c:["しゅんたく","そんたく","ふんたく","すんたく"],a:1},
+            {s:"国語",q:"「（　）を折る」苦労すること",c:["腰","骨","指","膝"],a:1},
+            {s:"国語",q:"「一石（　）鳥」",c:["一","二","三","四"],a:1},
+            {s:"国語",q:"「情けは人の（　）ならず」",c:["ため","ためのみ","ためにならぬ","ためにならない"],a:0},
+            {s:"国語",q:"「御田」と書く食べ物は？",c:["おにぎり","おでん","おもち","おすし"],a:1},
+            {s:"国語",q:"「二十歳」の読み方は？",c:["にじゅうさい","はたち","はたし","にじっさい"],a:1},
+            {s:"国語",q:"「嗚咽」の読み方は？",c:["あえつ","おえつ","わえつ","まえつ"],a:1},
+            {s:"国語",q:"「他山の石」の意味は？",c:["関係ないこと","反面教師にすること","邪魔なもの","珍しい石"],a:1},
+            {s:"国語",q:"「食指が（　）」興味がわく",c:["のびる","うごく","すすむ","たつ"],a:1},
+            {s:"国語",q:"「知面」の読み方は？",c:["ちめん","しりあい","ちめん","しりめん"],a:1},
+            {s:"国語",q:"「白雨」の読み方は？",c:["はくう","しらあめ","にわかあめ","しろあめ"],a:2},
+            {s:"国語",q:"「破竹の勢い」の竹はどうなる？",c:["折れる","割れる","枯れる","伸びる"],a:1},
+            {s:"国語",q:"「太公望」とは何をする人？",c:["登山","釣り","読書","料理"],a:1},
+            // 理科 (20)
+            {s:"理科",q:"月が地球を一周するのにかかる時間は？",c:["1日","1ヶ月","1年","1週間"],a:1},
+            {s:"理科",q:"植物の葉にある緑色の粒を何という？",c:["気孔","葉緑体","細胞核","維管束"],a:1},
+            {s:"理科",q:"光の三原色は？",c:["赤・青・黄","赤・緑・青","黄・緑・紫","白・黒・赤"],a:1},
+            {s:"理科",q:"水に溶けている物質を取り出すことを？",c:["溶解","再結晶","凝固","蒸留"],a:1},
+            {s:"理科",q:"地震の揺れの大きさを表すのは？",c:["震度","マグニチュード","デシベル","メートル"],a:0},
+            {s:"理科",q:"空気中に一番多い気体は？",c:["酸素","二酸化炭素","窒素","アルゴン"],a:2},
+            {s:"理科",q:"水は何度で沸騰する？",c:["0度","50度","100度","200度"],a:2},
+            {s:"理科",q:"アリの足は何本？",c:["4本","6本","8本","10本"],a:1},
+            {s:"理科",q:"太陽系で一番大きな惑星は？",c:["地球","火星","木星","土星"],a:2},
+            {s:"理科",q:"音の伝わる速さが一番速いのは？",c:["空気中","水中","鉄の中","真空中"],a:2},
+            {s:"理科",q:"光合成で植物が吸収する気体は？",c:["酸素","二酸化炭素","窒素","水素"],a:1},
+            {s:"理科",q:"人の体温を調節する中枢はどこ？",c:["心臓","肺","脳","胃"],a:2},
+            {s:"理科",q:"北極星が含まれる星座は？",c:["おおぐま座","こぐま座","カシオペヤ座","オリオン座"],a:1},
+            {s:"理科",q:"ジャガイモの食べている部分は？",c:["根","茎","実","葉"],a:1},
+            {s:"理科",q:"火成岩のうち、地表近くで急に冷えたのは？",c:["深成岩","火山岩","堆積岩","変成岩"],a:1},
+            {s:"理科",q:"酸性の液体を赤く変えるのは？",c:["リトマス紙","BTB溶液","フェノールフタレイン","メチルオレンジ"],a:0},
+            {s:"理科",q:"でんぷんを調べる時に使う液は？",c:["ベネジクト液","ヨウ素液","石灰水","食塩水"],a:1},
+            {s:"理科",q:"一円玉は何でできている？",c:["鉄","銅","アルミニウム","金"],a:2},
+            {s:"理科",q:"昆虫の心臓は体のどこにある？",c:["頭","胸","背中側","お腹側"],a:2},
+            {s:"理科",q:"飽和水溶液の温度を下げて結晶を出すことを？",c:["再結晶","ろ過","蒸留","昇華"],a:0},
+            // 社会 (20)
+            {s:"社会",q:"日本で一番長い川は？",c:["利根川","信濃川","石狩川","淀川"],a:1},
+            {s:"社会",q:"「遣隋使」を派遣した人物は？",c:["聖徳太子","織田信長","卑弥呼","徳川家康"],a:0},
+            {s:"社会",q:"世界最大の島は？",c:["オーストラリア","グリーンランド","本州","マダガスカル"],a:1},
+            {s:"社会",q:"日本の都道府県の数は？",c:["43","45","47","50"],a:2},
+            {s:"社会",q:"関ヶ原の戦いが起きたのは西暦何年？",c:["1560年","1582年","1600年","1868年"],a:2},
+            {s:"社会",q:"世界で一番人口が多い国は？(2023年) ",c:["中国","インド","アメリカ","インドネシア"],a:1},
+            {s:"社会",q:"日本の標準時を決めている都市は？",c:["東京","京都","明石","大阪"],a:2},
+            {s:"社会",q:"日本初の征夷大将軍は？",c:["源頼朝","足利尊氏","徳川家康","坂上田村麻呂"],a:3},
+            {s:"社会",q:"EUの本部がある都市は？",c:["パリ","ロンドン","ブリュッセル","ベルリン"],a:2},
+            {s:"社会",q:"日本最大の湖は？",c:["霞ヶ浦","中海","琵琶湖","サロマ湖"],a:2},
+            {s:"社会",q:"1867年に政権を朝廷に返したことを？",c:["明治維新","大政奉還","版籍奉還","廃藩置県"],a:1},
+            {s:"社会",q:"アマゾン川がある大陸は？",c:["アフリカ","南アメリカ","北アメリカ","アジア"],a:1},
+            {s:"社会",q:"衆議院議員の任期は何年？",c:["2年","4年","6年","なし"],a:1},
+            {s:"社会",q:"「鳴かぬなら殺してしまえ」と言ったのは？",c:["信長","秀吉","家康","光秀"],a:0},
+            {s:"社会",q:"日本最南端の島は？",c:["沖ノ鳥島","南鳥島","与那国島","択捉島"],a:0},
+            {s:"社会",q:"金閣寺を建てたのは？",c:["足利義満","足利義政","聖武天皇","豊臣秀吉"],a:0},
+            {s:"社会",q:"三大随筆「枕草子」の作者は？",c:["紫式部","清少納言","紀貫之","鴨長明"],a:1},
+            {s:"社会",q:"ナポレオンが生まれた島は？",c:["エルバ島","コルシカ島","セントヘレナ島","シチリア島"],a:1},
+            {s:"社会",q:"世界で一番面積が広い国は？",c:["カナダ","ロシア","アメリカ","中国"],a:1},
+            {s:"社会",q:"日本最古の貨幣とされるのは？",c:["和同開珎","富本銭","寛永通宝","慶長小判"],a:1},
+            // 英語 (20)
+            {s:"英語",q:"「水曜日」を英語で？",c:["Tuesday","Wednesday","Thursday","Friday"],a:1},
+            {s:"英語",q:"「昨日」を英語で？",c:["Today","Tomorrow","Yesterday","Tonight"],a:2},
+            {s:"英語",q:"「15」を英語で？",c:["Fifty","Fifteen","Fiveteen","Fifth"],a:1},
+            {s:"英語",q:"「どこ？」を聞く言葉は？",c:["When","Where","Who","What"],a:1},
+            {s:"英語",q:"「Apple」の複数形は？",c:["Apples","Applees","Applis","Appls"],a:0},
+            {s:"英語",q:"「美味しい」を英語で？",c:["Delicious","Difficult","Dangerous","Different"],a:0},
+            {s:"英語",q:"「図書館」は英語で？",c:["Hospital","Library","Station","Museum"],a:1},
+            {s:"英語",q:"「箸」は英語で？",c:["Forks","Spoons","Chopsticks","Knives"],a:2},
+            {s:"英語",q:"「朝食」は英語で？",c:["Lunch","Dinner","Breakfast","Snack"],a:2},
+            {s:"英語",q:"「I (  ) a student.」入るのは？",c:["is","am","are","be"],a:1},
+            {s:"英語",q:"「Beautiful」の反対語は？",c:["Ugly","Pretty","Cute","Nice"],a:0},
+            {s:"英語",q:"「筆箱」は英語で？",c:["Notebook","Pencil case","Eraser","Ruler"],a:1},
+            {s:"英語",q:"「12月」は英語で？",c:["October","November","December","January"],a:2},
+            {s:"英語",q:"「歩く」を英語で？",c:["Run","Swim","Walk","Jump"],a:2},
+            {s:"英語",q:"「We (  ) football.」入るのは？",c:["play","plays","playing","to play"],a:0},
+            {s:"英語",q:"「眼鏡」は英語で？",c:["Cups","Glasses","Plates","Bottles"],a:1},
+            {s:"英語",q:"「太陽」は英語で？",c:["Moon","Star","Sun","Sky"],a:2},
+            {s:"英語",q:"「Sorry.」どういう時に使う？",c:["謝る時","話しかける時","別れる時","喜ぶ時"],a:1},
+            {s:"英語",q:"「Always」の意味は？",c:["時々","めったにない","いつも","たぶん"],a:2},
+            {s:"英語",q:"「秋」を英語で？",c:["Spring","Summer","Autumn","Winter"],a:2}
+        ];
+
         // --- AUDIO ENGINE ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         function playSound(type) {
@@ -176,9 +285,8 @@
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.connect(gain); gain.connect(audioCtx.destination);
-            
             if(type === 'bomb'){
-                osc.type = 'triangle'; osc.frequency.setValueAtTime(160, now); osc.frequency.exponentialRampToValueAtTime(40, now + 0.3);
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(150, now); osc.frequency.exponentialRampToValueAtTime(40, now + 0.3);
                 gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.3);
                 osc.start(); osc.stop(now + 0.3);
             } else if(type === 'explosion'){
@@ -187,24 +295,24 @@
                 const data = buffer.getChannelData(0);
                 for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
                 noise.buffer = buffer;
-                const filter = audioCtx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.setValueAtTime(500, now);
+                const filter = audioCtx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.setValueAtTime(400, now);
                 noise.connect(filter);
-                const g = audioCtx.createGain(); g.gain.setValueAtTime(0.4, now); g.gain.linearRampToValueAtTime(0, now + 0.4);
+                const g = audioCtx.createGain(); g.gain.setValueAtTime(0.3, now); g.gain.linearRampToValueAtTime(0, now + 0.4);
                 filter.connect(g); g.connect(audioCtx.destination);
                 noise.start();
             } else if(type === 'item'){
-                osc.type = 'sine'; osc.frequency.setValueAtTime(800, now); osc.frequency.exponentialRampToValueAtTime(1600, now + 0.1);
+                osc.type = 'sine'; osc.frequency.setValueAtTime(900, now); osc.frequency.exponentialRampToValueAtTime(1800, now + 0.1);
                 gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.1);
                 osc.start(); osc.stop(now + 0.1);
             } else if(type === 'correct'){
                 osc.type = 'sine'; osc.frequency.setValueAtTime(523, now); 
-                gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 0.5);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.5);
                 osc.start(); osc.stop(now + 0.5);
                 const osc2 = audioCtx.createOscillator(); osc2.connect(gain); osc2.type='sine';
                 osc2.frequency.setValueAtTime(659, now+0.1); osc2.start(now+0.1); osc2.stop(now+0.5);
             } else if(type === 'wrong'){
-                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(100, now); osc.frequency.linearRampToValueAtTime(40, now+0.4);
-                gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 0.4);
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(110, now); osc.frequency.linearRampToValueAtTime(55, now+0.4);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.4);
                 osc.start(); osc.stop(now + 0.4);
             }
         }
@@ -225,7 +333,9 @@
                 if (this.isPiercing || this.isMaxFire || this.speed > 4) {
                     ctx.strokeStyle = 'white'; ctx.lineWidth = 3; ctx.stroke();
                 }
-                ctx.fillStyle = 'white'; ctx.fillRect(this.pixelX + 11, this.pixelY + 14, 5, 5); ctx.fillRect(this.pixelX + 24, this.pixelY + 14, 5, 5);
+                ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillRect(this.pixelX + 12, this.pixelY + 12, 4, 4); ctx.fillRect(this.pixelX + 24, this.pixelY + 12, 4, 4);
+                ctx.font = "bold 10px Arial"; ctx.fillStyle = "white"; ctx.textAlign = "center";
+                ctx.fillText(`P${this.id}`, this.pixelX + TILE_SIZE/2, this.pixelY + 10);
             }
             update() {
                 if (!this.alive || currentQuiz) return;
@@ -267,7 +377,7 @@
                 const bx = Math.round(this.pixelX / TILE_SIZE), by = Math.round(this.pixelY / TILE_SIZE);
                 if (this.bombsPlaced < this.bombsMax && !bombs.some(b => b.x === bx && b.y === by)) {
                     playSound('bomb');
-                    bombs.push({ x: bx, y: by, timer: 120, range: this.isMaxFire ? 20 : this.range, owner: this, isPiercing: this.isPiercing });
+                    bombs.push({ x: bx, y: by, timer: 120, range: this.isMaxFire ? 15 : this.range, owner: this, isPiercing: this.isPiercing });
                     this.bombsPlaced++;
                 }
             }
@@ -281,84 +391,15 @@
             return x >= 0 && y >= 0 && x < GRID_WIDTH && y < GRID_HEIGHT && grid[y][x] === EMPTY && !bombs.some(b => b.x === x && b.y === y);
         }
 
-        // --- EXTENDED QUIZ DATABASE (60 QUESTIONS) ---
-        const QUIZ_BANK = [
-            // 算数
-            { s: "算数", q: "12 × 12 は？", c: ["124", "144", "164", "142"], a: 1 },
-            { s: "算数", q: "半径 5cm の円の直径は？", c: ["5cm", "10cm", "15.7cm", "25cm"], a: 1 },
-            { s: "算数", q: "1km は何メートル？", c: ["100m", "1000m", "10000m", "10m"], a: 1 },
-            { s: "算数", q: "25% を小数で表すと？", c: ["2.5", "0.25", "0.025", "25"], a: 1 },
-            { s: "算数", q: "2/5 + 1/5 は？", c: ["3/10", "3/5", "2/25", "1/5"], a: 1 },
-            { s: "算数", q: "六角形の内角の和は？", c: ["360度", "540度", "720度", "900度"], a: 2 },
-            { s: "算数", q: "1時間は何秒？", c: ["60秒", "600秒", "3600秒", "360秒"], a: 2 },
-            { s: "算数", q: "81 の平方根（2乗して81になる数）は？", c: ["7", "8", "9", "10"], a: 2 },
-            { s: "算数", q: "平均 80点のテストを3回受けた時の合計点は？", c: ["160点", "240点", "320点", "80点"], a: 1 },
-            { s: "算数", q: "0.5L のジュースを3本買うと全部で何mL？", c: ["150mL", "1500mL", "15000mL", "1.5mL"], a: 1 },
-            { s: "算数", q: "平行四辺形の面積の求め方は？", c: ["底辺×高さ", "底辺×高さ÷2", "(上底+下底)×高さ÷2", "辺×辺"], a: 0 },
-            { s: "算数", q: "偶数と奇数をたすと答えは必ず何になる？", c: ["偶数", "奇数", "0", "決まっていない"], a: 1 },
-            // 国語
-            { s: "国語", q: "「海女」の読み方は？", c: ["うみおんな", "あま", "かいじょ", "うみめ"], a: 1 },
-            { s: "国語", q: "「杞憂」の意味は？", c: ["喜び", "取り越し苦労", "勇気", "悲しみ"], a: 1 },
-            { s: "国語", q: "「案ずるより（　）が易し」", c: ["生む", "聞く", "行く", "産む"], a: 3 },
-            { s: "国語", q: "「一石（　）鳥」", c: ["一", "二", "三", "四"], a: 1 },
-            { s: "国語", q: "「月下（　）人」", c: ["氷", "雪", "華", "風"], a: 0 },
-            { s: "国語", q: "次のうち動詞はどれ？", c: ["速い", "静かだ", "走る", "とても"], a: 2 },
-            { s: "国語", q: "「伯父」は誰のこと？", c: ["おじいさん", "父の兄", "父の弟", "いとこ"], a: 1 },
-            { s: "国語", q: "「未曾有」の読み方は？", c: ["みぞう", "みぞうゆう", "みぞうい", "みそあ"], a: 1 },
-            { s: "国語", q: "「おもむろに」の正しい意味は？", c: ["突然に", "ゆっくりと", "激しく", "密かに"], a: 1 },
-            { s: "国語", q: "「蛇足」の由来となった生き物は？", c: ["カエル", "ヘビ", "トカゲ", "ムカデ"], a: 1 },
-            { s: "国語", q: "「忖度」の読み方は？", c: ["しゅんたく", "そんたく", "ふんたく", "すんたく"], a: 1 },
-            { s: "国語", q: "「雨降って地（　）まる」", c: ["固まる", "埋まる", "弱まる", "冷める"], a: 0 },
-            // 理科
-            { s: "理科", q: "月が地球の周りを一周するのにかかる時間は？", c: ["約1日", "約1ヶ月", "約1年", "約1週間"], a: 1 },
-            { s: "理科", q: "植物の葉にある緑色の粒を何という？", c: ["気孔", "葉緑体", "細胞核", "維管束"], a: 1 },
-            { s: "理科", q: "酸性の液体を青色リトマス紙につけると？", c: ["青のまま", "赤くなる", "黄色になる", "消える"], a: 1 },
-            { s: "理科", q: "光の三原色は？", c: ["赤・青・黄", "赤・緑・青", "黄・緑・紫", "白・黒・赤"], a: 1 },
-            { s: "理科", q: "昆虫の体は「頭部」「腹部」ともう一つは何？", c: ["背部", "胸部", "足部", "翼部"], a: 1 },
-            { s: "理科", q: "水に溶けている物質を取り出すことを？", c: ["溶解", "再結晶", "凝固", "蒸留"], a: 1 },
-            { s: "理科", q: "人の脈拍を測る場所として正しいのは？", c: ["手首", "手の甲", "肩", "ひじ"], a: 0 },
-            { s: "理科", q: "雲は何からできている？", c: ["空気", "水滴や氷の粒", "煙", "綿"], a: 1 },
-            { s: "理科", q: "メダカのオスとメスの見分け方で、背びれに切れ込みがあるのは？", c: ["オス", "メス", "両方", "いない"], a: 0 },
-            { s: "理科", q: "地震の揺れの大きさを表す尺度は？", c: ["震度", "マグニチュード", "デシベル", "メートル"], a: 0 },
-            { s: "理科", q: "夏の夜空に見える「夏の大三角」に含まれない星は？", c: ["ベガ", "アルタイル", "デネブ", "シリウス"], a: 3 },
-            { s: "理科", q: "音の伝わり方が一番速いのは？", c: ["空気中", "水中", "鉄の中", "真空中"], a: 2 },
-            // 社会
-            { s: "社会", q: "日本で一番長い川は？", c: ["利根川", "信濃川", "石狩川", "淀川"], a: 1 },
-            { s: "社会", q: "「聖徳太子」が派遣した使節は？", c: ["遣唐使", "遣隋使", "遣明使", "朝鮮通信使"], a: 1 },
-            { s: "社会", q: "世界最大の島は？", c: ["オーストラリア", "グリーンランド", "本州", "マダガスカル"], a: 1 },
-            { s: "社会", q: "日本の衆議院議員の任期は何年？", c: ["2年", "4年", "6年", "無制限"], a: 1 },
-            { s: "社会", q: "「織田信長」を倒した武将は？", c: ["明智光秀", "豊臣秀吉", "徳川家康", "上杉謙信"], a: 0 },
-            { s: "社会", q: "日本の標準時子午線が通る市は？", c: ["明石市", "京都市", "東京都", "広島市"], a: 0 },
-            { s: "社会", q: "サウジアラビアなどの国が多い地域は？", c: ["東南アジア", "中近東", "中央アジア", "北アフリカ"], a: 1 },
-            { s: "社会", q: "日本の最高裁判所があるのはどこ？", c: ["大阪", "東京", "京都", "札幌"], a: 1 },
-            { s: "社会", q: "1945年に終わった戦争は？", c: ["日清戦争", "日露戦争", "第二次世界大戦", "ベトナム戦争"], a: 2 },
-            { s: "社会", q: "日本の都道府県の数は？", c: ["43", "45", "47", "50"], a: 2 },
-            { s: "社会", q: "工業地帯で、愛知県を中心とするのは？", c: ["京浜", "阪神", "中京", "瀬戸内"], a: 2 },
-            { s: "社会", q: "世界保健機関の略称は？", c: ["UNESCO", "WHO", "UNICEF", "NATO"], a: 1 },
-            // 英語
-            { s: "英語", q: "「水曜日」は英語で？", c: ["Tuesday", "Wednesday", "Thursday", "Saturday"], a: 1 },
-            { s: "英語", q: "「Kitchen」はどこ？", c: ["寝室", "台所", "浴室", "庭"], a: 1 },
-            { s: "英語", q: "「I have a pen.」の否定文は？", c: ["I no have a pen.", "I don't have a pen.", "I not have a pen.", "I have no a pen."], a: 1 },
-            { s: "英語", q: "「Yesterday」の意味は？", c: ["今日", "明日", "昨日", "先週"], a: 2 },
-            { s: "英語", q: "「Orange」の複数は？", c: ["Oranges", "Orangees", "Orangis", "Orangies"], a: 0 },
-            { s: "英語", q: "「美味しい」を英語で？", c: ["Delicious", "Difficult", "Dangerous", "Different"], a: 0 },
-            { s: "英語", q: "「15」を英語で書くと？", c: ["Fifty", "Fifteen", "Fiveteen", "Fifth"], a: 1 },
-            { s: "英語", q: "「私は野球が好きです」は？", c: ["I like baseball.", "I likes baseball.", "I am like baseball.", "I baseball like."], a: 0 },
-            { s: "英語", q: "「春」は英語で？", c: ["Summer", "Autumn", "Winter", "Spring"], a: 3 },
-            { s: "英語", q: "「Where is it?」の意味は？", c: ["それは何？", "それはどこ？", "それは誰の？", "それはいつ？"], a: 1 },
-            { s: "英語", q: "「さようなら」の別の言い方は？", c: ["See you.", "Nice to meet you.", "Pardon?", "Exactly."], a: 0 },
-            { s: "英語", q: "「Excuse me.」はどういう時に使う？", c: ["謝る時", "話しかける時", "別れる時", "感謝する時"], a: 1 }
-        ];
-
         function startQuiz(player) {
             const problem = QUIZ_BANK[Math.floor(Math.random() * QUIZ_BANK.length)];
             currentQuiz = { player, problem, timeLeft: 10.0 };
             
             quizModal.style.display = 'block';
             const tag = document.getElementById('quiz-player-tag');
-            tag.innerText = `P${player.id} Turn`;
+            tag.innerText = `Player ${player.id}`;
             tag.style.backgroundColor = player.color;
-            document.getElementById('quiz-subject').innerText = problem.s;
+            document.getElementById('quiz-subject').innerText = `【${problem.s}】`;
             document.getElementById('quiz-question').innerText = problem.q;
             
             const choicesDiv = document.getElementById('quiz-choices');
@@ -376,7 +417,7 @@
                 currentQuiz.timeLeft -= 0.1;
                 const percent = (currentQuiz.timeLeft / 10) * 100;
                 quizTimerBar.style.width = `${percent}%`;
-                document.getElementById('quiz-timer-text').innerText = `${currentQuiz.timeLeft.toFixed(1)}s`;
+                document.getElementById('quiz-timer-text').innerText = `${Math.max(0, currentQuiz.timeLeft).toFixed(1)}s`;
                 if (currentQuiz.timeLeft <= 0) { playSound('wrong'); endQuiz(false); clearInterval(timerUpdate); }
             }, 100);
         }
@@ -392,21 +433,21 @@
         }
 
         function applyPowerup(player) {
-            const types = ['貫通爆弾', '火力MAX', 'スピードアップ', '爆弾増加'];
+            const types = ['貫通弾', '火力MAX', '超高速', '爆弾＋'];
             const choice = types[Math.floor(Math.random() * types.length)];
-            if (choice === '貫通爆弾') { player.isPiercing = true; player.powerupTimers.piercing = 600; }
+            if (choice === '貫通弾') { player.isPiercing = true; player.powerupTimers.piercing = 600; }
             else if (choice === '火力MAX') { player.isMaxFire = true; player.powerupTimers.maxFire = 600; }
-            else if (choice === 'スピードアップ') { player.speed = 8; player.powerupTimers.speed = 600; }
+            else if (choice === '超高速') { player.speed = 8; player.powerupTimers.speed = 600; }
             else { player.bombsMax++; }
             updateUI();
+            
             const msg = document.createElement('div');
-            msg.className = "fixed top-1/4 left-1/2 -translate-x-1/2 text-4xl font-black text-white z-[100] animate-bounce text-center bg-black bg-opacity-70 p-6 rounded-3xl border-4 border-yellow-500";
-            msg.innerHTML = `<span class="text-yellow-400">P${player.id} POWER UP!</span><br>${choice}`;
+            msg.className = "fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-5xl font-black text-white z-[200] animate-bounce text-center bg-black bg-opacity-80 p-10 rounded-3xl border-4 border-yellow-500 shadow-2xl";
+            msg.innerHTML = `<span style="color:${player.color}">Player ${player.id}</span><br>能力解放！<br><span class="text-yellow-400">${choice}</span>`;
             document.body.appendChild(msg);
-            setTimeout(() => msg.remove(), 2000);
+            setTimeout(() => msg.remove(), 1500);
         }
 
-        // --- GAME SYSTEM ---
         function initMap() {
             grid = [];
             for (let y = 0; y < GRID_HEIGHT; y++) {
@@ -435,13 +476,13 @@
 
         function updateUI() {
             gameInfo.innerHTML = players.map(p => `
-                <div class="bg-black bg-opacity-80 p-2 rounded-xl border-t-4 min-w-[90px] text-center shadow-lg" style="border-color: ${p.color}; opacity: ${p.alive?1:0.3}">
-                    <div class="text-[10px] font-black uppercase tracking-tighter">Player ${p.id}</div>
-                    <div class="text-xs font-bold text-gray-400">Bomb ${p.bombsMax}</div>
-                    <div class="flex justify-center gap-1 mt-1">
-                        ${p.powerupTimers.piercing>0?'<div class="w-2 h-2 rounded-full bg-white shadow-[0_0_5px_white]"></div>':''}
-                        ${p.powerupTimers.maxFire>0?'<div class="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_5px_orange]"></div>':''}
-                        ${p.powerupTimers.speed>0?'<div class="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_5px_blue]"></div>':''}
+                <div class="bg-slate-900 bg-opacity-90 p-3 rounded-2xl border-b-4 min-w-[100px] text-center shadow-lg transition-all" style="border-color: ${p.color}; opacity: ${p.alive?1:0.3}">
+                    <div class="text-[10px] font-black uppercase tracking-widest text-slate-400">P${p.id}</div>
+                    <div class="stat-badge my-1">${p.bombsMax} Bombs</div>
+                    <div class="flex justify-center gap-1.5 mt-1 h-2">
+                        ${p.powerupTimers.piercing>0?'<div class="w-2 h-2 rounded-full bg-white shadow-[0_0_8px_white]"></div>':''}
+                        ${p.powerupTimers.maxFire>0?'<div class="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_8px_orange]"></div>':''}
+                        ${p.powerupTimers.speed>0?'<div class="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_cyan]"></div>':''}
                     </div>
                 </div>
             `).join('');
@@ -454,28 +495,28 @@
                 for (let x = 0; x < GRID_WIDTH; x++) {
                     if (grid[y][x] === WALL) {
                         ctx.fillStyle = COLORS.WALL; ctx.fillRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
-                        ctx.strokeStyle = "#1f2937"; ctx.strokeRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
+                        ctx.strokeStyle = "#334155"; ctx.lineWidth = 1; ctx.strokeRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
                     } else if (grid[y][x] === BLOCK) { 
                         ctx.fillStyle = COLORS.BLOCK; ctx.fillRect(x*TILE_SIZE+2, y*TILE_SIZE+2, TILE_SIZE-4, TILE_SIZE-4);
-                        ctx.fillStyle = "rgba(0,0,0,0.2)"; ctx.fillRect(x*TILE_SIZE+4, y*TILE_SIZE+TILE_SIZE-10, TILE_SIZE-8, 4);
+                        ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(x*TILE_SIZE+2, y*TILE_SIZE+TILE_SIZE-6, TILE_SIZE-4, 4);
                     }
                 }
             }
             items.forEach(it => {
-                const s = Math.sin(Date.now()*0.01)*3;
+                const s = Math.sin(Date.now()*0.01)*4;
                 ctx.fillStyle = COLORS.ITEM; ctx.beginPath(); ctx.arc(it.x*TILE_SIZE+TILE_SIZE/2, it.y*TILE_SIZE+TILE_SIZE/2, TILE_SIZE/3+s, 0, Math.PI*2); ctx.fill();
-                ctx.fillStyle="black"; ctx.font="bold 18px Arial"; ctx.fillText("?", it.x*TILE_SIZE+15, it.y*TILE_SIZE+27);
+                ctx.fillStyle="black"; ctx.font="bold 18px Arial"; ctx.textAlign="center"; ctx.fillText("?", it.x*TILE_SIZE+TILE_SIZE/2, it.y*TILE_SIZE+27);
             });
             for (let i = bombs.length-1; i >= 0; i--) {
                 const b = bombs[i]; if (!currentQuiz) b.timer--;
-                const pulse = Math.sin(b.timer*0.15)*3;
+                const pulse = Math.sin(b.timer*0.15)*4;
                 ctx.fillStyle = COLORS.BOMB; ctx.beginPath(); ctx.arc(b.x*TILE_SIZE+TILE_SIZE/2, b.y*TILE_SIZE+TILE_SIZE/2, TILE_SIZE/2.5+pulse, 0, Math.PI*2); ctx.fill();
-                ctx.fillStyle = "white"; ctx.beginPath(); ctx.arc(b.x*TILE_SIZE+TILE_SIZE/2-4, b.y*TILE_SIZE+TILE_SIZE/2-4, 3, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = "rgba(255,255,255,0.4)"; ctx.beginPath(); ctx.arc(b.x*TILE_SIZE+TILE_SIZE/2-4, b.y*TILE_SIZE+TILE_SIZE/2-4, 4, 0, Math.PI*2); ctx.fill();
                 if (b.timer <= 0) { explode(b); bombs.splice(i, 1); }
             }
             for (let i = explosions.length-1; i >= 0; i--) {
                 const e = explosions[i]; if (!currentQuiz) e.timer--;
-                ctx.fillStyle = COLORS.FIRE; ctx.globalAlpha = e.timer/20; ctx.fillRect(e.x*TILE_SIZE, e.y*TILE_SIZE, TILE_SIZE, TILE_SIZE); ctx.globalAlpha = 1;
+                ctx.fillStyle = COLORS.FIRE; ctx.globalAlpha = Math.min(1, e.timer/15); ctx.fillRect(e.x*TILE_SIZE, e.y*TILE_SIZE, TILE_SIZE, TILE_SIZE); ctx.globalAlpha = 1;
                 players.forEach(p => { if (p.alive && Math.floor((p.pixelX+TILE_SIZE/2)/TILE_SIZE) === e.x && Math.floor((p.pixelY+TILE_SIZE/2)/TILE_SIZE) === e.y) { p.alive = false; playSound('wrong'); updateUI(); } });
                 if (e.timer <= 0) explosions.splice(i, 1);
             }
@@ -508,7 +549,7 @@
                 gameActive = false;
                 setTimeout(() => {
                     gameOverScreen.classList.remove('hidden');
-                    winnerText.innerText = alive.length === 1 ? `PLAYER ${alive[0].id} WIN!` : "DRAW!";
+                    winnerText.innerText = alive.length === 1 ? `PLAYER ${alive[0].id} WIN!` : (alive.length === 0 ? "DRAW!" : "BATTLE ENDED");
                     winnerText.style.color = alive.length === 1 ? alive[0].color : "white";
                 }, 1000);
             }
