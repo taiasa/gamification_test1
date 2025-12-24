@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GALAXY GUARDIAN - DX</title>
+    <title>GALAXY GUARDIAN - MATH DX</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
@@ -52,7 +52,7 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            z-index: 20;
+            z-index: 50;
         }
 
         .hud {
@@ -73,9 +73,9 @@
             letter-spacing: 2px;
         }
 
-        #message-overlay {
-            background: rgba(0, 0, 0, 0.85);
-            padding: 2.5rem;
+        .overlay-card {
+            background: rgba(0, 0, 0, 0.95);
+            padding: 2rem;
             border-radius: 1.5rem;
             text-align: center;
             pointer-events: auto;
@@ -84,27 +84,43 @@
             flex-direction: column;
             align-items: center;
             max-width: 85%;
-            box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.4);
         }
 
         .btn {
             background: linear-gradient(45deg, #00ffff, #0088ff);
             color: black;
-            padding: 15px 40px;
+            padding: 12px 30px;
             border-radius: 50px;
-            font-size: 1.5rem;
+            font-size: 1.2rem;
             font-weight: bold;
             cursor: pointer;
-            margin-top: 20px;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            pointer-events: auto;
+            transition: all 0.2s;
             border: none;
             box-shadow: 0 5px 15px rgba(0, 255, 255, 0.4);
         }
 
         .btn:hover {
-            transform: scale(1.1);
+            transform: scale(1.05);
             box-shadow: 0 0 25px cyan;
+        }
+
+        .quiz-btn {
+            background: #222;
+            color: #0ff;
+            border: 2px solid #0ff;
+            padding: 12px;
+            width: 100%;
+            margin: 5px 0;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .quiz-btn:hover {
+            background: #0ff;
+            color: #000;
         }
 
         #powerup-notice {
@@ -133,27 +149,40 @@
     
     <canvas id="gameCanvas"></canvas>
 
-    <div class="ui-layer">
-        <div id="message-overlay">
-            <h1 id="msg-title" class="text-3xl md:text-5xl mb-4 font-bold text-cyan-400">GALAXY GUARDIAN</h1>
-            <p id="msg-desc" class="mb-8 text-sm md:text-lg text-gray-300">銀河を侵略者から守り抜け！<br><span class="text-xs text-gray-500 text-cyan-200">矢印キーで移動 / スペースで射撃</span></p>
+    <div id="menu-layer" class="ui-layer">
+        <div class="overlay-card">
+            <h1 id="msg-title" class="text-3xl md:text-5xl mb-4 font-bold text-cyan-400">GALAXY MATH</h1>
+            <p id="msg-desc" class="mb-8 text-sm md:text-lg text-gray-300">割合を制する者が銀河を制す！<br><span class="text-xs text-cyan-200">矢印キーで移動 / スペースで射撃</span></p>
             <button id="start-btn" class="btn">GAME START</button>
+        </div>
+    </div>
+
+    <div id="quiz-layer" class="ui-layer hidden">
+        <div class="overlay-card w-full max-w-md">
+            <h2 class="text-yellow-400 text-lg mb-1">エリート敵を撃破せよ！</h2>
+            <div id="quiz-question-container" class="mb-6">
+                <p id="quiz-question" class="text-2xl font-bold text-white"></p>
+            </div>
+            <div id="quiz-options" class="w-full grid grid-cols-2 gap-3">
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-    /** @type {HTMLCanvasElement} */
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const scoreEl = document.getElementById('score');
     const stageEl = document.getElementById('stage');
     const hpEl = document.getElementById('hp-display');
-    const overlay = document.getElementById('message-overlay');
+    const menuLayer = document.getElementById('menu-layer');
+    const quizLayer = document.getElementById('quiz-layer');
     const startBtn = document.getElementById('start-btn');
     const msgTitle = document.getElementById('msg-title');
     const msgDesc = document.getElementById('msg-desc');
     const pwrNotice = document.getElementById('powerup-notice');
+    const quizQuestionEl = document.getElementById('quiz-question');
+    const quizOptionsEl = document.getElementById('quiz-options');
 
     const WIDTH = 800;
     const HEIGHT = 600;
@@ -164,6 +193,7 @@
     let stage = 1;
     let hp = 3;
     let gameRunning = false;
+    let isPaused = false;
     let difficultyMultiplier = 1.0; 
     let particles = [];
     let bullets = [];
@@ -172,8 +202,8 @@
     let powerups = [];
     let boss = null;
     let keys = {};
+    let currentEliteTarget = null;
 
-    // Audio Context
     let audioCtx = null;
 
     const player = {
@@ -207,140 +237,96 @@
         { type: 'pierce', color: '#fff', char: '🏹', desc: 'PIERCING SHOT' }
     ];
 
-    // --- Sound Synthesis Functions ---
     function initAudio() {
-        if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
 
     function playSound(type) {
         if (!audioCtx) return;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
+        try {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
 
-        const now = audioCtx.currentTime;
-
-        switch (type) {
-            case 'shoot':
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(600, now);
-                osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
-                gain.gain.setValueAtTime(0.1, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-                osc.start(now);
-                osc.stop(now + 0.1);
-                break;
-            case 'enemyExplode':
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(100, now);
-                osc.frequency.exponentialRampToValueAtTime(10, now + 0.2);
-                gain.gain.setValueAtTime(0.2, now);
-                gain.gain.linearRampToValueAtTime(0, now + 0.2);
-                osc.start(now);
-                osc.stop(now + 0.2);
-                break;
-            case 'bossHit':
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(80, now);
-                gain.gain.setValueAtTime(0.3, now);
-                gain.gain.linearRampToValueAtTime(0, now + 0.05);
-                osc.start(now);
-                osc.stop(now + 0.05);
-                break;
-            case 'bossExplode':
-                // ノイズシミュレーション
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(40, now);
-                osc.frequency.linearRampToValueAtTime(10, now + 1.0);
-                gain.gain.setValueAtTime(0.5, now);
-                gain.gain.linearRampToValueAtTime(0, now + 1.0);
-                osc.start(now);
-                osc.stop(now + 1.0);
-                break;
-            case 'powerup':
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(400, now);
-                osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
-                osc.frequency.exponentialRampToValueAtTime(1200, now + 0.2);
-                gain.gain.setValueAtTime(0.2, now);
-                gain.gain.linearRampToValueAtTime(0, now + 0.3);
-                osc.start(now);
-                osc.stop(now + 0.3);
-                break;
-            case 'damage':
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(150, now);
-                osc.frequency.linearRampToValueAtTime(50, now + 0.4);
-                gain.gain.setValueAtTime(0.3, now);
-                gain.gain.linearRampToValueAtTime(0, now + 0.4);
-                osc.start(now);
-                osc.stop(now + 0.4);
-                break;
-        }
+            switch (type) {
+                case 'shoot':
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(600, now);
+                    osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+                    gain.gain.setValueAtTime(0.05, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                    osc.start(now); osc.stop(now + 0.1);
+                    break;
+                case 'enemyExplode':
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(100, now);
+                    osc.frequency.exponentialRampToValueAtTime(10, now + 0.2);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.2);
+                    osc.start(now); osc.stop(now + 0.2);
+                    break;
+                case 'powerup':
+                    osc.type = 'triangle'; osc.frequency.setValueAtTime(400, now);
+                    osc.frequency.exponentialRampToValueAtTime(1200, now + 0.2);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                    osc.start(now); osc.stop(now + 0.3);
+                    break;
+                case 'damage':
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.linearRampToValueAtTime(50, now + 0.4);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.4);
+                    osc.start(now); osc.stop(now + 0.4);
+                    break;
+            }
+        } catch(e) {}
     }
 
     class Particle {
         constructor(x, y, color) {
-            this.x = x;
-            this.y = y;
-            this.color = color;
+            this.x = x; this.y = y; this.color = color;
             this.size = Math.random() * 4 + 2;
             this.vx = (Math.random() - 0.5) * 10;
             this.vy = (Math.random() - 0.5) * 10;
             this.life = 1.0;
         }
-        update() {
-            this.x += this.vx;
-            this.y += this.vy;
-            this.life -= 0.02;
-        }
+        update() { this.x += this.vx; this.y += this.vy; this.life -= 0.02; }
         draw() {
             ctx.globalAlpha = this.life;
             ctx.fillStyle = this.color;
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
             ctx.globalAlpha = 1;
         }
     }
 
     class PowerUp {
         constructor(x, y) {
-            this.x = x;
-            this.y = y;
-            this.w = 30;
-            this.h = 30;
+            this.x = x; this.y = y; this.w = 30; this.h = 30;
             this.data = POWERUP_TYPES[Math.floor(Math.random() * POWERUP_TYPES.length)];
             this.vy = 2;
         }
         update() { this.y += this.vy; }
         draw() {
-            ctx.font = '24px serif';
-            ctx.textAlign = 'center';
+            ctx.font = '24px serif'; ctx.textAlign = 'center';
             ctx.fillText(this.data.char, this.x + 15, this.y + 25);
-            ctx.strokeStyle = this.data.color;
-            ctx.lineWidth = 2;
+            ctx.strokeStyle = this.data.color; ctx.lineWidth = 2;
             ctx.strokeRect(this.x, this.y, this.w, this.h);
         }
     }
 
     class Boss {
         constructor(stageNum) {
-            this.w = 150;
-            this.h = 100;
-            this.x = WIDTH / 2 - this.w / 2;
-            this.y = -200;
+            this.w = 150; this.h = 100;
+            this.x = WIDTH / 2 - this.w / 2; this.y = -200;
             this.targetY = 80;
             this.hp = stageNum * 20 * difficultyMultiplier;
             this.maxHp = this.hp;
             this.baseVx = 2.0 * difficultyMultiplier;
             this.vx = this.baseVx;
-            this.lastFired = 0;
-            this.lastMoveChange = 0;
-            this.lastPowerSpawn = Date.now();
+            this.lastFired = 0; this.lastMoveChange = 0; this.lastPowerSpawn = Date.now();
         }
         update() {
             if (this.y < this.targetY) {
@@ -351,18 +337,11 @@
                     this.vx = (Math.random() > 0.5 ? 1 : -1) * (this.baseVx * (0.8 + Math.random() * 0.7));
                     this.lastMoveChange = now;
                 }
-
                 this.x += this.vx;
-                if (this.x <= 0 || this.x + this.w >= WIDTH) {
-                    this.vx *= -1;
-                    this.lastMoveChange = now;
-                }
-
+                if (this.x <= 0 || this.x + this.w >= WIDTH) this.vx *= -1;
                 if (now - this.lastFired > Math.max(500, 1200 - (stage * 30 * difficultyMultiplier))) {
-                    this.fire();
-                    this.lastFired = now;
+                    this.fire(); this.lastFired = now;
                 }
-
                 if (now - this.lastPowerSpawn > 6000) {
                     spawnPowerUp(Math.random() * (WIDTH - 40) + 20, 0);
                     this.lastPowerSpawn = now;
@@ -372,62 +351,42 @@
         fire() {
             for (let i = -1; i <= 1; i++) {
                 enemyBullets.push({ 
-                    x: this.x + this.w / 2, 
-                    y: this.y + this.h, 
-                    vx: i * 2.0 * difficultyMultiplier, 
-                    vy: 2.5 * difficultyMultiplier, 
-                    r: 8, 
-                    color: '#ff0000' 
+                    x: this.x + this.w / 2, y: this.y + this.h, 
+                    vx: i * 2.0 * difficultyMultiplier, vy: 2.5 * difficultyMultiplier, 
+                    r: 8, color: '#ff0000' 
                 });
             }
         }
         draw() {
-            ctx.font = '80px serif';
-            ctx.textAlign = 'center';
+            ctx.font = '80px serif'; ctx.textAlign = 'center';
             ctx.fillText('👿', this.x + this.w / 2, this.y + this.h / 2 + 20);
-            ctx.fillStyle = '#333';
-            ctx.fillRect(this.x, this.y - 20, this.w, 10);
-            ctx.fillStyle = '#ff0000';
-            ctx.fillRect(this.x, this.y - 20, this.w * (this.hp / this.maxHp), 10);
+            ctx.fillStyle = '#333'; ctx.fillRect(this.x, this.y - 20, this.w, 10);
+            ctx.fillStyle = '#ff0000'; ctx.fillRect(this.x, this.y - 20, this.w * (this.hp / this.maxHp), 10);
         }
     }
 
     function initGame() {
-        initAudio(); // Initialize sound
-        score = 0;
-        stage = 1;
-        hp = 3;
-        difficultyMultiplier = 1.0;
-        player.x = WIDTH / 2 - 25;
-        player.powerType = 'normal';
-        player.shield = false;
-        player.invincibleUntil = 0;
-        bullets = [];
-        enemyBullets = [];
-        powerups = [];
-        particles = [];
+        initAudio();
+        score = 0; stage = 1; hp = 3; difficultyMultiplier = 1.0;
+        player.x = WIDTH / 2 - 25; player.powerType = 'normal'; player.shield = false; player.invincibleUntil = 0;
+        bullets = []; enemyBullets = []; powerups = []; particles = [];
         createEnemies();
-        gameRunning = true;
-        overlay.style.display = 'none';
+        gameRunning = true; isPaused = false;
+        menuLayer.classList.add('hidden');
+        quizLayer.classList.add('hidden');
         updateHUD();
         requestAnimationFrame(gameLoop);
     }
 
     function createEnemies() {
-        enemies = [];
-        boss = null;
-        
+        enemies = []; boss = null;
         if (stage % 5 === 0) {
-            boss = new Boss(stage);
-            return;
+            boss = new Boss(stage); return;
         }
-
         const stageProgress = ((stage - 1) % 5) + 1;
         const rows = 2 + Math.floor(stageProgress / 2); 
         const cols = 4 + stageProgress; 
-        
-        const spacingX = 70;
-        const spacingY = 60;
+        const spacingX = 70; const spacingY = 60;
         const startX = (WIDTH - (cols - 1) * spacingX) / 2;
 
         for (let r = 0; r < rows; r++) {
@@ -435,46 +394,148 @@
                 enemies.push({
                     x: startX + c * spacingX - 20,
                     y: r * spacingY + 80,
-                    w: 40,
-                    h: 40,
+                    w: 40, h: 40,
                     type: ENEMY_TYPES[Math.min(r, ENEMY_TYPES.length - 1)],
-                    offset: Math.random() * Math.PI * 2
+                    offset: Math.random() * Math.PI * 2,
+                    isElite: Math.random() < 0.2
                 });
             }
         }
     }
 
     function updateHUD() {
-        scoreEl.innerText = score;
-        stageEl.innerText = stage;
-        hpEl.innerText = '❤️'.repeat(hp);
+        scoreEl.innerText = score; stageEl.innerText = stage;
+        hpEl.innerText = '❤️'.repeat(Math.max(0, hp));
     }
 
     function spawnPowerUp(x, y) {
-        if (Math.random() < 0.15 || boss) {
-            powerups.push(new PowerUp(x, y));
-        }
+        if (Math.random() < 0.15 || boss) powerups.push(new PowerUp(x, y));
     }
 
     function applyPowerUp(p) {
         playSound('powerup');
         if (p.type === 'repair') {
-            if (hp < 3) hp++;
-            updateHUD();
+            if (hp < 3) hp++; updateHUD();
         } else {
-            player.powerType = p.type;
-            player.powerTimer = Date.now() + 8000;
+            player.powerType = p.type; player.powerTimer = Date.now() + 8000;
             if (p.type === 'shield') player.shield = true;
         }
-        pwrNotice.innerText = p.desc + "!";
-        pwrNotice.style.opacity = 1;
+        pwrNotice.innerText = p.desc + "!"; pwrNotice.style.opacity = 1;
         setTimeout(() => pwrNotice.style.opacity = 0, 2000);
+    }
+
+    // --- Quiz Logic ---
+    function generateQuestion() {
+        const types = [
+            'percentage', // AのB%
+            'bu-wari',    // AのB割C分
+            'reverse',    // AはBの何%？
+            'reduction',  // AのB%引き
+            'increase',   // AのB%増し
+            'find-total'  // AがB%のとき全体は？
+        ];
+        const type = types[Math.floor(Math.random() * types.length)];
+        let qText = "";
+        let correct = 0;
+        let base, factor, p;
+
+        switch(type) {
+            case 'percentage':
+                base = (Math.floor(Math.random() * 20) + 1) * 10;
+                p = (Math.floor(Math.random() * 9) + 1) * 10;
+                qText = `${base} の ${p}% は？`;
+                correct = (base * p) / 100;
+                break;
+            case 'bu-wari':
+                base = (Math.floor(Math.random() * 20) + 1) * 10;
+                let wari = Math.floor(Math.random() * 4) + 1;
+                let bu = Math.floor(Math.random() * 9) + 1;
+                qText = `${base} の ${wari}割${bu}分 は？`;
+                correct = base * (wari / 10 + bu / 100);
+                break;
+            case 'reverse':
+                factor = (Math.floor(Math.random() * 5) + 1) * 10;
+                base = factor * (Math.floor(Math.random() * 5) + 2);
+                qText = `${factor} は ${base} の何%？`;
+                correct = (factor / base) * 100;
+                break;
+            case 'reduction':
+                base = (Math.floor(Math.random() * 10) + 1) * 100;
+                p = [10, 20, 30, 50][Math.floor(Math.random() * 4)];
+                qText = `${base} の ${p}%引き は？`;
+                correct = base * (1 - p / 100);
+                break;
+            case 'increase':
+                base = (Math.floor(Math.random() * 10) + 1) * 100;
+                p = [10, 20, 50][Math.floor(Math.random() * 3)];
+                qText = `${base} の ${p}%増し は？`;
+                correct = base * (1 + p / 100);
+                break;
+            case 'find-total':
+                correct = (Math.floor(Math.random() * 10) + 1) * 50;
+                p = [10, 20, 50][Math.floor(Math.random() * 3)];
+                factor = (correct * p) / 100;
+                qText = `全体の ${p}% が ${factor} のとき、全体は？`;
+                break;
+        }
+
+        return { qText, correct: parseFloat(correct.toFixed(2)) };
+    }
+
+    function startQuiz(enemy) {
+        isPaused = true;
+        currentEliteTarget = enemy;
+        
+        const { qText, correct } = generateQuestion();
+        quizQuestionEl.innerText = qText;
+        
+        let options = new Set();
+        options.add(correct);
+        while(options.size < 4) {
+            const r = Math.random();
+            if (r < 0.3) options.add(parseFloat((correct * 10).toFixed(2)));
+            else if (r < 0.6) options.add(parseFloat((correct / 10).toFixed(2)));
+            else options.add(parseFloat((correct + (Math.random() < 0.5 ? 1 : -1) * (Math.floor(Math.random() * 5) + 1)).toFixed(2)));
+        }
+
+        const shuffledOptions = Array.from(options).sort(() => Math.random() - 0.5);
+        quizOptionsEl.innerHTML = '';
+        shuffledOptions.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'quiz-btn';
+            btn.innerText = opt;
+            btn.onclick = () => handleQuizAnswer(opt, correct);
+            quizOptionsEl.appendChild(btn);
+        });
+
+        quizLayer.classList.remove('hidden');
+    }
+
+    function handleQuizAnswer(selected, correct) {
+        quizLayer.classList.add('hidden');
+        isPaused = false;
+        
+        if (Math.abs(selected - correct) < 0.001) {
+            score += currentEliteTarget.type.pts * 5;
+            updateHUD();
+            playSound('enemyExplode');
+            createExplosion(currentEliteTarget.x + currentEliteTarget.w/2, currentEliteTarget.y + currentEliteTarget.h/2, 'gold', 20);
+            spawnPowerUp(currentEliteTarget.x, currentEliteTarget.y);
+            currentEliteTarget.dead = true;
+        } else {
+            hitPlayer();
+        }
+        currentEliteTarget = null;
     }
 
     function gameLoop() {
         if (!gameRunning) return;
-        ctx.clearRect(0, 0, WIDTH, HEIGHT);
+        if (isPaused) {
+            requestAnimationFrame(gameLoop);
+            return;
+        }
 
+        ctx.clearRect(0, 0, WIDTH, HEIGHT);
         const now = Date.now();
         const isInvincible = now < player.invincibleUntil;
 
@@ -487,48 +548,31 @@
         if (keys['ArrowRight'] && player.x < WIDTH - player.w) player.x += player.speed;
         if (keys[' '] || keys['ArrowUp']) {
             const rate = player.powerType === 'speed' ? 150 : player.fireRate;
-            if (now - player.lastFired > rate) {
-                fireBullet();
-                player.lastFired = now;
-            }
+            if (now - player.lastFired > rate) { fireBullet(); player.lastFired = now; }
         }
 
         if (player.powerType !== 'normal' && now > player.powerTimer) player.powerType = 'normal';
 
         ctx.globalAlpha = (isInvincible && Math.floor(now/100) % 2 === 0) ? 0.3 : 1.0;
         ctx.fillStyle = player.color;
-        ctx.beginPath();
-        ctx.moveTo(player.x + player.w/2, player.y);
-        ctx.lineTo(player.x + player.w, player.y + player.h);
-        ctx.lineTo(player.x, player.y + player.h);
-        ctx.closePath();
-        ctx.fill();
-        ctx.globalAlpha = 1.0;
+        ctx.beginPath(); ctx.moveTo(player.x + player.w/2, player.y);
+        ctx.lineTo(player.x + player.w, player.y + player.h); ctx.lineTo(player.x, player.y + player.h);
+        ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1.0;
 
         if (player.shield) {
-            ctx.strokeStyle = '#00ffff';
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(player.x + player.w/2, player.y + player.h/2, 40, 0, Math.PI * 2);
-            ctx.stroke();
+            ctx.strokeStyle = '#00ffff'; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.arc(player.x + player.w/2, player.y + player.h/2, 40, 0, Math.PI * 2); ctx.stroke();
         }
 
         bullets = bullets.filter(b => {
-            b.y += b.vy;
-            b.x += b.vx || 0;
-            ctx.fillStyle = b.color || 'yellow';
-            ctx.fillRect(b.x - b.r, b.y - b.r, b.r*2, b.r*2);
+            b.y += b.vy; b.x += b.vx || 0;
+            ctx.fillStyle = b.color || 'yellow'; ctx.fillRect(b.x - b.r, b.y - b.r, b.r*2, b.r*2);
             return b.y > 0;
         });
 
         enemyBullets = enemyBullets.filter(b => {
-            b.y += b.vy;
-            b.x += b.vx || 0;
-            ctx.fillStyle = b.color || 'red';
-            ctx.beginPath();
-            ctx.arc(b.x, b.y, b.r, 0, Math.PI*2);
-            ctx.fill();
-            
+            b.y += b.vy; b.x += b.vx || 0;
+            ctx.fillStyle = b.color || 'red'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.fill();
             if (!isInvincible && b.x > player.x && b.x < player.x + player.w && b.y > player.y && b.y < player.y + player.h) {
                 if (player.shield) player.shield = false; else hitPlayer();
                 return false;
@@ -537,32 +581,24 @@
         });
 
         powerups = powerups.filter(p => {
-            p.update();
-            p.draw();
+            p.update(); p.draw();
             if (p.y > player.y && p.y < player.y + player.h && p.x + p.w > player.x && p.x < player.x + player.w) {
-                applyPowerUp(p.data);
-                return false;
+                applyPowerUp(p.data); return false;
             }
             return p.y < HEIGHT;
         });
 
         if (boss) {
-            boss.update();
-            boss.draw();
+            boss.update(); boss.draw();
             bullets = bullets.filter(b => {
                 if (!boss) return true;
-                
                 if (b.x > boss.x && b.x < boss.x + boss.w && b.y > boss.y && b.y < boss.y + boss.h) {
                     boss.hp -= (player.powerType === 'mega' ? 15 : 3);
-                    playSound('bossHit'); // ボスへのヒット音
                     createExplosion(b.x, b.y, 'white');
                     if (boss.hp <= 0) {
-                        playSound('bossExplode'); // ボス撃破音
-                        score += 1000;
+                        playSound('enemyExplode'); score += 1000;
                         createExplosion(boss.x + boss.w/2, boss.y + boss.h/2, 'red', 60);
-                        boss = null;
-                        difficultyMultiplier += 0.15; 
-                        nextStage();
+                        boss = null; difficultyMultiplier += 0.15; nextStage();
                         return false; 
                     }
                     return player.powerType === 'pierce';
@@ -573,54 +609,49 @@
 
         enemies.forEach(e => {
             e.x += Math.sin(Date.now() / 1000 + e.offset) * (1.5 * difficultyMultiplier);
-            ctx.font = '30px serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(e.type.char, e.x + e.w/2, e.y + e.h/2 + 10);
+            ctx.font = '30px serif'; ctx.textAlign = 'center';
+            if (e.isElite) {
+                ctx.shadowBlur = 15; ctx.shadowColor = 'gold';
+                ctx.fillStyle = 'gold';
+                ctx.fillText('🌟', e.x + e.w/2, e.y + e.h/2 + 10);
+                ctx.shadowBlur = 0;
+            } else {
+                ctx.fillStyle = 'white';
+                ctx.fillText(e.type.char, e.x + e.w/2, e.y + e.h/2 + 10);
+            }
             
             bullets = bullets.filter(b => {
                 if (b.x > e.x && b.x < e.x + e.w && b.y > e.y && b.y < e.y + e.h) {
-                    playSound('enemyExplode'); // ザコ敵撃破音
-                    score += e.type.pts;
-                    updateHUD();
-                    createExplosion(e.x + e.w/2, e.y + e.h/2, 'cyan');
-                    spawnPowerUp(e.x, e.y);
-                    e.dead = true;
+                    if (e.isElite) {
+                        startQuiz(e);
+                    } else {
+                        playSound('enemyExplode'); score += e.type.pts; updateHUD();
+                        createExplosion(e.x + e.w/2, e.y + e.h/2, 'cyan');
+                        spawnPowerUp(e.x, e.y); e.dead = true;
+                    }
                     return player.powerType === 'pierce'; 
                 }
                 return true;
             });
 
             if (Math.random() < (0.0006 + (stage * 0.00015)) * difficultyMultiplier) {
-                enemyBullets.push({ 
-                    x: e.x + e.w/2, 
-                    y: e.y + e.h, 
-                    vy: (2.8 + stage/5) * difficultyMultiplier, 
-                    r: 4, 
-                    color: '#f00' 
-                });
+                enemyBullets.push({ x: e.x + e.w/2, y: e.y + e.h, vy: (2.8 + stage/5) * difficultyMultiplier, r: 4, color: '#f00' });
             }
-            
-            if (e.y + e.h > player.y) {
-                if (!isInvincible) gameOver();
-            }
+            if (e.y + e.h > player.y && !isInvincible) gameOver();
         });
 
         enemies = enemies.filter(e => !e.dead);
         if (enemies.length === 0 && !boss) nextStage();
-
-        particles = particles.filter(p => {
-            p.update(); p.draw(); return p.life > 0;
-        });
+        particles = particles.filter(p => { p.update(); p.draw(); return p.life > 0; });
 
         requestAnimationFrame(gameLoop);
     }
 
     function fireBullet() {
-        playSound('shoot'); // 発射音
+        playSound('shoot');
         const bSpeed = -8;
         const bSize = player.powerType === 'mega' ? 25 : 5;
         const bColor = player.powerType === 'mega' ? '#f50' : (player.powerType === 'pierce' ? '#fff' : '#0ff');
-        
         if (player.powerType === 'triple') {
             bullets.push({ x: player.x + player.w/2, y: player.y, vy: bSpeed, vx: -2, r: bSize, color: bColor });
             bullets.push({ x: player.x + player.w/2, y: player.y, vy: bSpeed, vx: 0, r: bSize, color: bColor });
@@ -635,33 +666,25 @@
     }
 
     function hitPlayer() {
-        playSound('damage'); // 被弾音
-        hp--;
-        updateHUD();
+        playSound('damage');
+        hp--; updateHUD();
         createExplosion(player.x + player.w/2, player.y + player.h/2, 'red', 30);
         player.invincibleUntil = Date.now() + 2000;
-        if (hp <= 0) {
-            gameOver();
-        }
+        if (hp <= 0) gameOver();
     }
 
-    function nextStage() {
-        stage++;
-        updateHUD();
-        createEnemies();
-    }
+    function nextStage() { stage++; updateHUD(); createEnemies(); }
 
     function gameOver() {
         gameRunning = false;
-        msgTitle.innerText = "GAME OVER";
-        msgDesc.innerHTML = `最終スコア: ${score}<br>到達ステージ: ${stage}<br><span class="text-xs text-cyan-200">2秒の無敵時間を活用してリベンジだ！</span>`;
-        startBtn.innerText = "TRY AGAIN";
-        overlay.style.display = 'flex';
+        msgTitle.innerText = "MISSION FAILED";
+        msgDesc.innerHTML = `最終スコア: ${score}<br>到達ステージ: ${stage}<br>割合をマスターして宇宙を守れ！`;
+        startBtn.innerText = "RETRY";
+        menuLayer.classList.remove('hidden');
     }
 
     window.addEventListener('keydown', e => {
         keys[e.key] = true;
-        // ブラウザの制限回避のためキー入力時にAudioを有効化
         if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
     });
     window.addEventListener('keyup', e => keys[e.key] = false);
@@ -670,28 +693,18 @@
     const getTouchX = (e) => {
         const rect = canvas.getBoundingClientRect();
         const clientX = e.touches[0].clientX;
-        const scale = WIDTH / rect.width;
-        return (clientX - rect.left) * scale;
+        return (clientX - rect.left) * (WIDTH / rect.width);
     };
     canvas.addEventListener('touchmove', e => {
-        player.x = getTouchX(e) - player.w / 2;
-        if (player.x < 0) player.x = 0;
-        if (player.x > WIDTH - player.w) player.x = WIDTH - player.w;
+        if (!isPaused && gameRunning) player.x = getTouchX(e) - player.w / 2;
         e.preventDefault();
     }, { passive: false });
     canvas.addEventListener('touchstart', e => {
         if (!gameRunning) return;
         if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-        keys[' '] = true;
-        player.x = getTouchX(e) - player.w / 2;
-        e.preventDefault();
+        keys[' '] = true; e.preventDefault();
     }, { passive: false });
-    canvas.addEventListener('touchend', e => {
-        keys[' '] = false;
-        e.preventDefault();
-    }, { passive: false });
-
-    overlay.style.display = 'flex';
+    canvas.addEventListener('touchend', e => { keys[' '] = false; e.preventDefault(); }, { passive: false });
 </script>
 </body>
 </html>
