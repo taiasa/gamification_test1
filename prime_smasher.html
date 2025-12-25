@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>素因数分解ゲーム Prime Smasher</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            background: #f0f9ff;
+            touch-action: manipulation;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 10px;
+        }
+        #game-container {
+            width: 100%;
+            max-width: 400px;
+            background: white;
+            border-radius: 2rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            padding: 1.25rem;
+            position: relative;
+            overflow: hidden;
+            min-height: 580px;
+        }
+        .number-card {
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .prime-button, .num-button {
+            transition: transform 0.1s, background-color 0.2s;
+        }
+        .prime-button:active, .num-button:active {
+            transform: scale(0.92);
+        }
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        .animate-pop {
+            animation: pop 0.2s ease-out;
+        }
+        
+        @keyframes rainbow-glow {
+            0% { color: #ef4444; filter: drop-shadow(0 0 5px #ef4444); }
+            25% { color: #3b82f6; filter: drop-shadow(0 0 10px #3b82f6); }
+            50% { color: #10b981; filter: drop-shadow(0 0 15px #10b981); }
+            75% { color: #f59e0b; filter: drop-shadow(0 0 10px #f59e0b); }
+            100% { color: #ef4444; filter: drop-shadow(0 0 5px #ef4444); }
+        }
+        .prime-hit {
+            animation: rainbow-glow 0.5s linear infinite, pop 0.3s ease-out;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- ヘッダー -->
+        <div class="flex justify-between items-center mb-2">
+            <div class="text-sm font-bold text-blue-600">クリア数: <span id="score">0</span></div>
+            <div id="mode-badge" class="px-2 py-1 bg-blue-100 text-blue-600 rounded-lg text-xs font-bold">ビギナー</div>
+            <div class="text-sm font-bold text-orange-500">問題: <span id="question-count">0</span>/10</div>
+        </div>
+
+        <!-- 数字表示エリア -->
+        <div class="flex flex-col items-center justify-center mb-4 h-32 bg-slate-50 rounded-2xl relative">
+            <div id="target-display" class="number-card text-5xl font-black text-slate-800 tracking-tighter">--</div>
+            <div id="history-display" class="mt-1 text-xs text-slate-400 min-h-[1rem] font-medium text-center px-4"></div>
+            <!-- チャレンジモード用の入力表示 -->
+            <div id="input-display" class="absolute bottom-2 right-4 text-2xl font-bold text-blue-500 hidden">÷ <span id="current-input"></span></div>
+        </div>
+
+        <!-- ビギナーモード用操作パネル -->
+        <div id="beginner-controls" class="grid grid-cols-3 gap-2 mb-4">
+            <button onclick="handlePrimeInput(2)" class="prime-button bg-red-400 text-white rounded-xl py-2 text-lg font-bold shadow-sm">2</button>
+            <button onclick="handlePrimeInput(3)" class="prime-button bg-blue-400 text-white rounded-xl py-2 text-lg font-bold shadow-sm">3</button>
+            <button onclick="handlePrimeInput(5)" class="prime-button bg-green-400 text-white rounded-xl py-2 text-lg font-bold shadow-sm">5</button>
+            <button onclick="handlePrimeInput(7)" class="prime-button bg-yellow-400 text-white rounded-xl py-2 text-lg font-bold shadow-sm">7</button>
+            <button onclick="handlePrimeInput(11)" class="prime-button bg-purple-400 text-white rounded-xl py-2 text-lg font-bold shadow-sm">11</button>
+            <button onclick="handlePrimeInput(13)" class="prime-button bg-pink-400 text-white rounded-xl py-2 text-lg font-bold shadow-sm">13</button>
+            <button onclick="handlePrimeInput(17)" class="prime-button bg-indigo-400 text-white rounded-xl py-2 text-lg font-bold shadow-sm">17</button>
+            <button onclick="handlePrimeInput(19)" class="prime-button bg-teal-400 text-white rounded-xl py-2 text-lg font-bold shadow-sm">19</button>
+            <button onclick="handlePrimeInput(23)" class="prime-button bg-orange-400 text-white rounded-xl py-2 text-lg font-bold shadow-sm">23</button>
+        </div>
+
+        <!-- チャレンジ/鬼チャレモード用テンキーパネル -->
+        <div id="challenge-controls" class="hidden grid grid-cols-3 gap-2 mb-4">
+            <button onclick="handleNumKey('7')" class="num-button bg-slate-200 text-slate-700 rounded-xl py-2 text-lg font-bold">7</button>
+            <button onclick="handleNumKey('8')" class="num-button bg-slate-200 text-slate-700 rounded-xl py-2 text-lg font-bold">8</button>
+            <button onclick="handleNumKey('9')" class="num-button bg-slate-200 text-slate-700 rounded-xl py-2 text-lg font-bold">9</button>
+            <button onclick="handleNumKey('4')" class="num-button bg-slate-200 text-slate-700 rounded-xl py-2 text-lg font-bold">4</button>
+            <button onclick="handleNumKey('5')" class="num-button bg-slate-200 text-slate-700 rounded-xl py-2 text-lg font-bold">5</button>
+            <button onclick="handleNumKey('6')" class="num-button bg-slate-200 text-slate-700 rounded-xl py-2 text-lg font-bold">6</button>
+            <button onclick="handleNumKey('1')" class="num-button bg-slate-200 text-slate-700 rounded-xl py-2 text-lg font-bold">1</button>
+            <button onclick="handleNumKey('2')" class="num-button bg-slate-200 text-slate-700 rounded-xl py-2 text-lg font-bold">2</button>
+            <button onclick="handleNumKey('3')" class="num-button bg-slate-200 text-slate-700 rounded-xl py-2 text-lg font-bold">3</button>
+            <button onclick="handleNumKey('C')" class="num-button bg-red-100 text-red-500 rounded-xl py-2 text-lg font-bold">C</button>
+            <button onclick="handleNumKey('0')" class="num-button bg-slate-200 text-slate-700 rounded-xl py-2 text-lg font-bold">0</button>
+            <button onclick="executeDivide()" class="num-button bg-blue-500 text-white rounded-xl py-2 text-lg font-bold shadow-lg">割る</button>
+        </div>
+
+        <!-- フィードバックエリア -->
+        <div id="message" class="text-center font-bold text-xs h-6 text-slate-500">
+            モードを選んでスタート！
+        </div>
+
+        <!-- スキップボタン（間違えた時用） -->
+        <div class="mt-4 text-center">
+            <button id="skip-btn" onclick="skipProblem()" class="hidden text-slate-400 text-xs font-bold hover:text-red-400 transition underline">
+                この問題をあきらめて次へ
+            </button>
+        </div>
+
+        <!-- タイトル・スタート画面 -->
+        <div id="overlay" class="absolute inset-0 bg-white bg-opacity-95 flex flex-col items-center justify-center z-20 p-4 text-center">
+            <h1 class="text-4xl font-black text-blue-600 mb-2 tracking-tight">Prime Smasher</h1>
+            <p class="text-slate-500 mb-6 text-sm italic">素因数分解クリアアタック（全10問）</p>
+            
+            <div class="flex flex-col gap-3 w-full max-w-[240px]">
+                <button onclick="startGame('beginner')" class="bg-blue-600 text-white px-6 py-3 rounded-full text-lg font-bold hover:bg-blue-700 shadow-md transform hover:scale-105 transition">
+                    ビギナーモード
+                </button>
+                <button onclick="startGame('challenge')" class="bg-orange-500 text-white px-6 py-3 rounded-full text-lg font-bold hover:bg-orange-600 shadow-md transform hover:scale-105 transition">
+                    チャレンジモード
+                </button>
+                <button onclick="startGame('oni')" class="bg-red-600 text-white px-6 py-3 rounded-full text-lg font-bold hover:bg-red-700 shadow-md transform hover:scale-105 transition">
+                    鬼チャレモード
+                </button>
+                <button onclick="toggleHowTo(true)" class="mt-1 text-slate-400 text-xs font-bold underline">遊び方を見る</button>
+            </div>
+            
+            <div id="best-scores" class="mt-6 grid grid-cols-1 gap-1 w-full text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                <div>最高クリア（ビギナー）: <span id="best-beginner" class="text-blue-500">0</span></div>
+                <div>最高クリア（チャレンジ）: <span id="best-challenge" class="text-orange-500">0</span></div>
+                <div>最高クリア（鬼チャレ）: <span id="best-oni" class="text-red-500">0</span></div>
+            </div>
+        </div>
+
+        <!-- 遊び方ガイド -->
+        <div id="howto-overlay" class="absolute inset-0 bg-white z-40 p-6 flex flex-col hidden overflow-y-auto">
+            <h2 class="text-2xl font-black text-slate-800 mb-4">遊び方ガイド</h2>
+            
+            <div class="space-y-5 text-left">
+                <section>
+                    <h3 class="text-blue-600 font-black border-b-2 border-blue-100 mb-1">● ビギナー (4〜150)</h3>
+                    <p class="text-xs text-slate-600 leading-relaxed">用意されたボタンをタップして数字を割ります。ボタンにある数だけで分解できる数が出題されます。</p>
+                </section>
+                
+                <section>
+                    <h3 class="text-orange-500 font-black border-b-2 border-orange-100 mb-1">● チャレンジ (4〜150)</h3>
+                    <p class="text-xs text-slate-600 leading-relaxed">割る数を入力します。素数以外で割るとその問題は失敗になります！</p>
+                </section>
+
+                <section>
+                    <h3 class="text-red-600 font-black border-b-2 border-red-100 mb-1">● 鬼チャレ (100〜1000)</h3>
+                    <p class="text-xs text-slate-600 leading-relaxed">大きな数字に挑戦します。</p>
+                </section>
+
+                <section>
+                    <h3 class="text-slate-800 font-black border-b-2 border-slate-100 mb-1">● スコアとルール</h3>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        ・全10問のうち、「すべて素数で」1まで分解できた問題の数がスコアになります。<br>
+                        ・合成数で割った場合、その問題はクリア扱いになりません。
+                    </p>
+                </section>
+            </div>
+
+            <button onclick="toggleHowTo(false)" class="mt-6 bg-slate-800 text-white px-8 py-3 rounded-full text-lg font-bold hover:bg-slate-900 shadow-md">
+                わかった！
+            </button>
+        </div>
+
+        <!-- リザルト画面 -->
+        <div id="result-overlay" class="absolute inset-0 bg-white bg-opacity-95 flex flex-col items-center justify-center z-30 p-6 text-center hidden">
+            <h2 class="text-2xl font-black text-slate-800 mb-1">終了！</h2>
+            <div id="result-mode" class="text-xs font-bold mb-6 px-2 py-1 rounded">モード名</div>
+            
+            <div class="mb-8">
+                <p class="text-sm text-slate-400 font-bold">クリア問題数</p>
+                <div class="flex items-end justify-center">
+                    <p id="final-score" class="text-7xl font-black text-blue-600 tracking-tighter">0</p>
+                    <p class="text-2xl font-black text-blue-600 pb-2 ml-1">/10</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 w-full mb-8">
+                <div class="bg-slate-50 p-4 rounded-2xl">
+                    <p class="text-[10px] text-slate-400 font-bold">素数ヒット回数</p>
+                    <p id="final-primes" class="text-2xl font-bold text-slate-700">0</p>
+                </div>
+            </div>
+
+            <button onclick="backToTitle()" class="bg-slate-800 text-white px-8 py-3 rounded-full text-lg font-bold hover:bg-slate-900 shadow-md w-full max-w-[240px]">
+                タイトルへ戻る
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // サウンドエンジン (Web Audio API)
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playTone(freq, type, duration, vol = 0.1) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        const sounds = {
+            tap: () => playTone(800, 'sine', 0.1, 0.1),
+            hit: () => playTone(600, 'sine', 0.2, 0.2),
+            primeHit: () => {
+                playTone(1200, 'triangle', 0.3, 0.15);
+                setTimeout(() => playTone(1500, 'triangle', 0.3, 0.1), 50);
+            },
+            wrong: () => playTone(150, 'square', 0.3, 0.1),
+            clear: () => {
+                [523.25, 659.25, 783.99, 1046.50].forEach((f, i) => {
+                    setTimeout(() => playTone(f, 'sine', 0.4, 0.1), i * 100);
+                });
+            }
+        };
+
+        let score = 0;
+        let currentNumber = 0;
+        let factors = [];
+        let gameMode = 'beginner';
+        let inputString = "";
+        let questionCount = 0;
+        let primeCount = 0;
+        let isFailedProblem = false; // 現在の問題で素数以外を使ったか
+        
+        let bestBeginner = 0;
+        let bestChallenge = 0;
+        let bestOni = 0;
+
+        const beginnerPrimes = [2, 3, 5, 7, 11, 13, 17, 19, 23];
+
+        const scoreEl = document.getElementById('score');
+        const questionCountEl = document.getElementById('question-count');
+        const targetEl = document.getElementById('target-display');
+        const historyEl = document.getElementById('history-display');
+        const messageEl = document.getElementById('message');
+        const overlay = document.getElementById('overlay');
+        const howToOverlay = document.getElementById('howto-overlay');
+        const resultOverlay = document.getElementById('result-overlay');
+        const modeBadge = document.getElementById('mode-badge');
+        const inputDisplay = document.getElementById('input-display');
+        const currentInputEl = document.getElementById('current-input');
+        const skipBtn = document.getElementById('skip-btn');
+        
+        const beginnerControls = document.getElementById('beginner-controls');
+        const challengeControls = document.getElementById('challenge-controls');
+
+        function isPrime(num) {
+            if (num < 2) return false;
+            for (let i = 2; i <= Math.sqrt(num); i++) {
+                if (num % i === 0) return false;
+            }
+            return true;
+        }
+
+        function isBeginnerCompatible(num) {
+            let temp = num;
+            for (const p of beginnerPrimes) {
+                while (temp % p === 0) {
+                    temp /= p;
+                }
+            }
+            return temp === 1;
+        }
+
+        function toggleHowTo(show) {
+            sounds.tap();
+            if (show) howToOverlay.classList.remove('hidden');
+            else howToOverlay.classList.add('hidden');
+        }
+
+        function startGame(mode) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            sounds.tap();
+            gameMode = mode;
+            score = 0;
+            questionCount = 0;
+            primeCount = 0;
+            updateUI();
+            
+            if (mode === 'beginner') {
+                beginnerControls.classList.remove('hidden');
+                challengeControls.classList.add('hidden');
+                modeBadge.innerText = "ビギナー";
+                modeBadge.className = "px-2 py-1 bg-blue-100 text-blue-600 rounded-lg text-xs font-bold";
+                inputDisplay.classList.add('hidden');
+            } else if (mode === 'challenge') {
+                beginnerControls.classList.add('hidden');
+                challengeControls.classList.remove('hidden');
+                modeBadge.innerText = "チャレンジ";
+                modeBadge.className = "px-2 py-1 bg-orange-100 text-orange-600 rounded-lg text-xs font-bold";
+                inputDisplay.classList.remove('hidden');
+            } else if (mode === 'oni') {
+                beginnerControls.classList.add('hidden');
+                challengeControls.classList.remove('hidden');
+                modeBadge.innerText = "鬼チャレ";
+                modeBadge.className = "px-2 py-1 bg-red-100 text-red-600 rounded-lg text-xs font-bold";
+                inputDisplay.classList.remove('hidden');
+            }
+            
+            inputString = "";
+            currentInputEl.innerText = "";
+            overlay.classList.add('hidden');
+            resultOverlay.classList.add('hidden');
+            howToOverlay.classList.add('hidden');
+            nextProblem();
+        }
+
+        function generateProblemNumber() {
+            let min, max;
+            if (gameMode === 'oni') {
+                min = 100; max = 1000;
+            } else {
+                min = 4; max = 150;
+            }
+            let num;
+            do {
+                num = Math.floor(Math.random() * (max - min + 1)) + min;
+                if (isPrime(num)) continue;
+                if (gameMode === 'beginner' && !isBeginnerCompatible(num)) continue;
+                break;
+            } while (true);
+            return num;
+        }
+
+        function nextProblem() {
+            if (questionCount >= 10) {
+                endGame();
+                return;
+            }
+            
+            questionCount++;
+            isFailedProblem = false;
+            updateUI();
+            
+            currentNumber = generateProblemNumber();
+            factors = [];
+            
+            targetEl.innerText = currentNumber;
+            historyEl.innerText = "";
+            targetEl.className = "number-card text-5xl font-black text-slate-800 tracking-tighter";
+            messageEl.innerText = gameMode === 'beginner' ? "素数ボタンで割って！" : "素数で割ってね！";
+            messageEl.className = "text-center font-bold text-xs h-6 text-slate-500";
+            
+            inputString = "";
+            currentInputEl.innerText = "";
+            skipBtn.classList.add('hidden');
+        }
+
+        function handlePrimeInput(prime) {
+            if (currentNumber % prime === 0) {
+                processDivision(prime, true);
+            } else {
+                showError("その数では割れません！");
+            }
+        }
+
+        function handleNumKey(key) {
+            sounds.tap();
+            if (key === 'C') {
+                inputString = "";
+            } else {
+                if (inputString.length < 4) inputString += key;
+            }
+            currentInputEl.innerText = inputString;
+        }
+
+        function executeDivide() {
+            const divisor = parseInt(inputString);
+            if (isNaN(divisor) || divisor <= 1) {
+                showError("2以上の数字を入力して");
+                return;
+            }
+            
+            if (currentNumber % divisor === 0) {
+                const isDivisorPrime = isPrime(divisor);
+                if (!isDivisorPrime) {
+                    isFailedProblem = true;
+                    showError("素数じゃないよ！(無効)");
+                }
+                processDivision(divisor, isDivisorPrime);
+            } else {
+                showError("割り切れません！");
+            }
+            inputString = "";
+            currentInputEl.innerText = "";
+        }
+
+        function processDivision(divisor, isPrimeFactor) {
+            currentNumber /= divisor;
+            factors.push(divisor);
+            
+            targetEl.classList.remove('animate-pop', 'prime-hit');
+            void targetEl.offsetWidth; 
+
+            if (isPrimeFactor) {
+                primeCount++;
+                if (gameMode !== 'beginner') {
+                    sounds.primeHit();
+                    if (!isFailedProblem) {
+                        messageEl.innerText = "素数ヒット！";
+                        messageEl.className = "text-center font-bold text-xs h-6 text-blue-500 scale-110 transition-transform";
+                    }
+                    targetEl.classList.add('prime-hit');
+                } else {
+                    sounds.hit();
+                    targetEl.classList.add('animate-pop');
+                }
+            } else {
+                sounds.hit();
+                // showErrorですでにメッセージを出している場合は上書きしない
+                if (messageEl.innerText !== "素数じゃないよ！(無効)") {
+                    messageEl.innerText = "ナイス！";
+                    messageEl.className = "text-center font-bold text-xs h-6 text-green-500";
+                }
+                targetEl.classList.add('animate-pop');
+            }
+            
+            targetEl.innerText = currentNumber;
+            historyEl.innerText = factors.join(' × ');
+            
+            if (currentNumber === 1) {
+                if (!isFailedProblem) {
+                    score++;
+                    winProblem();
+                } else {
+                    failProblem();
+                }
+            } else {
+                if (gameMode !== 'beginner') skipBtn.classList.remove('hidden');
+            }
+            updateUI();
+        }
+
+        function showError(msg) {
+            sounds.wrong();
+            messageEl.innerText = msg;
+            messageEl.className = "text-center font-bold text-xs h-6 text-red-500";
+            if (gameMode !== 'beginner') skipBtn.classList.remove('hidden');
+        }
+
+        function winProblem() {
+            sounds.clear();
+            messageEl.innerText = "クリア！ 🎉";
+            messageEl.className = "text-center font-bold text-xs h-6 text-orange-500";
+            targetEl.className = "number-card text-5xl font-black text-orange-500 tracking-tighter animate-bounce";
+            updateUI();
+            setTimeout(nextProblem, 1000);
+        }
+
+        function failProblem() {
+            sounds.hit();
+            messageEl.innerText = "素数以外を使ったのでノーカウント！";
+            messageEl.className = "text-center font-bold text-xs h-6 text-slate-400";
+            targetEl.className = "number-card text-5xl font-black text-slate-400 tracking-tighter opacity-50";
+            updateUI();
+            setTimeout(nextProblem, 1500);
+        }
+
+        function skipProblem() {
+            sounds.tap();
+            messageEl.innerText = "次の問題へ...";
+            messageEl.className = "text-center font-bold text-xs h-6 text-slate-400";
+            setTimeout(nextProblem, 500);
+        }
+
+        function endGame() {
+            if (gameMode === 'beginner') bestBeginner = Math.max(bestBeginner, score);
+            else if (gameMode === 'challenge') bestChallenge = Math.max(bestChallenge, score);
+            else if (gameMode === 'oni') bestOni = Math.max(bestOni, score);
+            
+            document.getElementById('final-score').innerText = score;
+            document.getElementById('final-primes').innerText = primeCount;
+            
+            const resBadge = document.getElementById('result-mode');
+            if (gameMode === 'beginner') {
+                resBadge.innerText = 'ビギナーモード';
+                resBadge.className = 'text-xs font-bold text-blue-500 mb-6 px-2 py-1 bg-blue-50 rounded';
+            } else if (gameMode === 'challenge') {
+                resBadge.innerText = 'チャレンジモード';
+                resBadge.className = 'text-xs font-bold text-orange-500 mb-6 px-2 py-1 bg-orange-50 rounded';
+            } else {
+                resBadge.innerText = '鬼チャレモード';
+                resBadge.className = 'text-xs font-bold text-red-500 mb-6 px-2 py-1 bg-red-50 rounded';
+            }
+            
+            resultOverlay.classList.remove('hidden');
+        }
+
+        function backToTitle() {
+            sounds.tap();
+            document.getElementById('best-beginner').innerText = bestBeginner;
+            document.getElementById('best-challenge').innerText = bestChallenge;
+            document.getElementById('best-oni').innerText = bestOni;
+            resultOverlay.classList.add('hidden');
+            overlay.classList.remove('hidden');
+        }
+
+        function updateUI() {
+            scoreEl.innerText = score;
+            questionCountEl.innerText = questionCount;
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (overlay.classList.contains('hidden') && resultOverlay.classList.contains('hidden') && 
+                howToOverlay.classList.contains('hidden') && gameMode !== 'beginner') {
+                if (e.key >= '0' && e.key <= '9') handleNumKey(e.key);
+                if (e.key === 'Backspace' || e.key === 'c' || e.key === 'C') handleNumKey('C');
+                if (e.key === 'Enter') executeDivide();
+            }
+        });
+    </script>
+</body>
+</html>
