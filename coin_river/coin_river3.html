@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Coin River - Full Bright</title>
+    <title>Coin River - Voice & Clarity</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
             margin: 0;
             overflow: hidden;
             background: #000;
-            font-family: 'Arial', sans-serif;
+            font-family: 'Hiragino Kaku Gothic Pro', 'Meiryo', sans-serif;
             touch-action: none;
             display: flex;
             justify-content: center;
@@ -56,36 +56,61 @@
             width: 100%;
             height: 100%;
             background: linear-gradient(90deg, #00ffcc, #ffffff);
-            transition: width 0.1s linear;
         }
         #start-screen, #quiz-overlay, #clear-overlay, #result-overlay {
             position: absolute;
             inset: 0;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.85);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            padding: 20px;
+            padding: 24px;
             z-index: 100;
             color: white;
             text-align: center;
-            backdrop-filter: blur(8px);
+            backdrop-filter: blur(10px);
         }
         #quiz-overlay, #clear-overlay, #result-overlay { display: none; }
         .quiz-btn {
             width: 100%;
             max-width: 300px;
-            padding: 14px;
+            padding: 16px;
             margin: 8px;
             background: #1e293b;
             border: 2px solid #334155;
-            border-radius: 12px;
+            border-radius: 16px;
             cursor: pointer;
             transition: all 0.2s;
             font-weight: bold;
         }
         .quiz-btn:hover { background: #334155; border-color: #00ffcc; transform: scale(1.02); }
+        
+        /* 説明用パネル */
+        .info-card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 20px;
+            padding: 16px;
+            width: 100%;
+            max-width: 360px;
+            margin-bottom: 24px;
+        }
+        .info-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            text-align: left;
+        }
+        .info-row:last-child { margin-bottom: 0; }
+        .info-icon {
+            font-size: 24px;
+            width: 40px;
+            text-align: center;
+            margin-right: 12px;
+        }
+        .info-text b { color: #00ffcc; }
+
         #gold-rush-msg {
             position: absolute;
             top: 40%;
@@ -130,13 +155,29 @@
     <div id="gold-rush-msg">FEVER!</div>
     
     <div id="start-screen">
-        <h1 class="text-5xl font-black text-white mb-6 italic tracking-tighter">COIN <span class="text-cyan-400">RIVER</span></h1>
-        <div class="bg-white/10 p-6 rounded-3xl text-left text-sm space-y-3 mb-10 w-full max-w-[340px] border border-white/20">
-            <p>💡 <span class="font-bold text-green-400">明るさ固定:</span> コンボに関係なく常に見やすい！</p>
-            <p>🎵 <span class="font-bold text-yellow-400">進化する音:</span> コンボを繋いで高音質へ</p>
-            <p>🌟 <span class="font-bold text-pink-400">FEVER:</span> 歴史クイズ正解で突入！</p>
+        <h1 class="text-5xl font-black text-white mb-8 italic tracking-tighter">COIN <span class="text-cyan-400">RIVER</span></h1>
+        
+        <div class="info-card">
+            <div class="info-row">
+                <div class="info-icon">🪙</div>
+                <div class="info-text text-sm"><b>コインを集める:</b> 横移動で回収。SPACEキーや長押しでスピードアップ！</div>
+            </div>
+            <div class="info-row">
+                <div class="info-icon">⚡</div>
+                <div class="info-text text-sm"><b>コンボを繋ぐ:</b> 連続回収でスコアと音程が上昇！途切れても画面は暗くなりません。</div>
+            </div>
+            <div class="info-row">
+                <div class="info-icon">📜</div>
+                <div class="info-text text-sm"><b>歴史クイズ:</b> 150コンボごとに発生。全30問正解でゲームクリア！</div>
+            </div>
+            <div class="info-row">
+                <div class="info-icon">🔥</div>
+                <div class="info-text text-sm"><b>FEVER突入:</b> クイズ正解でコインが吸い寄せられるボーナスタイムへ！</div>
+            </div>
         </div>
+
         <button id="start-btn" class="quiz-btn !bg-cyan-600 border-none text-white font-bold text-2xl py-5 shadow-lg shadow-cyan-900/50">PLAY NOW</button>
+        <p class="text-[10px] mt-4 opacity-40 italic">Click to load audio</p>
     </div>
 
     <div id="quiz-overlay">
@@ -165,9 +206,24 @@
 </div>
 
 <script>
-    // Audio Context and Sounds
+    // Audio Resources
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    
+    let titleAudioPlayed = false;
+
+    // Title Voice function
+    function playTitleVoice() {
+        if (titleAudioPlayed) return;
+        const audio = new Audio('title_voice.mp3');
+        audio.play().catch(e => console.log("Audio play blocked", e));
+        titleAudioPlayed = true;
+    }
+
+    // Trigger title voice on first user interaction with the page
+    window.addEventListener('click', () => {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        playTitleVoice();
+    }, { once: true });
+
     function playCoinSound(comboCount) {
         if (audioCtx.state === 'suspended') return;
         const baseFreq = 400;
@@ -178,7 +234,6 @@
         osc.type = 'sine';
         osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
         
-        // Add harmonics for high combo
         if (comboCount > 20) {
             const osc2 = audioCtx.createOscillator();
             osc2.type = 'sine';
@@ -247,7 +302,7 @@
         { q: "江戸幕府の第3代将軍で参勤交代を制度化したのは？", a: ["徳川家康", "徳川秀忠", "徳川家光", "徳川吉宗"], c: 2 },
         { q: "目安箱を設置し享保の改革を行ったのは？", a: ["徳川吉宗", "徳川綱吉", "松平定信", "水野忠邦"], c: 0 },
         { q: "1853年、浦賀に来航したアメリカ艦隊の司令官は？", a: ["ハリス", "ペリー", "マッカーサー", "アイゼンハワー"], c: 1 },
-        { q: "薩摩藩と長州藩の仲立ちをして薩長同盟を結ばせたのは？", a: ["西郷隆盛", "坂本龍馬", "桂小五郎", "高杉収作"], c: 1 },
+        { q: "薩摩藩と長州藩の仲立ちをして薩長同盟を結ばせたのは？", a: ["西郷隆盛", "坂本龍馬", "桂小五郎", "高杉晋作"], c: 1 },
         { q: "1867年、徳川慶喜が政権を朝廷に返したことは？", a: ["王政復古", "大政奉還", "版籍奉還", "廃藩置県"], c: 1 },
         { q: "明治政府が1872年に出した、教育の義務化を定めたのは？", a: ["学制", "徴兵令", "地租改正", "富国強兵"], c: 0 },
         { q: "1889年に発布された、日本最初の近代憲法は？", a: ["日本国憲法", "大日本帝国憲法", "五箇条の御誓文", "十七条憲法"], c: 1 },
@@ -321,10 +376,12 @@
         }
     }
 
-    document.getElementById('start-btn').onclick = () => {
+    document.getElementById('start-btn').onclick = (e) => {
+        e.stopPropagation(); // Prevent duplicate voice trigger
         startScreen.style.display = 'none';
         gamePaused = false;
         if(audioCtx.state === 'suspended') audioCtx.resume();
+        playTitleVoice();
         updateLivesDisplay();
     };
 
@@ -538,21 +595,15 @@
     }
 
     function draw() {
-        // ALWAYS clear with transparency or black to ensure no ghosting, 
-        // but background drawing must be consistent.
         ctx.clearRect(0, 0, width, height);
-        
-        // Background Drawing - NO CONDITIONAL BRIGHTNESS/FILTERS HERE
         ctx.globalAlpha = 1.0; 
-        ctx.filter = 'none'; // Ensure no global filters are applied to the background
+        ctx.filter = 'none';
         
         if (bgImg.complete && bgImg.width > 0) {
             const aspect = bgImg.height / bgImg.width;
             const drawH = width * aspect;
             const offset = bgScrollPos % drawH;
-            
             for (let y = offset - drawH; y < height; y += drawH) {
-                // Drawing with full opacity and no filters
                 ctx.drawImage(bgImg, 0, Math.ceil(y), width, Math.ceil(drawH) + 1);
             }
         } else {
@@ -560,10 +611,8 @@
             ctx.fillRect(0, 0, width, height);
         }
 
-        // Draw items
         items.forEach(it => it.draw());
 
-        // Draw player
         ctx.save();
         if (playerImg.complete) {
             if (isBoosting) { 
@@ -585,9 +634,7 @@
         }
         ctx.restore();
 
-        // Draw particles
         particles.forEach(p => p.draw());
-
         requestAnimationFrame(draw);
     }
 
