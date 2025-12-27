@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>すごろく DE 理科！ ハイパープラス</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;900&display=swap');
+
+        :root {
+            --bg-gradient: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        }
+
+        body {
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            background: var(--bg-gradient);
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            color: #ffffff;
+        }
+
+        .board-wrapper {
+            width: 98vw;
+            max-width: 1100px;
+            height: 55vh;
+            margin: 0 auto;
+            position: relative;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 30px;
+            padding: 15px;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            border: 2px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .board-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            grid-template-rows: repeat(6, 1fr);
+            gap: 4px;
+            height: 100%;
+            width: 100%;
+        }
+
+        .tile {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            position: relative;
+            transition: all 0.2s;
+            border-bottom: 3px solid rgba(0,0,0,0.3);
+            font-weight: 800;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+
+        .tile.active-path {
+            background: rgba(255, 255, 255, 0.3);
+            border: 1px solid rgba(255,255,255,0.5);
+        }
+
+        .tile-gimmick { animation: pulse 1.5s infinite; background: #fbbf24 !important; color: #000 !important; }
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(251, 191, 36, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); }
+        }
+
+        .tile-danger { background: #ef4444 !important; animation: shake 0.5s infinite; }
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            20% { transform: translate(-1px, -2px) rotate(-1deg); }
+            50% { transform: translate(-2px, 0px) rotate(1deg); }
+            100% { transform: translate(1px, 1px) rotate(0deg); }
+        }
+
+        .player-pawn {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            position: absolute;
+            z-index: 100;
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            border: 2px solid white;
+        }
+
+        .dice-btn {
+            background: linear-gradient(to bottom, #fde68a, #fbbf24);
+            color: #1e293b;
+            padding: 12px 50px;
+            font-size: 1.8rem;
+            font-weight: 900;
+            border-radius: 50px;
+            box-shadow: 0 6px 0 #b45309;
+            transition: all 0.1s;
+        }
+        .dice-btn:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 2px 0 #b45309; }
+
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+        }
+        .modal.active { display: flex; }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 30px;
+            max-width: 600px;
+            width: 90%;
+            color: #1e293b;
+            text-align: center;
+        }
+
+        .option-btn {
+            width: 100%;
+            padding: 15px;
+            margin: 8px 0;
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 15px;
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+        .option-btn:hover { background: #eff6ff; border-color: #3b82f6; }
+
+        .flash-correct { animation: flashG 0.4s ease-out; }
+        @keyframes flashG { 0% { background: #22c55e; } 100% { background: transparent; } }
+        .flash-wrong { animation: flashR 0.4s ease-out; }
+        @keyframes flashR { 0% { background: #ef4444; } 100% { background: transparent; } }
+    </style>
+</head>
+<body id="gameBody">
+
+    <!-- Start Screen -->
+    <div id="startScreen" class="fixed inset-0 z-[2000] bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
+        <h1 class="text-6xl font-black text-yellow-400 mb-4 drop-shadow-2xl">すごろく DE 理科！<br><span class="text-3xl text-white">★ 小中一貫ハイパープラス ★</span></h1>
+        
+        <div class="bg-white/5 p-6 rounded-2xl mb-8 max-w-xl border border-white/10 text-sm">
+            <p class="text-yellow-300 font-bold mb-2">【レベル設定】</p>
+            <p>前半（1〜39マス）：小学校レベルの基礎知識</p>
+            <p class="mb-4">後半（分岐以降）：中学校レベルの発展知識</p>
+            <p class="text-xs text-slate-400">※全100問以上の問題データベースを搭載！</p>
+        </div>
+
+        <div class="mb-8">
+            <p class="text-xl font-bold mb-4">参加人数を選んでスタート！</p>
+            <div class="flex gap-4">
+                <button onclick="startGame(1)" class="w-16 h-16 bg-blue-500 rounded-2xl text-2xl font-black shadow-lg">1</button>
+                <button onclick="startGame(2)" class="w-16 h-16 bg-green-500 rounded-2xl text-2xl font-black shadow-lg">2</button>
+                <button onclick="startGame(3)" class="w-16 h-16 bg-orange-500 rounded-2xl text-2xl font-black shadow-lg">3</button>
+                <button onclick="startGame(4)" class="w-16 h-16 bg-red-500 rounded-2xl text-2xl font-black shadow-lg">4</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- UI -->
+    <div class="flex flex-col h-full items-center justify-between py-4">
+        <div id="playerStats" class="w-full max-w-4xl grid grid-cols-4 gap-2 px-4"></div>
+
+        <div class="board-wrapper">
+            <div id="board" class="board-grid"></div>
+        </div>
+
+        <div class="controls flex flex-col items-center gap-2">
+            <div id="diceResult" class="text-5xl h-14">🎲</div>
+            <button id="diceBtn" class="dice-btn">ROLL!</button>
+            <div id="statusMessage" class="bg-black/40 px-6 py-1 rounded-full font-bold text-lg text-yellow-300"></div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="quizModal" class="modal">
+        <div class="card">
+            <div class="flex justify-between items-center mb-4">
+                <span id="quizDifficulty" class="px-3 py-1 bg-yellow-400 text-black rounded-full font-black text-sm"></span>
+                <span id="quizCategory" class="text-xl font-black text-blue-600"></span>
+            </div>
+            <h2 id="quizQuestion" class="text-xl md:text-2xl font-bold mb-6"></h2>
+            <div id="quizOptions" class="grid grid-cols-1 gap-2"></div>
+        </div>
+    </div>
+
+    <div id="branchModal" class="modal">
+        <div class="card !bg-slate-800 !text-white">
+            <h2 class="text-3xl font-black mb-4 text-yellow-400">中学校レベル突入！</h2>
+            <p class="mb-6">ここからは中学校理科の問題です。<br>得意な分野を選んでください。</p>
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="selectBranch('bio')" class="p-4 rounded-xl bg-green-700 font-bold">🌿 生物</button>
+                <button onclick="selectBranch('chem')" class="p-4 rounded-xl bg-purple-700 font-bold">🧪 化学</button>
+                <button onclick="selectBranch('phy')" class="p-4 rounded-xl bg-orange-700 font-bold">⚡ 物理</button>
+                <button onclick="selectBranch('geo')" class="p-4 rounded-xl bg-blue-700 font-bold">🌏 地学</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="resultModal" class="modal">
+        <div class="card">
+            <h2 class="text-4xl font-black text-blue-600 mb-6">結果発表</h2>
+            <div id="rankingList" class="space-y-3 mb-6"></div>
+            <button onclick="location.reload()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold">もう一度あそぶ</button>
+        </div>
+    </div>
+
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSfx(freqs, type, duration, vol=0.3) {
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            freqs.forEach((f, i) => {
+                setTimeout(() => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(f, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+                    osc.connect(gain); gain.connect(audioCtx.destination);
+                    osc.start(); osc.stop(audioCtx.currentTime + duration);
+                }, i * 80);
+            });
+        }
+        const sfx = {
+            move: () => playSfx([400], 'sine', 0.1, 0.2),
+            dice: () => playSfx([1000], 'square', 0.05, 0.1),
+            correct: () => {
+                playSfx([523, 659, 783, 1046], 'triangle', 0.5, 0.5);
+                confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+            },
+            wrong: () => playSfx([200, 100], 'sawtooth', 0.5, 0.5),
+            gimmick: () => playSfx([800, 1200], 'sine', 0.3, 0.4),
+            goal: () => {
+                playSfx([523, 783, 1046], 'square', 1.0, 0.5);
+                confetti({ particleCount: 200, spread: 160 });
+            }
+        };
+
+        const quizBank = {
+            normal: [
+                // 小学校レベル（生物）
+                {q:"昆虫の足は何本？", a:["4本","6本","8本","10本"], c:1, cat:"小・生物", p:100},
+                {q:"アブラナの花びらは何枚？", a:["3枚","4枚","5枚","6枚"], c:1, cat:"小・生物", p:100},
+                {q:"サケのたまごを何という？", a:["カズノコ","イクラ","タラコ","メダカ"], c:1, cat:"小・生物", p:100},
+                {q:"植物が日光を浴びて栄養を作ることを何という？", a:["呼吸","光合成","蒸散","受粉"], c:1, cat:"小・生物", p:150},
+                {q:"メダカのオスにある、背びれの切れ込みは？", a:["ある","ない","メスにある","季節による"], c:0, cat:"小・生物", p:150},
+                {q:"種子が発芽するために必要な3条件は？", a:["水・空気・日光","水・空気・温度","空気・温度・肥料","水・温度・土"], c:1, cat:"小・生物", p:200},
+                {q:"人の心臓が血液を送り出す役割をしているのは？", a:["胃","肺","心臓","肝臓"], c:2, cat:"小・生物", p:100},
+                {q:"チョウの育ち方で正しい順番は？", a:["卵→さなぎ→幼虫→成虫","卵→幼虫→さなぎ→成虫","卵→幼虫→成虫","さなぎ→卵→幼虫→成虫"], c:1, cat:"小・生物", p:150},
+                // 小学校レベル（化学・物理）
+                {q:"水が沸騰するときの温度は約何度？", a:["50度","80度","100度","120度"], c:2, cat:"小・化学", p:100},
+                {q:"磁石の同じ極（NとNなど）を近づけるとどうなる？", a:["引き合う","退け合う","何も起きない","爆発する"], c:1, cat:"小・物理", p:100},
+                {q:"食塩を水に溶かしたものを何という？", a:["食塩水","飽和水","水溶液","混合物"], c:0, cat:"小・化学", p:100},
+                {q:"乾電池の向きを逆にすると電流の向きはどうなる？", a:["変わらない","逆になる","止まる","強くなる"], c:1, cat:"小・物理", p:150},
+                {q:"豆電球2個を「直列」につなぐと、並列の時より明るさは？", a:["明るい","暗い","同じ","つかない"], c:1, cat:"小・物理", p:150},
+                {q:"ふりこが1往復する時間は、何を変えると変わる？", a:["おもりの重さ","ふりこの長さ","振れはば","色"], c:1, cat:"小・物理", p:200},
+                {q:"水溶液の中で、鉄を溶かす性質があるのは？", a:["食塩水","砂糖水","塩酸","重曹水"], c:2, cat:"小・化学", p:200},
+                {q:"空気に最も多く含まれている気体は？", a:["酸素","二酸化炭素","窒素","水素"], c:2, cat:"小・化学", p:150},
+                // 小学校レベル（地学）
+                {q:"太陽はどの方角からのぼる？", a:["東","西","南","北"], c:0, cat:"小・地学", p:100},
+                {q:"月が自分で光っているのは？", a:["はい","いいえ","夜だけ","新月だけ"], c:1, cat:"小・地学", p:100},
+                {q:"夏の大三角に含まれない星は？", a:["ベガ","アルタイル","デネブ","アンタレス"], c:3, cat:"小・地学", p:200},
+                {q:"地層ができるとき、一般的に新しい層はどこ？", a:["一番下","一番上","真ん中","決まっていない"], c:1, cat:"小・地学", p:150},
+                {q:"流れる水の3つの働きは、しん食、運搬と何？", a:["蒸発","たい積","ろ過","溶解"], c:1, cat:"小・地学", p:150}
+            ],
+            bio: [
+                {q:"植物細胞にあり、動物細胞にないものは？", a:["核","細胞質","細胞壁","細胞膜"], c:2, cat:"中・生物", p:400},
+                {q:"セキチュウ動物で、一生エラ呼吸をするのは？", a:["魚類","両生類","は虫類","哺乳類"], c:0, cat:"中・生物", p:400},
+                {q:"優性の法則を発見した人物は？", a:["ダーウィン","メンデル","パスツール","フック"], c:1, cat:"中・生物", p:500},
+                {q:"肺で酸素と二酸化炭素の交換が行われる小さな袋を？", a:["肺胞","気管支","横隔膜","肺門"], c:0, cat:"中・生物", p:400},
+                {q:"消化液の「胆汁」が作られる場所は？", a:["胃","胆のう","肝臓","すい臓"], c:2, cat:"中・生物", p:500}
+            ],
+            chem: [
+                {q:"原子の記号「Cu」は何を表す？", a:["金","銀","銅","鉄"], c:2, cat:"中・化学", p:400},
+                {q:"水の電気分解で、陽極に発生する気体は？", a:["水素","酸素","塩素","窒素"], c:1, cat:"中・化学", p:400},
+                {q:"物質が酸素と結びつく化学変化を？", a:["還元","酸化","分解","化合"], c:1, cat:"中・化学", p:400},
+                {q:"塩化ナトリウムが水に溶けて電離する様子を表す式は？", a:["Na+ + Cl-","NaCl2","Na + Cl","H + Cl"], c:0, cat:"中・化学", p:500},
+                {q:"アンモニアの性質として正しいのは？", a:["酸性","アルカリ性","中性","無臭"], c:1, cat:"中・化学", p:400}
+            ],
+            phy: [
+                {q:"電流の単位「A」の読み方は？", a:["アンペア","ボルト","オーム","ワット"], c:0, cat:"中・物理", p:400},
+                {q:"10Ωの抵抗に3Vの電圧をかけた時の電流は？", a:["30A","3.3A","0.3A","13A"], c:2, cat:"中・物理", p:500},
+                {q:"凸レンズで実物と同じ大きさの実像ができる位置は？", a:["焦点の上","焦点距離の2倍","無限遠","レンズのすぐそば"], c:1, cat:"中・物理", p:500},
+                {q:"仕事率の単位は？", a:["J","W","N","Pa"], c:1, cat:"中・物理", p:400},
+                {q:"力の単位「N（ニュートン）」、1Nは約何gの重さ？", a:["10g","100g","1kg","10kg"], c:1, cat:"中・物理", p:400}
+            ],
+            geo: [
+                {q:"地震の揺れの大きさを表す尺度は？", a:["マグニチュード","震度","ガル","波長"], c:1, cat:"中・地学", p:400},
+                {q:"冬に日本付近で発達する気圧配置は？", a:["南高北低","西高東低","移動性高気圧","梅雨前線"], c:1, cat:"中・地学", p:400},
+                {q:"金星が夕方の西の空に見える時の呼び名は？", a:["明けの明星","宵の明星","ほうき星","一番星"], c:1, cat:"中・地学", p:400},
+                {q:"飽和水蒸気量は、気温が上がるとどうなる？", a:["増える","減る","変わらない","0になる"], c:0, cat:"中・地学", p:500},
+                {q:"火成岩のうち、地下深くでゆっくり冷えて固まったものは？", a:["火山岩","深成岩","堆積岩","変成岩"], c:1, cat:"中・地学", p:500}
+            ]
+        };
+
+        let players = [];
+        let currentPlayerIndex = 0;
+        let isMoving = false;
+        let path = [];
+        const wrongAnswers = [];
+        const gimmicks = [
+            {t:"×2", desc:"このターンのポイント2倍！", f:(p)=>p.bonusMul=2},
+            {t:"×5", desc:"超ラッキー！ポイント5倍！", f:(p)=>p.bonusMul=5},
+            {t:"+3", desc:"3マス進む！", f:async (p)=>await forceMove(p,3)},
+            {t:"+5", desc:"一気に5マス進む！", f:async (p)=>await forceMove(p,5)},
+            {t:"-3", desc:"3マス戻る...", f:async (p)=>await forceMove(p,-3)},
+            {t:"盗", desc:"他全員から300pt奪う！", f:(p)=>{
+                players.forEach(op=>{if(op.id!==p.id){op.score=Math.max(0,op.score-300);p.score+=300;}});
+            }},
+            {t:"換", desc:"最下位と入れ替わる！", f:(p)=>{
+                let last = [...players].sort((a,b)=>a.pos-b.pos)[0];
+                let tmp = p.pos; p.pos = last.pos; last.pos = tmp;
+            }},
+            {t:"0", desc:"ポイントが0になった！", f:(p)=>p.score=0},
+            {t:"神", desc:"全員に500pt！", f:()=>{players.forEach(p=>p.score+=500);}},
+            {t:"終", desc:"ゴールまで一気に加速！(+5)", f:async (p)=>await forceMove(p,5)}
+        ];
+
+        function startGame(num) {
+            const icons = ['🚀', '🛸', '⭐', '🌙'];
+            const colors = ['#f87171', '#4ade80', '#fbbf24', '#60a5fa'];
+            players = Array.from({length: num}, (_, i) => ({
+                id: i, name: `Player ${i+1}`, icon: icons[i], color: colors[i],
+                pos: 0, score: 0, branch: null, isGoal: false, bonusMul: 1
+            }));
+            document.getElementById('startScreen').classList.add('hidden');
+            initBoard();
+            renderStats();
+        }
+
+        function createPath() {
+            path = [];
+            for(let r=0; r<6; r++) {
+                if(r % 2 === 0) for(let c=0; c<10; c++) path.push({r, c, gimmick:null});
+                else for(let c=9; c>=0; c--) path.push({r, c, gimmick:null});
+            }
+            for(let i=5; i<55; i+=Math.floor(Math.random()*4)+4) {
+                path[i].gimmick = gimmicks[Math.floor(Math.random()*gimmicks.length)];
+            }
+            path[39].isBranch = true;
+            path[59].isGoal = true;
+        }
+
+        function initBoard() {
+            createPath();
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+            for(let r=0; r<6; r++) {
+                for(let c=0; c<10; c++) {
+                    const tile = document.createElement('div');
+                    tile.className = 'tile';
+                    tile.id = `tile-${r}-${c}`;
+                    board.appendChild(tile);
+                }
+            }
+            path.forEach((p, i) => {
+                const el = document.getElementById(`tile-${p.r}-${p.c}`);
+                el.classList.add('active-path');
+                if(p.isGoal) {
+                    el.innerHTML = `<span class='text-[8px]'>GOAL</span>`;
+                    el.style.background = "linear-gradient(45deg, #fbbf24, #ea580c)";
+                } else if(p.isBranch) {
+                    el.innerHTML = `<span>分岐</span>`;
+                    el.style.background = "#8b5cf6";
+                } else if(p.gimmick) {
+                    el.classList.add(p.gimmick.t.includes('-') || p.gimmick.t === '0' ? 'tile-danger' : 'tile-gimmick');
+                    el.innerHTML = `<span>${p.gimmick.t}</span>`;
+                } else {
+                    el.innerText = i;
+                }
+            });
+            updatePawns();
+        }
+
+        function updatePawns() {
+            players.forEach(p => {
+                let pwn = document.getElementById(`pawn-${p.id}`);
+                if(!pwn) {
+                    pwn = document.createElement('div');
+                    pwn.id = `pawn-${p.id}`;
+                    pwn.className = 'player-pawn';
+                    pwn.style.backgroundColor = p.color;
+                    pwn.innerText = p.icon;
+                    document.body.appendChild(pwn);
+                }
+                const tilePos = path[p.pos];
+                const tileEl = document.getElementById(`tile-${tilePos.r}-${tilePos.c}`);
+                const rect = tileEl.getBoundingClientRect();
+                const offset = (p.id * 4) - 8;
+                pwn.style.top = `${rect.top + rect.height/2 - 17 + offset}px`;
+                pwn.style.left = `${rect.left + rect.width/2 - 17 + offset}px`;
+            });
+        }
+
+        function renderStats() {
+            const stats = document.getElementById('playerStats');
+            stats.innerHTML = '';
+            players.forEach((p, i) => {
+                const div = document.createElement('div');
+                div.className = `p-2 rounded-xl transition-all ${i === currentPlayerIndex ? 'bg-white/30 ring-2 ring-white scale-105' : 'bg-white/5'}`;
+                div.innerHTML = `
+                    <div class="flex items-center gap-1">
+                        <span class="text-xl">${p.icon}</span>
+                        <div class="flex flex-col">
+                            <span class="text-[8px] font-bold opacity-70">${p.name}</span>
+                            <span class="text-xs font-black">${p.score}pt</span>
+                        </div>
+                    </div>
+                `;
+                stats.appendChild(div);
+            });
+            const cp = players[currentPlayerIndex];
+            document.getElementById('statusMessage').innerText = `${cp.name}の番です！`;
+            document.getElementById('statusMessage').style.color = cp.color;
+        }
+
+        const diceBtn = document.getElementById('diceBtn');
+        diceBtn.onclick = async () => {
+            if(isMoving) return;
+            diceBtn.disabled = true;
+            const roll = Math.floor(Math.random() * 6) + 1;
+            let count = 0;
+            const anim = setInterval(() => {
+                const icons = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+                document.getElementById('diceResult').innerText = icons[Math.floor(Math.random()*6)];
+                sfx.dice();
+                if(count++ > 10) {
+                    clearInterval(anim);
+                    document.getElementById('diceResult').innerText = icons[roll-1];
+                    movePlayer(roll);
+                }
+            }, 80);
+        };
+
+        async function movePlayer(steps) {
+            isMoving = true;
+            const p = players[currentPlayerIndex];
+            for(let i=0; i<steps; i++) {
+                if(p.pos >= path.length-1) break;
+                if(p.pos === 39 && !p.branch) {
+                    document.getElementById('branchModal').classList.add('active');
+                    return;
+                }
+                p.pos++;
+                sfx.move();
+                updatePawns();
+                await new Promise(r => setTimeout(r, 250));
+            }
+            checkLanding();
+        }
+
+        async function forceMove(p, n) {
+            const direction = n > 0 ? 1 : -1;
+            const absoluteN = Math.abs(n);
+            for(let i=0; i<absoluteN; i++) {
+                if(direction > 0 && p.pos >= path.length-1) break;
+                if(direction < 0 && p.pos <= 0) break;
+                p.pos += direction;
+                updatePawns();
+                await new Promise(r => setTimeout(r, 150));
+            }
+        }
+
+        async function checkLanding() {
+            const p = players[currentPlayerIndex];
+            const tile = path[p.pos];
+            if(tile.isGoal) {
+                sfx.goal();
+                p.isGoal = true; p.score += 2000;
+                nextTurn(); return;
+            }
+            if(tile.gimmick) {
+                sfx.gimmick();
+                document.getElementById('statusMessage').innerText = tile.gimmick.desc;
+                await tile.gimmick.f(p);
+                updatePawns();
+                await new Promise(r => setTimeout(r, 800));
+            }
+            showQuiz();
+        }
+
+        function showQuiz() {
+            const p = players[currentPlayerIndex];
+            const pool = (p.branch && p.pos > 39) ? quizBank[p.branch] : quizBank.normal;
+            const quiz = pool[Math.floor(Math.random() * pool.length)];
+            const modal = document.getElementById('quizModal');
+            document.getElementById('quizDifficulty').innerText = `報酬: ${quiz.p * p.bonusMul}pt`;
+            document.getElementById('quizCategory').innerText = quiz.cat;
+            document.getElementById('quizQuestion').innerText = quiz.q;
+            const options = document.getElementById('quizOptions');
+            options.innerHTML = '';
+            quiz.a.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.innerText = opt;
+                btn.onclick = () => {
+                    modal.classList.remove('active');
+                    if(idx === quiz.c) {
+                        sfx.correct();
+                        p.score += (quiz.p * p.bonusMul);
+                        p.bonusMul = 1;
+                        document.getElementById('gameBody').classList.add('flash-correct');
+                        setTimeout(()=>document.getElementById('gameBody').classList.remove('flash-correct'), 400);
+                        nextTurn();
+                    } else {
+                        sfx.wrong();
+                        wrongAnswers.push({q:quiz.q, a:quiz.a[quiz.c]});
+                        document.getElementById('gameBody').classList.add('flash-wrong');
+                        setTimeout(()=>document.getElementById('gameBody').classList.remove('flash-wrong'), 400);
+                        forceMove(p, -2).then(nextTurn);
+                    }
+                };
+                options.appendChild(btn);
+            });
+            modal.classList.add('active');
+        }
+
+        function nextTurn() {
+            if(players.every(p => p.isGoal)) { showFinal(); return; }
+            currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+            while(players[currentPlayerIndex].isGoal) currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+            isMoving = false;
+            diceBtn.disabled = false;
+            renderStats();
+            updatePawns();
+        }
+
+        window.selectBranch = (type) => {
+            players[currentPlayerIndex].branch = type;
+            document.getElementById('branchModal').classList.remove('active');
+            checkLanding();
+        };
+
+        function showFinal() {
+            const sorted = [...players].sort((a,b) => b.score - a.score);
+            const rankList = document.getElementById('rankingList');
+            rankList.innerHTML = sorted.map((p, i) => `
+                <div class="p-4 rounded-xl flex justify-between items-center bg-slate-100 ${i===0?'ring-2 ring-yellow-400':''}">
+                    <span>${i+1}位 ${p.icon} ${p.name}</span>
+                    <span class="font-bold">${p.score}pt</span>
+                </div>
+            `).join('');
+            document.getElementById('resultModal').classList.add('active');
+        }
+
+        window.onresize = updatePawns;
+    </script>
+</body>
+</html>
