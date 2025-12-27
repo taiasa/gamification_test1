@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>世界遺産オセロ Deluxe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { touch-action: manipulation; }
+        .cell { aspect-ratio: 1 / 1; perspective: 1000px; position: relative; }
+        
+        .disc {
+            width: 85%;
+            height: 85%;
+            border-radius: 50%;
+            transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform-style: preserve-3d;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .black { background: radial-gradient(circle at 30% 30%, #444, #000); }
+        .white { background: radial-gradient(circle at 30% 30%, #fff, #ccc); border: 1px solid #aaa; }
+        
+        .placed-anim { animation: dropIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes dropIn {
+            0% { transform: scale(2) translateY(-20px); opacity: 0; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+
+        .flip-anim { animation: flipJump 0.6s ease-in-out; }
+        @keyframes flipJump {
+            0% { transform: rotateY(0deg) scale(1); }
+            50% { transform: rotateY(90deg) scale(1.3); }
+            100% { transform: rotateY(180deg) scale(1); }
+        }
+
+        .ripple {
+            position: absolute;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            animation: ripple-out 0.6s ease-out;
+            pointer-events: none;
+        }
+        @keyframes ripple-out {
+            from { width: 0; height: 0; opacity: 1; }
+            to { width: 150%; height: 150%; opacity: 0; }
+        }
+
+        .last-move { z-index: 20; }
+        .last-move::before {
+            content: ''; position: absolute; inset: -2px;
+            border: 3px solid #fbbf24; border-radius: 4px;
+            animation: pulse-border 1.5s infinite;
+        }
+        @keyframes pulse-border {
+            0%, 100% { opacity: 1; } 50% { opacity: 0.3; }
+        }
+
+        .valid-move::after {
+            content: ''; width: 25%; height: 25%; background-color: rgba(255, 255, 255, 0.25);
+            border-radius: 50%; position: absolute;
+            animation: pulse-hint 2s infinite;
+        }
+        @keyframes pulse-hint {
+            0%, 100% { transform: scale(1); opacity: 0.2; }
+            50% { transform: scale(1.5); opacity: 0.5; }
+        }
+
+        .flash-correct { animation: flash-g 0.5s ease-out; }
+        .flash-wrong { animation: flash-r 0.5s ease-out; }
+        @keyframes flash-g { from { background-color: rgba(34, 197, 94, 0.4); } to { background-color: transparent; } }
+        @keyframes flash-r { from { background-color: rgba(239, 68, 68, 0.4); } to { background-color: transparent; } }
+
+        .modal-animate { animation: modalIn 0.3s ease-out; }
+        @keyframes modalIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    </style>
+</head>
+<body class="bg-stone-100 min-h-screen font-sans text-slate-800 overflow-hidden transition-colors duration-500" id="body-overlay">
+
+    <div id="app" class="max-w-md mx-auto h-screen flex flex-col p-2">
+        
+        <!-- Mode Selection (Title Screen) -->
+        <div id="mode-selection" class="fixed inset-0 bg-stone-100 z-[100] flex flex-col items-center justify-center p-4 text-center">
+            <div class="mb-8 animate-bounce">
+                <span class="text-6xl">🏛️</span>
+            </div>
+            <h1 class="text-4xl font-black text-stone-800 mb-2 tracking-tighter">世界遺産オセロ</h1>
+            <p class="text-stone-500 mb-10 font-medium">知識が盤面を支配する</p>
+            
+            <div class="space-y-4 w-full max-w-xs">
+                <button onclick="startGame('pve')" class="group relative w-full bg-stone-800 text-white py-4 rounded-2xl font-bold shadow-xl transition-transform active:scale-95 overflow-hidden">
+                    <span class="relative z-10">1人でプレイ (vs PC)</span>
+                    <div class="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform"></div>
+                </button>
+                <button onclick="startGame('pvp')" class="w-full bg-white border-2 border-stone-800 text-stone-800 py-4 rounded-2xl font-bold shadow-lg transition-transform active:scale-95">
+                    2人で対戦
+                </button>
+                
+                <!-- Title Screen Review Button -->
+                <button id="review-btn-title" onclick="showReview()" class="w-full bg-amber-100 text-amber-800 py-4 rounded-2xl font-black border-2 border-dashed border-amber-400 hidden animate-pulse transition-all active:scale-95">
+                    📖 前回の間違えた問題を復習
+                </button>
+            </div>
+        </div>
+
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-3 px-2">
+            <div class="flex items-center space-x-3">
+                <h1 class="text-xl font-black text-stone-800 tracking-tight">DELUXE</h1>
+                <button onclick="confirmRetry()" class="flex items-center space-x-1 bg-white border-2 border-stone-200 hover:border-red-400 hover:text-red-500 px-3 py-1 rounded-full text-xs font-black transition-all shadow-sm active:scale-90">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <span>タイトルに戻る</span>
+                </button>
+            </div>
+            <div id="turn-indicator" class="px-4 py-1 rounded-full shadow-inner font-black text-xs transition-all duration-300">黒の番</div>
+        </div>
+
+        <!-- Scoreboard -->
+        <div class="grid grid-cols-3 gap-2 items-center bg-white p-3 rounded-2xl shadow-md mb-3 border-b-4 border-stone-200">
+            <div class="flex flex-col items-center">
+                <div class="w-8 h-8 rounded-full black mb-1 shadow-lg ring-2 ring-stone-800 ring-offset-2"></div>
+                <span class="text-2xl font-black leading-none" id="black-score">2</span>
+            </div>
+            <div class="text-center">
+                <div id="status-message" class="text-[10px] font-black uppercase tracking-widest text-stone-400 h-4"></div>
+                <div class="text-[8px] font-bold text-stone-300 mt-1">SCORE</div>
+            </div>
+            <div class="flex flex-col items-center">
+                <div class="w-8 h-8 rounded-full white mb-1 shadow-md ring-2 ring-stone-200 ring-offset-2"></div>
+                <span class="text-2xl font-black leading-none" id="white-score">2</span>
+            </div>
+        </div>
+
+        <!-- Board -->
+        <div class="flex-1 flex items-center justify-center min-h-0">
+            <div id="board" class="grid grid-cols-8 gap-1 bg-emerald-800 p-1.5 rounded-xl shadow-2xl border-8 border-stone-800 w-full aspect-square max-w-[380px]"></div>
+        </div>
+
+        <!-- Footer Info -->
+        <div class="mt-4 text-center text-[10px] font-bold text-stone-400 uppercase tracking-widest">
+            World Heritage Othello Quiz Edition
+        </div>
+
+        <!-- Quiz Modal -->
+        <div id="quiz-modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-[120] p-4 backdrop-blur-sm">
+            <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden modal-animate border-4 border-stone-800">
+                <div id="quiz-header" class="bg-stone-800 text-white p-3 flex justify-between items-center">
+                    <span id="quiz-level" class="bg-amber-400 px-3 py-1 rounded-full text-stone-900 font-black text-xs">LV.1</span>
+                    <span class="text-xs font-bold animate-pulse">正解すれば配置できます</span>
+                </div>
+                <div class="p-6">
+                    <p id="quiz-question" class="text-lg font-black mb-6 text-slate-800 leading-tight"></p>
+                    <div id="quiz-options" class="grid grid-cols-1 gap-3"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Confirmation Modal -->
+        <div id="confirm-modal" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-[130] p-6 backdrop-blur-md">
+            <div class="bg-white p-8 rounded-3xl max-w-xs w-full shadow-2xl text-center border-4 border-stone-800">
+                <div class="text-4xl mb-4">⚠️</div>
+                <p class="font-black text-xl mb-6 leading-tight">中断して<br>タイトルへ戻る？</p>
+                <div class="flex space-x-3">
+                    <button onclick="closeConfirm()" class="flex-1 py-3 bg-stone-100 rounded-2xl font-black text-stone-500 active:scale-95">やめる</button>
+                    <button onclick="location.reload()" class="flex-1 py-3 bg-red-500 rounded-2xl font-black text-white shadow-lg active:scale-95">戻る</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Review Modal -->
+        <div id="review-modal" class="fixed inset-0 bg-stone-100 hidden flex-col z-[150] p-4 overflow-y-auto">
+            <div class="max-w-md mx-auto w-full">
+                <div class="flex justify-between items-center mb-6 border-b-4 border-stone-200 pb-4">
+                    <h2 class="text-2xl font-black flex items-center">
+                        <span class="mr-2">📝</span> 今回の復習
+                    </h2>
+                    <button onclick="closeReview()" class="bg-stone-200 p-2 rounded-full active:scale-90 transition-transform">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <div id="review-list" class="space-y-4 pb-24"></div>
+                <div class="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-stone-100 to-transparent">
+                    <button onclick="closeReview()" class="max-w-md mx-auto w-full bg-stone-800 text-white py-4 rounded-2xl font-black shadow-2xl active:scale-95 transition-transform">
+                        タイトルに戻る
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Over Modal -->
+        <div id="gameover-modal" class="fixed inset-0 bg-black/90 hidden items-center justify-center z-[140] p-4 text-center backdrop-blur-md">
+            <div class="bg-white p-8 rounded-[40px] max-w-xs w-full shadow-2xl border-t-8 border-amber-400">
+                <h2 class="text-4xl font-black mb-2 text-stone-800 italic">FINISH!</h2>
+                <div id="winner-text" class="text-xl font-black mb-6 text-amber-600 underline decoration-stone-800"></div>
+                
+                <div class="flex justify-center space-x-8 mb-8">
+                    <div class="text-center">
+                        <div class="w-10 h-10 black rounded-full mx-auto mb-1 ring-2 ring-offset-2 ring-stone-800"></div>
+                        <span class="text-3xl font-black" id="final-black">0</span>
+                    </div>
+                    <div class="text-center">
+                        <div class="w-10 h-10 white rounded-full mx-auto mb-1 ring-2 ring-offset-2 ring-stone-200"></div>
+                        <span class="text-3xl font-black" id="final-white">0</span>
+                    </div>
+                </div>
+                
+                <div class="space-y-3">
+                    <button id="review-btn-end" onclick="showReview()" class="w-full bg-amber-400 text-stone-900 py-3 rounded-2xl font-black shadow-lg hover:bg-amber-300 active:scale-95 transition-all">
+                        間違えた問題を復習
+                    </button>
+                    <button onclick="location.reload()" class="w-full bg-stone-100 text-stone-400 py-3 rounded-2xl font-black hover:bg-stone-200 active:scale-95 transition-all">
+                        タイトルへ
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 音響システム
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+            
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            const now = audioCtx.currentTime;
+            
+            if (type === 'place') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(80, now + 0.15);
+                gain.gain.setValueAtTime(0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(); osc.stop(now + 0.15);
+            } else if (type === 'flip') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(400, now + 0.1);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(); osc.stop(now + 0.1);
+            } else if (type === 'correct') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(659.25, now + 0.1);
+                osc.frequency.setValueAtTime(783.99, now + 0.2);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                osc.start(); osc.stop(now + 0.4);
+            } else if (type === 'wrong') {
+                osc.type = 'sawtooth';
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(400, now);
+                osc.frequency.setValueAtTime(120, now);
+                osc.frequency.linearRampToValueAtTime(80, now + 0.3);
+                gain.gain.setValueAtTime(0.4, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(); osc.stop(now + 0.3);
+            }
+        }
+
+        const quizData = [
+            { level: 1, q: "姫路城の別名は？", a: ["白鷺城", "烏城", "金亀城", "白山城"], correct: 0 },
+            { level: 1, q: "モン・サン・ミシェルは何？", a: ["修道院", "要塞", "王宮", "牢獄"], correct: 0 },
+            { level: 1, q: "グレート・バリア・リーフはどこ？", a: ["豪州", "米国", "日本", "フィジー"], correct: 0 },
+            { level: 1, q: "最大のピラミッドは誰の？", a: ["クフ王", "カフラー王", "メンカウラー王", "ラムセス"], correct: 0 },
+            { level: 1, q: "万里の長城の目的は？", a: ["外敵侵入防止", "貿易路", "灌漑", "皇帝の墓"], correct: 0 },
+            { level: 1, q: "自由の女神はどこから贈られた？", a: ["フランス", "イギリス", "ドイツ", "イタリア"], correct: 0 },
+            { level: 1, q: "世界遺産を登録する組織は？", a: ["ユネスコ", "ユニセフ", "WHO", "WTO"], correct: 0 },
+            { level: 1, q: "屋久島といえば何の木？", a: ["スギ", "マツ", "ヒノキ", "ケヤキ"], correct: 0 },
+            { level: 1, q: "コロッセオがある国は？", a: ["イタリア", "ギリシャ", "トルコ", "エジプト"], correct: 0 },
+            { level: 1, q: "アンコール・ワットがある国は？", a: ["カンボジア", "ベトナム", "タイ", "ラオス"], correct: 0 },
+            { level: 1, q: "富士山は文化・自然どちらの遺産？", a: ["文化遺産", "自然遺産", "複合遺産", "危機遺産"], correct: 0 },
+            { level: 1, q: "マチュ・ピチュがある国は？", a: ["ペルー", "ブラジル", "チリ", "メキシコ"], correct: 0 },
+            { level: 2, q: "ベネチアの主要な運河は？", a: ["カナル・グランデ", "サンマルコ", "スエズ", "パナマ"], correct: 0 },
+            { level: 2, q: "サグラダ・ファミリアの設計者は？", a: ["ガウディ", "コルビュジエ", "ダ・ヴィンチ", "ミケランジェロ"], correct: 0 },
+            { level: 2, q: "ガラパゴス諸島はどこの国？", a: ["エクアドル", "ペルー", "チリ", "コロンビア"], correct: 0 },
+            { level: 2, q: "ストーンヘンジは何時代？", a: ["新石器時代", "ローマ時代", "中世", "ルネサンス"], correct: 0 },
+            { level: 2, q: "キリスト像のある山は？", a: ["コルコバード", "モンブラン", "富士山", "キリマンジャロ"], correct: 0 },
+            { level: 2, q: "厳島神社を整えた人物は？", a: ["平清盛", "源頼朝", "足利義満", "豊臣秀吉"], correct: 0 },
+            { level: 2, q: "ペトラ遺跡は何色の都市？", a: ["バラ色", "黄金色", "純白色", "碧色"], correct: 0 },
+            { level: 2, q: "ノイシュヴァンシュタイン城はどこ？", a: ["ドイツ", "オーストリア", "スイス", "フランス"], correct: 0 },
+            { level: 2, q: "日光東照宮の有名な彫刻は？", a: ["三猿", "三鳥", "三犬", "三龍"], correct: 0 },
+            { level: 2, q: "屋久島の最高峰の名前は？", a: ["宮之浦岳", "永田岳", "栗生岳", "黒味岳"], correct: 0 },
+            { level: 2, q: "エアーズ・ロックの現地名は？", a: ["ウルル", "カチュ・タ", "ムルガ", "ピリ"], correct: 0 },
+            { level: 2, q: "タージ・マハルは何で作られた？", a: ["白大理石", "赤レンガ", "青銅", "砂岩"], correct: 0 },
+            { level: 3, q: "タージ・マハルを建てた皇帝は？", a: ["シャー・ジャハーン", "アクバル", "バーブル", "ジャハーンギール"], correct: 0 },
+            { level: 3, q: "ベルサイユ宮殿を広げた王は？", a: ["ルイ14世", "ルイ16世", "ナポレオン", "ルイ・フィリップ"], correct: 0 },
+            { level: 3, q: "シングヴェトリルにある世界最古の議会は？", a: ["アルシング", "ダイル", "国会", "コルテス"], correct: 0 },
+            { level: 3, q: "カッパドキアの地下施設は誰が使った？", a: ["キリスト教徒", "仏教徒", "イスラム教徒", "ヒンドゥー教徒"], correct: 0 },
+            { level: 3, q: "チチェン・イツァのピラミッド名は？", a: ["エル・カスティージョ", "テオティワカン", "ウシュマル", "パレンケ"], correct: 0 },
+            { level: 3, q: "富岡製糸場の技術導入国は？", a: ["フランス", "イギリス", "イタリア", "アメリカ"], correct: 0 },
+            { level: 3, q: "イグアスの滝がある国は？", a: ["アルゼンチン・ブラジル", "ペルー・ボリビア", "チリ・アルゼンチン", "ベネズエラ"], correct: 0 },
+            { level: 3, q: "白川郷の建築様式は？", a: ["合掌造り", "入母屋造り", "寄棟造り", "切妻造り"], correct: 0 },
+            { level: 3, q: "アルハンブラ宮殿はどこ？", a: ["スペイン", "モロッコ", "ポルトガル", "イタリア"], correct: 0 },
+            { level: 3, q: "ナスカの地上絵がある国は？", a: ["ペルー", "メキシコ", "コロンビア", "ボリビア"], correct: 0 },
+            { level: 3, q: "モン・サン・ミシェルの湾の干満差は？", a: ["約15m", "約5m", "約25m", "約1m"], correct: 0 },
+            { level: 3, q: "ル・コルビュジエが設計した日本の建物は？", a: ["国立西洋美術館", "東京国立博物館", "国立競技場", "都庁"], correct: 0 },
+            { level: 4, q: "平泉が表す理想の世界は？", a: ["浄土", "天国", "涅槃", "桃源郷"], correct: 0 },
+            { level: 4, q: "ラリベラの教会はどう作った？", a: ["岩をくり抜いた", "石を積んだ", "レンガ製", "木造"], correct: 0 },
+            { level: 4, q: "ビッグ・ベンの正式名称は？", a: ["エリザベス・タワー", "ビクトリア・タワー", "ジョージ・タワー", "ロイヤル・タワー"], correct: 0 },
+            { level: 4, q: "軍艦島の採掘資源は？", a: ["石炭", "金", "銀", "銅"], correct: 0 },
+            { level: 4, q: "ロベン島に収監されていたのは？", a: ["マンデラ", "ガンディー", "チェ・ゲバラ", "アウンサンスーチー"], correct: 0 },
+            { level: 4, q: "イースター島の現地名は？", a: ["ラパ・ヌイ", "モアイ・アイランド", "ホツ・マツア", "アナ・ケナ"], correct: 0 },
+            { level: 4, q: "熊野古道がある場所は？", a: ["紀伊山地", "北上山地", "飛騨山脈", "阿武隈高地"], correct: 0 },
+            { level: 4, q: "アテネのパルテノン神殿の様式は？", a: ["ドーリア式", "イオニア式", "コリント式", "トスカナ式"], correct: 0 },
+            { level: 4, q: "グレート・ジバブウェ遺跡は何文明？", a: ["ショナ文明", "ズールー文明", "バンツー文明", "アクスム文明"], correct: 0 },
+            { level: 4, q: "小笠原諸島が登録された理由は？", a: ["独自の進化（適応放散）", "火山の活動", "渡り鳥の中継地", "サンゴの美しさ"], correct: 0 },
+            { level: 4, q: "法隆寺にある日本最古の塔は？", a: ["五重塔", "三重塔", "多宝塔", "宝篋印塔"], correct: 0 },
+            { level: 4, q: "カザン聖堂があるロシアの都市は？", a: ["サンクトペテルブルク", "モスクワ", "ノヴゴロド", "カザン"], correct: 0 },
+            { level: 5, q: "世界最大の洞窟ソンドン洞はどこ？", a: ["ベトナム", "ラオス", "中国", "フィリピン"], correct: 0 },
+            { level: 5, q: "ジェンネ旧市街の有名な建物は？", a: ["泥のモスク", "石の塔", "レンガの宮殿", "竹の寺"], correct: 0 },
+            { level: 5, q: "パルミラ遺跡の女王は？", a: ["ゼノビア", "クレオパトラ", "ネフェルティティ", "エリザベス"], correct: 0 },
+            { level: 5, q: "最大の墳墓・仁徳天皇陵は何形？", a: ["前方後円墳", "円墳", "方墳", "八角墳"], correct: 0 },
+            { level: 5, q: "ブルーホールがあるバリアリーフは？", a: ["ベリーズ", "バハマ", "ジャマイカ", "キューバ"], correct: 0 },
+            { level: 5, q: "釘を一本も使わないキジ島の教会は？", a: ["プレオブラジェンスカヤ", "ワシリー", "カザン", "救世主"], correct: 0 },
+            { level: 5, q: "カルカソンヌは何都市？", a: ["城塞都市", "宗教都市", "港湾都市", "学術都市"], correct: 0 },
+            { level: 5, q: "ガラパゴスの由来の生き物は？", a: ["ゾウガメ", "イグアナ", "フィンチ", "ペンギン"], correct: 0 },
+            { level: 5, q: "カトマンズ盆地の主な宗教は？", a: ["仏教とヒンドゥー教", "キリスト教", "イスラム教", "道教"], correct: 0 },
+            { level: 5, q: "サマルカンドは何の青と言われる？", a: ["サマルカンド・ブルー", "ターコイズ・ブルー", "ロイヤル・ブルー", "スカイ・ブルー"], correct: 0 },
+            { level: 5, q: "古代ギリシャのデルフィにある神託の神は？", a: ["アポロン", "ゼウス", "ポセイドン", "アテナ"], correct: 0 },
+            { level: 5, q: "日本の「佐渡島」が2024年に登録された理由は？", a: ["金鉱山遺産", "銀山遺産", "銅山遺産", "石炭遺産"], correct: 0 }
+        ];
+
+        let board = [], turn = 1, pendingMove = null, gameMode = 'pvp', isProcessing = false;
+        let lastMovePos = null, lastFlippedPositions = [];
+        let wrongQuestions = []; // ゲームごとにリセットするため空配列で初期化
+        let currentQuiz = null;
+
+        const boardEl = document.getElementById('board');
+        const turnIndicator = document.getElementById('turn-indicator');
+        const blackScoreEl = document.getElementById('black-score');
+        const whiteScoreEl = document.getElementById('white-score');
+        const quizModal = document.getElementById('quiz-modal');
+        const statusMsg = document.getElementById('status-message');
+
+        window.onload = () => {
+            updateReviewButtons();
+        }
+
+        function updateReviewButtons() {
+            const hasWrong = wrongQuestions.length > 0;
+            document.getElementById('review-btn-title').classList.toggle('hidden', !hasWrong);
+            document.getElementById('review-btn-end').classList.toggle('hidden', !hasWrong);
+        }
+
+        function startGame(mode) {
+            gameMode = mode;
+            // ゲーム開始時に復習リストを刷新
+            wrongQuestions = [];
+            updateReviewButtons();
+            document.getElementById('mode-selection').style.display = 'none';
+            initGame();
+        }
+
+        function initGame() {
+            board = Array(8).fill(null).map(() => Array(8).fill(0));
+            board[3][3] = 2; board[4][4] = 2; board[3][4] = 1; board[4][3] = 1;
+            turn = 1; isProcessing = false; lastMovePos = null; lastFlippedPositions = [];
+            render(); checkTurnPossible();
+        }
+
+        function confirmRetry() {
+            document.getElementById('confirm-modal').style.display = 'flex';
+        }
+        function closeConfirm() {
+            document.getElementById('confirm-modal').style.display = 'none';
+        }
+
+        function showReview() {
+            const listEl = document.getElementById('review-list');
+            listEl.innerHTML = '';
+            
+            if (wrongQuestions.length === 0) {
+                listEl.innerHTML = '<p class="text-center text-stone-400 font-bold py-10">今回の対局で間違えた問題はありません。</p>';
+            } else {
+                wrongQuestions.forEach((q, idx) => {
+                    const card = document.createElement('div');
+                    card.className = "bg-white p-6 rounded-3xl shadow-md border-2 border-amber-200";
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                             <p class="bg-amber-100 text-amber-800 px-3 py-0.5 rounded-full text-[10px] font-black">QUESTION ${idx + 1}</p>
+                             <span class="text-[10px] font-bold text-stone-300 uppercase">Level ${q.level}</span>
+                        </div>
+                        <p class="text-base font-black mb-4 text-stone-800 leading-snug">${q.q}</p>
+                        <div class="bg-emerald-50 p-3 rounded-2xl border-2 border-emerald-100">
+                            <p class="text-[10px] text-emerald-600 font-black uppercase mb-1">Correct Answer</p>
+                            <p class="text-base font-black text-emerald-800">${q.a[q.correct]}</p>
+                        </div>
+                    `;
+                    listEl.appendChild(card);
+                });
+            }
+            document.getElementById('review-modal').style.display = 'flex';
+        }
+
+        function closeReview() {
+            document.getElementById('review-modal').style.display = 'none';
+        }
+
+        function createRipple(el) {
+            const ripple = document.createElement('div');
+            ripple.className = 'ripple';
+            el.appendChild(ripple);
+            setTimeout(() => ripple.remove(), 600);
+        }
+
+        function render() {
+            boardEl.innerHTML = '';
+            let b = 0, w = 0;
+            const valid = getValidMoves(turn);
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = `cell bg-emerald-700 hover:bg-emerald-600 transition-colors flex items-center justify-center rounded-sm ${lastMovePos?.r === r && lastMovePos?.c === c ? 'last-move' : ''}`;
+                    if (board[r][c] !== 0) {
+                        const disc = document.createElement('div');
+                        const isFlipping = lastFlippedPositions.some(p => p.r === r && p.c === c);
+                        const isNew = lastMovePos?.r === r && lastMovePos?.c === c;
+                        
+                        disc.className = `disc ${board[r][c] === 1 ? 'black' : 'white'} ${isNew ? 'placed-anim' : isFlipping ? 'flip-anim' : ''}`;
+                        cell.appendChild(disc);
+                        board[r][c] === 1 ? b++ : w++;
+
+                        if (isFlipping) setTimeout(() => playSound('flip'), 100);
+                    } else if (!isProcessing && (gameMode === 'pvp' || turn === 1)) {
+                        const move = valid.find(m => m.r === r && m.c === c);
+                        if (move) {
+                            cell.classList.add('valid-move', 'cursor-pointer');
+                            cell.onclick = (e) => {
+                                createRipple(cell);
+                                handleCellClick(r, c, move.flippable);
+                            };
+                        }
+                    }
+                    boardEl.appendChild(cell);
+                }
+            }
+            blackScoreEl.textContent = b; whiteScoreEl.textContent = w;
+            turnIndicator.textContent = turn === 1 ? "黒の番" : "白の番";
+            turnIndicator.className = `px-4 py-1 rounded-full font-black text-xs shadow-md ${turn === 1 ? 'bg-stone-800 text-white ring-4 ring-stone-200' : 'bg-white border-2 border-stone-800 text-stone-800 ring-4 ring-stone-100'}`;
+        }
+
+        function getValidMoves(p) {
+            const moves = [];
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    if (board[r][c] !== 0) continue;
+                    const flippable = getFlippableDiscs(r, c, p);
+                    if (flippable.length > 0) moves.push({ r, c, flippable });
+                }
+            }
+            return moves;
+        }
+
+        function getFlippableDiscs(r, c, p) {
+            const opp = p === 1 ? 2 : 1;
+            const dirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+            let total = [];
+            for (const [dr, dc] of dirs) {
+                let cr = r + dr, cc = c + dc, path = [];
+                while (cr >= 0 && cr < 8 && cc >= 0 && cc < 8 && board[cr][cc] === opp) {
+                    path.push({ r: cr, c: cc }); cr += dr; cc += dc;
+                }
+                if (path.length > 0 && cr >= 0 && cr < 8 && cc >= 0 && cc < 8 && board[cr][cc] === p) total = total.concat(path);
+            }
+            return total;
+        }
+
+        function handleCellClick(r, c, flippable) {
+            if (isProcessing) return;
+            const lv = Math.min(5, flippable.length);
+            pendingMove = { r, c, flippable };
+            showQuiz(lv);
+        }
+
+        function showQuiz(lv) {
+            isProcessing = true;
+            const pool = quizData.filter(q => q.level === lv);
+            const q = JSON.parse(JSON.stringify(pool[Math.floor(Math.random() * pool.length)]));
+            currentQuiz = q;
+            
+            document.getElementById('quiz-level').textContent = `LEVEL ${lv}`;
+            document.getElementById('quiz-question').textContent = q.q;
+            const optsEl = document.getElementById('quiz-options');
+            optsEl.innerHTML = '';
+            quizModal.style.display = 'flex';
+            
+            // 選択肢のシャッフル
+            const originalCorrectText = q.a[q.correct];
+            const shuffledOptions = [...q.a].sort(() => Math.random() - 0.5);
+            const newCorrectIndex = shuffledOptions.indexOf(originalCorrectText);
+
+            if (gameMode === 'pve' && turn === 2) {
+                // PCは一定確率で正解する
+                setTimeout(() => checkAnswer(Math.random() > (0.1 * lv) ? newCorrectIndex : -1, newCorrectIndex), 1200);
+            } else {
+                shuffledOptions.forEach((text, i) => {
+                    const btn = document.createElement('button');
+                    btn.className = "w-full text-left p-4 rounded-2xl border-2 border-stone-100 hover:border-amber-400 hover:bg-amber-50 text-sm font-black transition-all active:scale-95";
+                    btn.textContent = text; 
+                    btn.onclick = () => checkAnswer(i, newCorrectIndex);
+                    optsEl.appendChild(btn);
+                });
+            }
+        }
+
+        function triggerFlash(type) {
+            const overlay = document.getElementById('body-overlay');
+            const cls = type === 'correct' ? 'flash-correct' : 'flash-wrong';
+            overlay.classList.add(cls);
+            setTimeout(() => overlay.classList.remove(cls), 500);
+        }
+
+        function checkAnswer(sel, cor) {
+            const ok = sel === cor;
+            if (ok) {
+                playSound('correct');
+                triggerFlash('correct');
+                lastMovePos = { r: pendingMove.r, c: pendingMove.c }; 
+                lastFlippedPositions = [...pendingMove.flippable];
+                board[pendingMove.r][pendingMove.c] = turn;
+                pendingMove.flippable.forEach(p => board[p.r][p.c] = turn);
+                showMessage(turn === 1 ? "GREAT! 正解！" : "PC CORRECT!"); 
+                playSound('place');
+            } else {
+                playSound('wrong');
+                triggerFlash('wrong');
+                lastMovePos = null; lastFlippedPositions = [];
+                showMessage("MISS... 不正解");
+                
+                // 今回の対局リストに保存（重複なし）
+                if (!wrongQuestions.some(wq => wq.q === currentQuiz.q)) {
+                    wrongQuestions.push(currentQuiz);
+                    updateReviewButtons();
+                }
+            }
+            
+            setTimeout(() => {
+                quizModal.style.display = 'none'; 
+                isProcessing = false;
+                turn = turn === 1 ? 2 : 1; 
+                render(); 
+                checkTurnPossible();
+            }, 800);
+        }
+
+        function checkTurnPossible() {
+            if (isProcessing) return;
+            const moves = getValidMoves(turn);
+            if (moves.length === 0) {
+                const other = turn === 1 ? 2 : 1;
+                if (getValidMoves(other).length === 0) {
+                    setTimeout(endGame, 1000);
+                } else {
+                    showMessage("PASS...");
+                    setTimeout(() => { turn = other; render(); checkTurnPossible(); }, 1200);
+                }
+            } else if (gameMode === 'pve' && turn === 2) {
+                setTimeout(() => {
+                    const cpu = getValidMoves(2);
+                    cpu.sort((a,b) => b.flippable.length - a.flippable.length);
+                    handleCellClick(cpu[0].r, cpu[0].c, cpu[0].flippable);
+                }, 800);
+            }
+        }
+
+        function showMessage(t) { 
+            statusMsg.textContent = t; 
+            statusMsg.className = "text-[10px] font-black uppercase tracking-widest text-amber-500 h-4 animate-bounce";
+            setTimeout(() => { 
+                if(statusMsg.textContent===t) {
+                    statusMsg.textContent=""; 
+                    statusMsg.className = "text-[10px] font-black uppercase tracking-widest text-stone-400 h-4";
+                }
+            }, 2000); 
+        }
+
+        function endGame() {
+            let b=0, w=0; board.forEach(r => r.forEach(c => { if(c===1)b++; if(c===2)w++; }));
+            document.getElementById('final-black').textContent = b;
+            document.getElementById('final-white').textContent = w;
+            document.getElementById('winner-text').textContent = b > w ? "黒の勝利！" : (w > b ? "白の勝利！" : "引き分け");
+            document.getElementById('gameover-modal').style.display = 'flex';
+        }
+    </script>
+</body>
+</html>
