@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Royal Concierge: HYPER</title>
+    <style>
+        /* --- 0. Global & Reset --- */
+        @import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;900&display=swap');
+
+        :root {
+            --primary: #4f46e5;
+            --accent: #f43f5e;
+            --success: #059669;
+            --gold: #fbbf24;
+            --dark: #0f172a;
+            --glass: rgba(255, 255, 255, 0.95);
+            --font-main: "Zen Maru Gothic", sans-serif;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+
+        body {
+            font-family: var(--font-main);
+            margin: 0;
+            height: 100vh; /* Fallback */
+            height: 100dvh;
+            overflow: hidden; /* Prevent Scroll */
+            background: radial-gradient(circle at center, #2e1065, #0f172a);
+            color: #334155;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 背景エフェクト */
+        .stars {
+            position: absolute; width: 100%; height: 100%;
+            background-image: 
+                radial-gradient(white 2px, transparent 2px),
+                radial-gradient(rgba(255,255,255,0.5) 1px, transparent 1px);
+            background-size: 60px 60px, 20px 20px;
+            opacity: 0.2; z-index: -1;
+            animation: moveStars 60s linear infinite;
+        }
+        @keyframes moveStars { from { background-position: 0 0, 0 0; } to { background-position: 60px 60px, 20px 20px; } }
+
+        /* --- 1. App Frame --- */
+        #app-frame {
+            width: 100%; height: 100%; max-width: 600px;
+            background: var(--glass);
+            position: relative; overflow: hidden;
+            display: flex; flex-direction: column;
+            box-shadow: 0 0 50px rgba(79, 70, 229, 0.3);
+        }
+        @media (min-width: 600px) {
+            #app-frame { height: 95dvh; border-radius: 30px; border: 4px solid rgba(255,255,255,0.2); }
+        }
+
+        /* Shake & Flash Effects */
+        .shake-hard { animation: shakeHard 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+        .shake-soft { animation: shakeSoft 0.3s cubic-bezier(.36,.07,.19,.97) both; }
+        .flash-screen { animation: flashWhite 0.3s ease-out; }
+
+        @keyframes shakeHard { 
+            0% { transform: translate(0, 0) rotate(0deg); } 
+            25% { transform: translate(5px, 5px) rotate(2deg); } 
+            50% { transform: translate(-5px, -5px) rotate(-2deg); } 
+            75% { transform: translate(5px, -5px) rotate(1deg); } 
+            100% { transform: translate(0, 0) rotate(0deg); } 
+        }
+        @keyframes shakeSoft { 
+            0%, 100% { transform: translateX(0); } 
+            25% { transform: translateX(-4px); } 
+            75% { transform: translateX(4px); } 
+        }
+        @keyframes flashWhite { 0% { background-color: white; } 100% { background-color: var(--glass); } }
+
+        /* --- 2. Screens --- */
+        .screen {
+            position: absolute; inset: 0;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.3s ease;
+            padding: 16px;
+        }
+        .screen.active { opacity: 1; pointer-events: auto; z-index: 10; }
+
+        /* --- 3. Start Screen --- */
+        #start-screen { background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(240,249,255,0.9)); }
+        
+        .title-box { text-align: center; margin-bottom: 20px; animation: floatTitle 3s ease-in-out infinite; }
+        .title-main { 
+            font-size: clamp(2.5rem, 5vh, 3.5rem); font-weight: 900; line-height: 1;
+            background: linear-gradient(45deg, #4f46e5, #ec4899, #f59e0b);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 4px 0 rgba(0,0,0,0.1));
+        }
+        .title-sub { font-size: 1rem; color: #475569; font-weight: bold; letter-spacing: 0.2em; margin-top: 10px; }
+
+        @keyframes floatTitle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+        .btn-mode {
+            width: 100%; max-width: 340px; margin: 8px; padding: 16px;
+            background: white; border: 3px solid transparent; border-radius: 20px;
+            box-shadow: 0 8px 0 #e2e8f0, 0 10px 20px rgba(0,0,0,0.1);
+            display: flex; align-items: center; gap: 16px;
+            cursor: pointer; transition: all 0.1s;
+        }
+        .btn-mode:active { transform: translateY(4px); box-shadow: 0 4px 0 #cbd5e1; }
+        .btn-icon { font-size: 2rem; background: #e0e7ff; padding: 10px; border-radius: 12px; min-width: 60px; text-align: center; }
+        .btn-text h3 { margin: 0; font-size: 1.2rem; color: var(--primary); }
+        .btn-text p { margin: 4px 0 0; font-size: 0.8rem; color: #64748b; font-weight: bold; }
+
+        /* --- 4. Game UI --- */
+        header {
+            width: 100%; height: 60px; padding: 0 16px;
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(255,255,255,0.8); backdrop-filter: blur(10px);
+            border-bottom: 2px solid rgba(0,0,0,0.05); z-index: 20; flex-shrink: 0;
+        }
+        .score-box { 
+            font-weight: 900; color: white; font-size: 1.2rem; 
+            background: var(--gold); padding: 4px 12px; border-radius: 50px;
+            box-shadow: 0 3px 0 #d97706; text-shadow: 0 1px 0 rgba(0,0,0,0.2);
+        }
+        .progress { font-weight: 900; color: #64748b; font-size: 1rem; }
+
+        /* --- 5. Scenario Mode Layout (Adjusted for Fit) --- */
+        #scenario-container { 
+            flex: 1; width: 100%; overflow: hidden; 
+            display: flex; flex-direction: column; 
+        }
+        
+        .stage-area {
+            flex: 1; width: 100%; min-height: 0; /* Important for scroll prevention */
+            display: flex; flex-direction: column; 
+            align-items: center; justify-content: center; 
+            padding: 10px; position: relative;
+        }
+        .avatar { 
+            font-size: clamp(60px, 12vh, 100px); /* 画面サイズに合わせて自動調整 */
+            line-height: 1; filter: drop-shadow(0 8px 0 rgba(0,0,0,0.1)); 
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            margin-bottom: 10px;
+        }
+        .speech-bubble {
+            background: white; padding: 16px; border-radius: 20px; border-bottom-left-radius: 4px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1); max-width: 95%;
+            font-size: clamp(0.9rem, 2.5vh, 1.2rem); font-weight: 900; line-height: 1.5; color: var(--dark);
+            border: 3px solid var(--dark); text-align: center;
+        }
+        .mission-tag {
+            background: var(--accent); color: white;
+            padding: 6px 16px; border-radius: 50px; font-size: 0.85rem; font-weight: bold;
+            margin-bottom: 5px; box-shadow: 0 3px 0 #be123c;
+            transform: rotate(-2deg);
+        }
+
+        /* Deck Area - Compact */
+        .deck-area {
+            width: 100%; background: white;
+            border-top-left-radius: 24px; border-top-right-radius: 24px;
+            padding: 12px; box-shadow: 0 -5px 30px rgba(0,0,0,0.1);
+            display: flex; flex-direction: column; gap: 10px;
+            flex-shrink: 0; z-index: 15;
+            border-top: 1px solid rgba(0,0,0,0.05);
+        }
+
+        /* Answer Slot - Fixed Height */
+        .answer-slot {
+            width: 100%; height: 60px; /* 固定 */
+            background: #f1f5f9; border: 3px dashed #cbd5e1; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            padding: 4px 10px; transition: all 0.2s; overflow-x: auto; /* 横にあふれたらスクロール */
+        }
+        .answer-slot.error { background: #fee2e2; border-color: var(--accent); border-style: solid; }
+        .slot-placeholder { color: #94a3b8; font-weight: bold; font-size: 0.8rem; pointer-events: none; }
+
+        /* Chips - Fixed & Stable */
+        .chip-pool {
+            display: flex; flex-wrap: wrap; justify-content: center; align-content: center;
+            gap: 8px; min-height: 80px; /* 高さ確保 */
+            padding: 4px;
+        }
+        
+        /* 共通チップスタイル（プール・スロット） */
+        .chip-base {
+            height: 40px; /* 高さ固定 */
+            padding: 0 12px; border-radius: 10px; font-weight: bold; font-size: 0.9rem;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; user-select: none;
+        }
+
+        .chip {
+            background: white; border: 2px solid #cbd5e1; border-bottom-width: 4px;
+            color: var(--primary);
+            transition: transform 0.1s;
+        }
+        .chip:active { transform: translateY(2px); border-bottom-width: 2px; }
+        
+        /* 使用済み状態：消さずに透明度を下げる（レイアウト固定のため） */
+        .chip.used { 
+            opacity: 0.2; pointer-events: none; border-color: #e2e8f0; border-bottom-width: 2px; transform: translateY(2px);
+        }
+
+        .chip-ans {
+            background: var(--primary); color: white; 
+            box-shadow: 0 3px 0 #3730a3; animation: popIn 0.2s;
+            white-space: nowrap; /* 折り返し防止 */
+        }
+        .chip-ans:active { transform: translateY(2px); box-shadow: 0 0 0 transparent; }
+
+        .btn-check {
+            width: 100%; padding: 12px; background: var(--success); color: white; border: none;
+            border-radius: 50px; font-weight: 900; font-size: 1.1rem;
+            box-shadow: 0 5px 0 #047857; cursor: pointer; transition: transform 0.1s;
+        }
+        .btn-check:active { transform: translateY(5px); box-shadow: 0 0 0 transparent; }
+
+        /* --- 6. Word Mode --- */
+        #word-container {
+            flex: 1; width: 100%; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; padding: 10px;
+        }
+        .quiz-card {
+            background: white; width: 100%; padding: 20px; border-radius: 20px;
+            text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 20px; border: 3px solid #e2e8f0;
+        }
+        .q-word { font-size: clamp(2rem, 5vh, 2.5rem); font-weight: 900; color: var(--dark); margin-bottom: 5px; }
+        .q-type { font-size: 1.1rem; color: #64748b; font-weight: bold; }
+        
+        .opt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; }
+        .btn-opt {
+            background: white; border: 2px solid #e2e8f0; border-bottom-width: 5px;
+            padding: 15px; border-radius: 16px; font-weight: bold; color: #475569;
+            font-size: 1rem; cursor: pointer; transition: all 0.1s;
+        }
+        .btn-opt:active { transform: translateY(3px); border-bottom-width: 2px; }
+
+        /* --- 7. Overlays --- */
+        .overlay {
+            position: absolute; inset: 0; background: rgba(15,23,42,0.95);
+            z-index: 50; display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.2s;
+        }
+        .overlay.active { opacity: 1; pointer-events: auto; }
+        
+        .modal {
+            background: white; width: 90%; max-width: 400px; padding: 20px; border-radius: 24px;
+            text-align: center; animation: popIn 0.3s;
+            border: 4px solid var(--primary);
+        }
+        
+        #particles { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events: none; z-index: 100; overflow: hidden;}
+        .particle { position: absolute; width: 8px; height: 8px; border-radius: 50%; }
+
+        @keyframes popIn { from{transform:scale(0.8); opacity:0} to{transform:scale(1); opacity:1} }
+        
+    </style>
+</head>
+<body>
+
+<div class="stars"></div>
+<div id="particles"></div>
+
+<div id="app-frame">
+    <!-- START SCREEN -->
+    <div id="start-screen" class="screen active">
+        <div class="title-box">
+            <div class="title-main">ROYAL<br>CONCIERGE</div>
+            <div class="title-sub">HYPER EDITION</div>
+        </div>
+
+        <button class="btn-mode" onclick="initGame('scenario')">
+            <div class="btn-icon">🏰</div>
+            <div class="btn-text">
+                <h3>場面モード</h3>
+                <p>会話を完成させろ (5問)</p>
+            </div>
+        </button>
+
+        <button class="btn-mode" onclick="initGame('word')">
+            <div class="btn-icon">⚡</div>
+            <div class="btn-text">
+                <h3>単語モード</h3>
+                <p>反射神経クイズ (10問)</p>
+            </div>
+        </button>
+    </div>
+
+    <!-- GAME SCREEN -->
+    <div id="game-screen" class="screen">
+        <header>
+            <div class="progress">Q. <span id="q-curr">1</span> / <span id="q-total">0</span></div>
+            <div class="score-box">💎 <span id="score-val">0</span></div>
+        </header>
+
+        <!-- Scenario Mode -->
+        <div id="scenario-container" style="display:none;">
+            <div class="stage-area">
+                <div class="mission-tag">💡 <span id="sc-mission">MISSION</span></div>
+                <div class="avatar" id="sc-avatar">🤴</div>
+                <div class="speech-bubble" id="sc-speech">...</div>
+            </div>
+            
+            <div class="deck-area">
+                <!-- タップ式スロット (横スクロール対応) -->
+                <div class="answer-slot" id="ans-slot">
+                    <span class="slot-placeholder">選択してください</span>
+                </div>
+                <!-- 選択肢プール -->
+                <div class="chip-pool" id="chip-pool"></div>
+                
+                <button class="btn-check" onclick="checkScenario()">おもてなし決定</button>
+            </div>
+        </div>
+
+        <!-- Word Mode -->
+        <div id="word-container" style="display:none;">
+            <div class="quiz-card">
+                <div class="q-word" id="wq-word">...</div>
+                <div class="q-type" id="wq-type">...</div>
+            </div>
+            <div class="opt-grid" id="opt-grid"></div>
+        </div>
+    </div>
+
+    <!-- FEEDBACK OVERLAY -->
+    <div id="feedback-overlay" class="overlay">
+        <div class="modal">
+            <div style="font-size:4rem; margin-bottom:5px;" id="fb-icon">⭕</div>
+            <h2 id="fb-title" style="font-size:1.8rem; margin:0;">Excellent!</h2>
+            <div style="width:100%; height:2px; background:#f1f5f9; margin:10px 0;"></div>
+            <p id="fb-msg" style="font-size:1rem; line-height:1.5; font-weight:bold;">解説</p>
+            <button class="btn-check" id="fb-next" onclick="nextQuestion()">次へ進む</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    /* ------------------------------------------------
+       DATA
+    ------------------------------------------------ */
+    const WORD_DB = [
+        { b:"水", t:"丁寧語", a:"お水", d:["ご水","水です","みず"] },
+        { b:"本", t:"丁寧語", a:"ご本", d:["お本","本でございます","ブック"] },
+        { b:"名前", t:"丁寧語", a:"お名前", d:["ご名前","名","ネーム"] },
+        { b:"家族", t:"丁寧語", a:"ご家族", d:["お家族","ファミリー","一族"] },
+        { b:"電話", t:"丁寧語", a:"お電話", d:["ご電話","テレフォン","スマホ"] },
+        { b:"連絡", t:"丁寧語", a:"ご連絡", d:["お連絡","通達","知らせ"] },
+        { b:"忙しい", t:"丁寧語", a:"お忙しい", d:["ご忙しい","ビジー","多忙"] },
+        { b:"立派", t:"丁寧語", a:"ご立派", d:["お立派","すごい","偉大"] },
+        { b:"行く", t:"尊敬語", a:"いらっしゃる", d:["参る","伺う","申す"] },
+        { b:"行く", t:"謙譲語", a:"参る", d:["いらっしゃる","おいでになる","召し上がる"] },
+        { b:"来る", t:"尊敬語", a:"お見えになる", d:["参る","伺う","拝見する"] },
+        { b:"来る", t:"謙譲語", a:"参る", d:["いらっしゃる","お越しになる","なさる"] },
+        { b:"言う", t:"尊敬語", a:"おっしゃる", d:["申す","申し上げる","存じる"] },
+        { b:"言う", t:"謙譲語", a:"申し上げる", d:["おっしゃる","言われる","お聞きする"] },
+        { b:"食べる", t:"尊敬語", a:"召し上がる", d:["いただく","頂戴する","申す"] },
+        { b:"食べる", t:"謙譲語", a:"いただく", d:["召し上がる","お上がりになる","見学する"] },
+        { b:"見る", t:"尊敬語", a:"ご覧になる", d:["拝見する","お目にかかる","見られる"] },
+        { b:"見る", t:"謙譲語", a:"拝見する", d:["ご覧になる","見させていただく","お見えになる"] },
+        { b:"聞く", t:"尊敬語", a:"お聞きになる", d:["伺う","承る","拝聴する"] },
+        { b:"聞く", t:"謙譲語", a:"伺う", d:["お聞きになる","聞かれる","おっしゃる"] },
+        { b:"知る", t:"尊敬語", a:"ご存じだ", d:["存じ上げる","承知する","知り申す"] },
+        { b:"知る", t:"謙譲語", a:"存じ上げる", d:["ご存じだ","お知りになる","伺う"] },
+        { b:"家", t:"尊敬語", a:"お宅", d:["拙宅","我が家","家"] },
+        { b:"家", t:"謙譲語", a:"拙宅", d:["お宅","御殿","お屋敷"] },
+        { b:"会社", t:"尊敬語", a:"御社", d:["弊社","当社","会社"] },
+        { b:"会社", t:"謙譲語", a:"弊社", d:["御社","貴社","会社"] },
+        { b:"死ぬ", t:"尊敬語", a:"お亡くなりになる", d:["死なれる","他界する","逝く"] },
+        { b:"借りる", t:"謙譲語", a:"拝借する", d:["お借りする","貸していただく","借り申す"] },
+        { b:"見せる", t:"謙譲語", a:"お目にかける", d:["ご覧に入れる","お見せする","見せられる"] }
+    ];
+
+    const SCENARIO_DB = [
+        { 
+            av:"👵", q:"「まあ、素敵なお部屋ね。」", m:"褒められたので謙遜する", 
+            a:["ありがとうございます","気に入っていただけて","嬉しいです"], 
+            d:["とんでもないです","良いでしょう"],
+            exp:"素直に感謝し、「～て嬉しいです」と添えると上品です。"
+        },
+        { 
+            av:"🤴", q:"「おい、風呂はまだか？」", m:"準備完了を伝える", 
+            a:["お待たせしました","お風呂の","ご用意が","整いました"], 
+            d:["お風呂が","沸きました"],
+            exp:"「ご用意」＋「整いました」のコンボが最強の敬語です。"
+        },
+        { 
+            av:"🎩", q:"「君の名前は？」", m:"名乗る（謙譲語）", 
+            a:["私は","執事の","セバスチャンと","申します"], 
+            d:["言います","名乗ります"],
+            exp:"自分の名前を言うときは「申す」を使います。"
+        },
+        { 
+            av:"👽", q:"「コノ料理、オマエガ作ッタノカ？」", m:"シェフが作ったと伝える", 
+            a:["当ホテルの","シェフが","作りました"], 
+            d:["お作りになりました","拝作しました"],
+            exp:"身内（シェフ）を高めてはいけません。普通の丁寧語でOK。"
+        },
+        { 
+            av:"👩", q:"「校長先生はいらっしゃいますか？」", m:"不在を伝える", 
+            a:["申し訳ございません","校長は","ただいま","席を外しております"], 
+            d:["校長先生は","いらっしゃいません"],
+            exp:"外部の人に「先生」は付けず、「おる」を使います。"
+        },
+        { 
+            av:"🍷", q:"「何か飲み物をもらえるかね？」", m:"飲み物を勧める", 
+            a:["こちらの","紅茶を","召し上がって","ください"], 
+            d:["いただいて","飲んで"],
+            exp:"「飲む」の尊敬語「召し上がる」を使います。"
+        },
+        { 
+            av:"🏃", q:"「急いで荷物を運んでくれ。」", m:"承知したと答える", 
+            a:["かしこまりました","お荷物を","お持ち","します"], 
+            d:["持ちます","持ってあげます"],
+            exp:"「持つ」の謙譲語「お持ちする」。「～してあげる」はNG。"
+        },
+        { 
+            av:"❓", q:"「トイレはどこですか？」", m:"場所を案内する", 
+            a:["あちらに","ございます","ご案内","いたします"], 
+            d:["あります","案内します"],
+            exp:"「ある」→「ございます」、「案内する」→「ご案内いたす」。"
+        },
+        { 
+            av:"🎁", q:"「これ、君へのチップだ。」", m:"受け取る", 
+            a:["お心遣い","ありがとうございます","頂戴","いたします"], 
+            d:["もらいます","いただきます"],
+            exp:"「もらう」の最上級謙譲語「頂戴（ちょうだい）する」を使用。"
+        },
+        { 
+            av:"📜", q:"「王様からの手紙を預かってほしい。」", m:"預かる", 
+            a:["王様の","お手紙を","お預かり","します"], 
+            d:["預かります","預かってあげます"],
+            exp:"「預かる」の謙譲語「お預かりする」。"
+        },
+        { 
+            av:"💼", q:"「この件、どうなっている？」", m:"確認して報告する", 
+            a:["確認の上","改めて","ご報告","いたします"], 
+            d:["確認して","連絡します"],
+            exp:"ビジネスの鉄板フレーズ。「ご報告いたします」を使おう。"
+        },
+        { 
+            av:"🧓", q:"「この度はお世話になりました。」", m:"感謝を述べる", 
+            a:["こちらこそ","大変","お世話に","なりました"], 
+            d:["ありがとう","助かりました"],
+            exp:"「こちらこそ」と即座に返せるとスマートです。"
+        }
+    ];
+
+    /* ------------------------------------------------
+       SYSTEM CORE
+    ------------------------------------------------ */
+    let audioCtx = null;
+    let currentMode = null;
+    let qQueue = [];
+    let qIndex = 0;
+    let score = 0;
+    
+    // シナリオモードの状態
+    let slotChips = []; // {id, text}
+
+    /* --- Audio System --- */
+    function initAudio() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function playSound(type) {
+        initAudio();
+        const t = audioCtx.currentTime;
+        const gain = audioCtx.createGain();
+        gain.connect(audioCtx.destination);
+
+        if (type === 'tap') {
+            const osc = audioCtx.createOscillator();
+            osc.connect(gain);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(800, t);
+            osc.frequency.exponentialRampToValueAtTime(1200, t + 0.1);
+            gain.gain.setValueAtTime(0.1, t);
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+            osc.start(t); osc.stop(t + 0.1);
+        }
+        else if (type === 'remove') {
+            const osc = audioCtx.createOscillator();
+            osc.connect(gain);
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(400, t);
+            osc.frequency.linearRampToValueAtTime(100, t + 0.1);
+            gain.gain.setValueAtTime(0.1, t);
+            gain.gain.linearRampToValueAtTime(0, t + 0.1);
+            osc.start(t); osc.stop(t + 0.1);
+        }
+        else if (type === 'correct') {
+            const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+            notes.forEach((freq, i) => {
+                const o = audioCtx.createOscillator();
+                const g = audioCtx.createGain();
+                o.connect(g);
+                g.connect(audioCtx.destination);
+                o.type = i % 2 === 0 ? 'sine' : 'triangle';
+                o.frequency.value = freq;
+                g.gain.setValueAtTime(0.05, t + i*0.06);
+                g.gain.exponentialRampToValueAtTime(0.001, t + i*0.06 + 0.5);
+                o.start(t + i*0.06);
+                o.stop(t + i*0.06 + 0.5);
+            });
+        }
+        else if (type === 'wrong') {
+            const osc1 = audioCtx.createOscillator();
+            const osc2 = audioCtx.createOscillator();
+            osc1.connect(gain); osc2.connect(gain);
+            osc1.type = 'sawtooth'; osc2.type = 'square';
+            osc1.frequency.setValueAtTime(150, t);
+            osc2.frequency.setValueAtTime(140, t); 
+            osc1.frequency.linearRampToValueAtTime(50, t+0.4);
+            osc2.frequency.linearRampToValueAtTime(40, t+0.4);
+            gain.gain.setValueAtTime(0.2, t);
+            gain.gain.linearRampToValueAtTime(0, t + 0.4);
+            osc1.start(t); osc1.stop(t + 0.4);
+            osc2.start(t); osc2.stop(t + 0.4);
+        }
+    }
+
+    /* --- Visual Effects --- */
+    function triggerShake(intensity = 'soft') {
+        const frame = document.getElementById('app-frame');
+        frame.classList.remove('shake-hard', 'shake-soft');
+        void frame.offsetWidth; 
+        frame.classList.add(intensity === 'hard' ? 'shake-hard' : 'shake-soft');
+    }
+
+    function triggerFlash() {
+        const body = document.body;
+        body.classList.remove('flash-screen');
+        void body.offsetWidth;
+        body.classList.add('flash-screen');
+    }
+
+    function spawnConfetti() {
+        const container = document.getElementById('particles');
+        container.innerHTML = '';
+        const colors = ['#f43f5e', '#fbbf24', '#10b981', '#3b82f6', '#8b5cf6'];
+        
+        for (let i = 0; i < 50; i++) {
+            const p = document.createElement('div');
+            p.className = 'particle';
+            p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+            p.style.left = '50%';
+            p.style.top = '50%';
+            
+            const angle = Math.random() * Math.PI * 2;
+            const vel = 5 + Math.random() * 10;
+            const dx = Math.cos(angle) * vel;
+            const dy = Math.sin(angle) * vel;
+            
+            p.animate([
+                { transform: `translate(0,0) scale(1)`, opacity: 1 },
+                { transform: `translate(${dx * 20}px, ${dy * 20}px) scale(0)`, opacity: 0 }
+            ], {
+                duration: 800 + Math.random() * 400,
+                easing: 'cubic-bezier(0, .9, .57, 1)',
+                fill: 'forwards'
+            });
+            
+            container.appendChild(p);
+        }
+    }
+
+    /* --- Game Logic --- */
+    function initGame(mode) {
+        playSound('tap');
+        currentMode = mode;
+        score = 0;
+        qIndex = 0;
+        
+        if (mode === 'scenario') {
+            qQueue = shuffle([...SCENARIO_DB]).slice(0, 5);
+            document.getElementById('q-total').textContent = "5";
+            toggleView('scenario');
+        } else {
+            qQueue = shuffle([...WORD_DB]).slice(0, 10);
+            document.getElementById('q-total').textContent = "10";
+            toggleView('word');
+        }
+        
+        updateScore();
+        switchScreen('game-screen');
+        loadQuestion();
+    }
+
+    function toggleView(mode) {
+        document.getElementById('scenario-container').style.display = (mode === 'scenario') ? 'flex' : 'none';
+        document.getElementById('word-container').style.display = (mode === 'word') ? 'flex' : 'none';
+    }
+
+    function switchScreen(id) {
+        document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    }
+
+    function loadQuestion() {
+        if (qIndex >= qQueue.length) {
+            showResult();
+            return;
+        }
+
+        document.getElementById('q-curr').textContent = qIndex + 1;
+        const q = qQueue[qIndex];
+
+        if (currentMode === 'scenario') {
+            setupScenario(q);
+        } else {
+            setupWord(q);
+        }
+    }
+
+    // --- Scenario Mode ---
+    function setupScenario(q) {
+        document.getElementById('sc-mission').textContent = q.m;
+        document.getElementById('sc-avatar').textContent = q.av;
+        document.getElementById('sc-speech').textContent = q.q;
+        
+        // Reset state
+        slotChips = [];
+        renderSlot();
+        document.getElementById('ans-slot').classList.remove('error');
+        
+        const pool = document.getElementById('chip-pool');
+        pool.innerHTML = '';
+        
+        let chipItems = [];
+        q.a.forEach(txt => chipItems.push({ text: txt }));
+        q.d.forEach(txt => chipItems.push({ text: txt }));
+        chipItems = shuffle(chipItems);
+        
+        chipItems.forEach((item, idx) => {
+            const id = `chip-${idx}`;
+            const btn = document.createElement('div');
+            btn.className = 'chip chip-base'; // chip-baseでサイズ統一
+            btn.textContent = item.text;
+            btn.id = id;
+            btn.onclick = () => tapPoolChip(id, item.text);
+            pool.appendChild(btn);
+        });
+    }
+
+    function tapPoolChip(id, text) {
+        playSound('tap');
+        // プールのチップを「使用済み（薄く）」にするだけ（レイアウト保持）
+        const poolBtn = document.getElementById(id);
+        if (poolBtn.classList.contains('used')) return;
+        poolBtn.classList.add('used');
+        
+        // Add to slot
+        slotChips.push({ id: id, text: text });
+        renderSlot();
+    }
+
+    function tapSlotChip(index) {
+        playSound('remove');
+        const chip = slotChips[index];
+        
+        // Remove from slot
+        slotChips.splice(index, 1);
+        renderSlot();
+        
+        // Restore pool chip
+        const poolBtn = document.getElementById(chip.id);
+        if(poolBtn) poolBtn.classList.remove('used');
+    }
+
+    function renderSlot() {
+        const slot = document.getElementById('ans-slot');
+        slot.innerHTML = '';
+        
+        if (slotChips.length === 0) {
+            slot.innerHTML = '<span class="slot-placeholder">選択してください</span>';
+            return;
+        }
+        
+        slotChips.forEach((chip, idx) => {
+            const el = document.createElement('div');
+            el.className = 'chip-ans chip-base'; // chip-baseでサイズ統一
+            el.textContent = chip.text;
+            el.onclick = () => tapSlotChip(idx);
+            slot.appendChild(el);
+        });
+    }
+
+    function checkScenario() {
+        const q = qQueue[qIndex];
+        const userStr = slotChips.map(c => c.text).join('');
+        const ansStr = q.a.join('');
+
+        if (userStr === ansStr) {
+            score += 20;
+            showFeedback(true, q.exp);
+        } else {
+            playSound('wrong');
+            triggerShake('soft');
+            const slot = document.getElementById('ans-slot');
+            slot.classList.add('error');
+            setTimeout(() => slot.classList.remove('error'), 400);
+        }
+    }
+
+    // --- Word Mode ---
+    function setupWord(q) {
+        document.getElementById('wq-word').textContent = q.b;
+        document.getElementById('wq-type').textContent = `の「${q.t}」は？`;
+        
+        const grid = document.getElementById('opt-grid');
+        grid.innerHTML = '';
+        
+        const opts = shuffle([q.a, ...q.d]);
+        opts.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'btn-opt';
+            btn.textContent = opt;
+            btn.onclick = () => checkWord(opt, q);
+            grid.appendChild(btn);
+        });
+    }
+
+    function checkWord(ans, q) {
+        if (ans === q.a) {
+            score += 10;
+            showFeedback(true, `正解！<br>「${q.b}」の${q.t}は<br><b>「${q.a}」</b>です。`);
+        } else {
+            playSound('wrong');
+            triggerShake('hard');
+            showFeedback(false, `残念...<br>正解は<b>「${q.a}」</b>です。`);
+        }
+    }
+
+    // --- Feedback & Result ---
+    function showFeedback(isCorrect, msg) {
+        if (isCorrect) {
+            playSound('correct');
+            spawnConfetti();
+            triggerFlash();
+        }
+        
+        const ov = document.getElementById('feedback-overlay');
+        const icon = document.getElementById('fb-icon');
+        const title = document.getElementById('fb-title');
+        const fbMsg = document.getElementById('fb-msg');
+        
+        ov.classList.add('active');
+        
+        if (isCorrect) {
+            icon.textContent = "💮";
+            title.textContent = "EXCELLENT!";
+            title.style.color = "var(--success)";
+        } else {
+            icon.textContent = "😱";
+            title.textContent = "MISS...";
+            title.style.color = "var(--accent)";
+        }
+        
+        fbMsg.innerHTML = msg;
+        updateScore();
+    }
+
+    function nextQuestion() {
+        playSound('tap');
+        document.getElementById('feedback-overlay').classList.remove('active');
+        qIndex++;
+        loadQuestion();
+    }
+
+    function showResult() {
+        playSound('correct');
+        spawnConfetti();
+        const ov = document.getElementById('feedback-overlay');
+        ov.classList.add('active');
+        document.getElementById('fb-icon').textContent = "🏆";
+        document.getElementById('fb-title').textContent = "ALL FINISHED!";
+        document.getElementById('fb-msg').innerHTML = `
+            あなたのスコア<br>
+            <strong style="font-size:3rem; color:var(--primary)">${score}</strong>
+        `;
+        const btn = document.getElementById('fb-next');
+        btn.textContent = "タイトルに戻る";
+        btn.onclick = () => location.reload();
+    }
+
+    function updateScore() {
+        document.getElementById('score-val').textContent = score;
+    }
+
+    function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+</script>
+</body>
+</html>
