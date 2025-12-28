@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>部首レイダー EX - THE 50 CHALLENGE</title>
+    <title>部首ライダー - RADICAL RIDER</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&display=swap');
@@ -13,7 +13,7 @@
             overflow: hidden;
             background-color: #020617;
             color: white;
-            font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+            font-family: 'Orbitron', 'Hiragino Kaku Gothic ProN', sans-serif;
             touch-action: none;
         }
         #game-container {
@@ -24,26 +24,26 @@
             justify-content: center;
             align-items: center;
             flex-direction: column;
-            background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
+            background: radial-gradient(circle at center, #1e1b4b 0%, #020617 100%);
         }
-        /* 走査線エフェクト */
-        #game-container::before {
+        #game-container::after {
             content: " ";
             display: block;
             position: absolute;
             top: 0; left: 0; bottom: 0; right: 0;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            z-index: 2;
-            background-size: 100% 2px, 3px 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            z-index: 5;
+            background-size: 100% 3px, 3px 100%;
             pointer-events: none;
+            opacity: 0.6;
         }
         canvas {
-            background-color: #070b14;
-            box-shadow: 0 0 100px rgba(59, 130, 246, 0.2);
-            border: 1px solid rgba(59, 130, 246, 0.4);
-            border-radius: 4px;
+            background-color: #020617;
+            box-shadow: 0 0 60px rgba(59, 130, 246, 0.3), inset 0 0 20px rgba(59, 130, 246, 0.2);
+            border: 2px solid rgba(59, 130, 246, 0.5);
+            border-radius: 8px;
             max-width: 95vw;
-            max-height: 60vh;
+            max-height: 70vh;
             z-index: 1;
         }
         .ui-overlay {
@@ -61,53 +61,58 @@
             justify-content: space-between;
             width: 90%;
             max-width: 800px;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.25rem;
-            letter-spacing: 2px;
+            font-size: 1.5rem;
+            font-weight: 900;
+            letter-spacing: 3px;
+            text-shadow: 0 0 10px #3b82f6;
         }
         #combo-container {
-            margin-top: 20px;
+            margin-top: 10px;
             text-align: center;
+            transition: transform 0.1s;
         }
         .combo-text {
-            font-size: 4rem;
-            font-family: 'Orbitron', sans-serif;
+            font-size: 5rem;
             font-weight: 900;
             color: #fbbf24;
-            text-shadow: 0 0 20px rgba(251, 191, 36, 0.8);
-            display: block;
+            text-shadow: 0 0 30px rgba(251, 191, 36, 0.9);
+            line-height: 1;
         }
         #quiz-overlay {
             position: absolute;
-            background: rgba(2, 6, 23, 0.98);
+            background: rgba(2, 6, 23, 0.95);
+            backdrop-filter: blur(10px);
             padding: 40px;
-            border: 4px solid #3b82f6;
+            border: 4px solid #facc15;
             display: flex;
             flex-direction: column;
             align-items: center;
             z-index: 1000;
             pointer-events: auto;
-            width: 90%;
-            max-width: 600px;
-            box-shadow: 0 0 150px rgba(59, 130, 246, 0.5);
+            width: 95%;
+            max-width: 650px;
+            box-shadow: 0 0 200px rgba(250, 204, 21, 0.4);
+            border-radius: 20px;
         }
         .quiz-option {
-            background: rgba(30, 41, 59, 0.8);
-            padding: 20px;
-            margin: 8px;
-            border-radius: 4px;
-            font-size: 1.8rem;
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.9));
+            padding: 24px;
+            margin: 10px;
+            border-radius: 12px;
+            font-size: 2rem;
             cursor: pointer;
-            transition: all 0.15s;
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             border: 1px solid rgba(255,255,255,0.1);
             width: 100%;
             text-align: center;
             font-weight: bold;
+            color: #94a3b8;
         }
         .quiz-option:hover { 
-            background: #3b82f6;
-            color: white;
-            transform: scale(1.02);
+            background: #facc15;
+            color: #020617;
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(250, 204, 21, 0.6);
         }
         .hidden { display: none !important; }
         #start-screen, #result-screen {
@@ -119,35 +124,41 @@
             justify-content: center;
             align-items: center;
             z-index: 2000;
-            padding: 20px;
         }
-        .mode-btn {
-            width: 300px;
-            padding: 24px;
-            margin: 12px;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.4rem;
+        .btn-glitch {
+            position: relative;
+            width: 320px;
+            padding: 25px;
+            margin: 15px;
+            font-size: 1.6rem;
             font-weight: 900;
-            border: 1px solid rgba(255,255,255,0.2);
-            transition: all 0.3s;
+            background: transparent;
+            color: white;
+            border: 2px solid #3b82f6;
+            cursor: pointer;
+            overflow: hidden;
+            transition: 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 4px;
         }
-        .mode-relax { background: #064e3b; }
-        .mode-relax:hover { background: #10b981; box-shadow: 0 0 30px #10b981; }
-        .mode-hard { background: #7f1d1d; }
-        .mode-hard:hover { background: #ef4444; box-shadow: 0 0 30px #ef4444; }
-
+        .btn-glitch:hover {
+            background: #3b82f6;
+            box-shadow: 0 0 50px rgba(59, 130, 246, 0.8);
+            transform: translateY(-5px);
+        }
         .score-pop {
             position: absolute;
             font-family: 'Orbitron', sans-serif;
             font-weight: 900;
             pointer-events: none;
-            animation: scoreFloat 1s ease-out forwards;
+            animation: scoreFloat 0.8s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
             z-index: 500;
+            font-size: 2rem;
         }
         @keyframes scoreFloat {
-            0% { transform: translateY(0); opacity: 0; }
-            20% { opacity: 1; }
-            100% { transform: translateY(-100px); opacity: 0; }
+            0% { transform: scale(0.5) translateY(0); opacity: 0; }
+            50% { opacity: 1; transform: scale(1.2) translateY(-50px); }
+            100% { transform: scale(1.0) translateY(-120px); opacity: 0; }
         }
     </style>
 </head>
@@ -155,68 +166,51 @@
 
 <div id="game-container">
     <div id="start-screen">
-        <h1 class="text-6xl md:text-8xl font-black mb-4 text-white italic tracking-tighter uppercase" style="font-family: 'Orbitron', sans-serif;">Radical<br><span class="text-blue-500">Raider</span> <span class="text-yellow-400">EX</span></h1>
-        <p class="text-blue-400 mb-12 tracking-[0.3em] font-bold">CYBERNETIC RADICAL LEARNING SYSTEM</p>
+        <h1 class="text-7xl md:text-9xl font-black mb-2 text-white italic tracking-tighter uppercase" style="text-shadow: 5px 5px 0px #3b82f6, -3px -3px 0px #ef4444;">部首<br>RIDER</h1>
+        <p class="text-yellow-400 mb-12 tracking-[0.5em] font-bold text-xl animate-pulse">システム起動中...</p>
         <div class="flex flex-col items-center">
-            <button class="mode-btn mode-relax" onclick="startGame('relax')">ゆったりモード</button>
-            <button class="mode-btn mode-hard" onclick="startGame('hard')">雨後の筍モード</button>
+            <button class="btn-glitch" onclick="startGame('relax')">リラックスモード</button>
+            <button class="btn-glitch" style="border-color:#ef4444; color:#ef4444;" onclick="startGame('hard')">オーバードライブ</button>
         </div>
-        <p class="mt-10 text-slate-500 text-sm">矢印キーまたはWSADで移動。100コンボでクイズフェーズ突入。</p>
+        <p class="mt-16 text-slate-500 text-sm uppercase tracking-widest">移動: 矢印キー / WASD • 20コンボごとにクイズ発生</p>
     </div>
 
     <div id="result-screen" class="hidden">
-        <h2 class="text-4xl font-bold mb-8 text-blue-400 tracking-widest uppercase">Mission Result</h2>
-        <div class="text-9xl font-black mb-4 text-white" id="final-score" style="font-family: 'Orbitron', sans-serif;">0</div>
-        <div id="final-stats" class="text-xl text-slate-400 mb-10"></div>
-        <div class="w-full max-w-lg mb-10">
-            <p class="text-xs text-slate-500 uppercase tracking-widest mb-2">Review Required:</p>
-            <div id="review-list" class="max-height-[200px] overflow-y-auto bg-slate-900/50 p-4 border border-white/10 rounded"></div>
-        </div>
-        <button onclick="location.reload()" class="px-12 py-4 bg-blue-600 text-white font-bold hover:bg-blue-400 transition">REBOOT SYSTEM</button>
+        <h2 class="text-4xl font-bold mb-4 text-blue-400 tracking-widest uppercase">ドライブ終了</h2>
+        <div class="text-9xl font-black mb-6 text-white" id="final-score">0</div>
+        <div id="final-stats" class="text-2xl text-yellow-400 mb-12 font-bold"></div>
+        <button onclick="location.reload()" class="px-16 py-6 bg-white text-black font-black text-2xl hover:bg-blue-500 hover:text-white transition-all transform hover:scale-110">再起動</button>
     </div>
 
-    <!-- Quiz UI -->
     <div id="quiz-overlay" class="hidden">
-        <div id="quiz-combo-label" class="text-yellow-400 font-black mb-2 tracking-widest text-sm">MAX COMBO REACHED - ENTERING QUIZ</div>
-        <div id="quiz-progress" class="text-slate-500 font-bold mb-6">PROGRESS: 1 / 50</div>
-        <div id="quiz-question" class="text-[10rem] font-bold mb-10 text-white leading-none">氵</div>
+        <div id="quiz-pending-count" class="text-blue-400 font-bold mb-1 tracking-widest text-xs">残り問題数: 0</div>
+        <div class="text-yellow-400 font-black mb-4 tracking-[0.4em] text-lg animate-bounce">緊急チャレンジ</div>
+        <div id="quiz-progress" class="text-slate-400 font-bold mb-8 tracking-widest text-sm">発見した部首: 1 / 50</div>
+        <div id="quiz-question" class="text-[12rem] font-bold mb-10 text-white leading-none filter drop-shadow(0 0 30px #fff)">氵</div>
         <div id="quiz-options" class="grid grid-cols-1 gap-4 w-full"></div>
     </div>
 
     <div id="ui-overlay" class="ui-overlay hidden">
         <div class="stats-bar">
-            <div>SCORE: <span id="score" class="text-white">0</span></div>
-            <div id="timer-display">LIMIT: <span id="timer" class="text-red-500">30.0</span></div>
+            <div>スコア: <span id="score" class="text-white">0</span></div>
+            <div id="timer-display">残り時間: <span id="timer" class="text-red-500">30.0</span>秒</div>
         </div>
         <div id="combo-container" class="hidden">
             <span class="combo-text" id="combo-count">00</span>
-            <div class="text-xs tracking-[0.5em] text-yellow-500 font-bold uppercase">Combo Chain</div>
-            <div class="w-64 bg-slate-900 h-1 mt-2 mx-auto">
-                <div id="combo-bar" class="bg-yellow-400 h-full w-full"></div>
+            <div class="text-sm tracking-[0.8em] text-yellow-500 font-black uppercase">コンボ</div>
+            <div class="w-80 bg-slate-900/80 h-2 mt-4 mx-auto overflow-hidden rounded-full border border-yellow-500/30">
+                <div id="combo-bar" class="bg-yellow-400 h-full w-full shadow-[0_0_15px_#fbbf24]"></div>
             </div>
         </div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
-
-    <div id="mobile-ui" class="mt-8 sm:hidden hidden">
-        <div class="grid grid-cols-3 gap-4">
-            <div></div><button class="w-16 h-16 bg-slate-800 rounded flex items-center justify-center text-2xl" id="up-btn">▲</button><div></div>
-            <button class="w-16 h-16 bg-slate-800 rounded flex items-center justify-center text-2xl" id="left-btn">◀</button>
-            <button class="w-16 h-16 bg-slate-800 rounded flex items-center justify-center text-2xl" id="down-btn">▼</button>
-            <button class="w-16 h-16 bg-slate-800 rounded flex items-center justify-center text-2xl" id="right-btn">▶</button>
-        </div>
-    </div>
 </div>
 
 <script>
-/**
- * AUDIO ENGINE
- */
+/** オーディオ設定 */
 let audioCtx;
-function initAudio() {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-}
+function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
 function playSound(type, freq = 440) {
     if (!audioCtx) return;
     const osc = audioCtx.createOscillator();
@@ -224,26 +218,30 @@ function playSound(type, freq = 440) {
     osc.connect(gain); gain.connect(audioCtx.destination);
     const now = audioCtx.currentTime;
     if (type === 'move') {
-        osc.frequency.setValueAtTime(100, now);
-        gain.gain.setValueAtTime(0.05, now);
-        osc.start(); osc.stop(now + 0.05);
+        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(80, now);
+        osc.frequency.exponentialRampToValueAtTime(150, now + 0.08);
+        gain.gain.setValueAtTime(0.15, now); gain.gain.linearRampToValueAtTime(0, now + 0.08);
+        osc.start(); osc.stop(now + 0.08);
     } else if (type === 'hit') {
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(freq, now);
-        gain.gain.setValueAtTime(0.1, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-        osc.start(); osc.stop(now + 0.1);
+        osc.type = 'square'; osc.frequency.setValueAtTime(freq * 0.5, now);
+        osc.frequency.exponentialRampToValueAtTime(50, now + 0.15);
+        gain.gain.setValueAtTime(0.4, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+        osc.start(); osc.stop(now + 0.15);
     } else if (type === 'correct') {
-        osc.frequency.setValueAtTime(523, now);
-        osc.frequency.exponentialRampToValueAtTime(1046, now + 0.3);
-        gain.gain.setValueAtTime(0.1, now);
+        osc.type = 'sine'; osc.frequency.setValueAtTime(440, now);
+        osc.frequency.exponentialRampToValueAtTime(880, now + 0.1);
+        osc.frequency.exponentialRampToValueAtTime(1760, now + 0.4);
+        gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now + 0.5);
+        osc.start(); osc.stop(now + 0.5);
+    } else if (type === 'wrong') {
+        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(200, now);
+        osc.frequency.linearRampToValueAtTime(100, now + 0.3);
+        gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 0.3);
         osc.start(); osc.stop(now + 0.3);
     }
 }
 
-/**
- * DATA - ユニーク50問
- */
+/** データ定義 */
 const MASTER_RADICAL_LIST = [
     { q: "氵", a: "さんずい", opts: ["さんずい", "にすい", "したみず"] },
     { q: "亻", a: "にんべん", opts: ["にんべん", "ぎょうにんべん", "けものへん"] },
@@ -292,11 +290,12 @@ const MASTER_RADICAL_LIST = [
     { q: "土", a: "つちへん", opts: ["つちへん", "おんなへん", "きへん"] },
     { q: "女", a: "おんなへん", opts: ["おんなへん", "つちへん", "にんべん"] },
     { q: "弓", a: "ゆみへん", opts: ["ゆみへん", "かたなへん", "ほこづくり"] },
+    { q: "身", a: "みへん", opts: ["みへん", "あしへん", "くるまへん"] },
+    { q: "示", a: "しめす", opts: ["しめす", "ころも", "いと"] },
+    { q: "衣", a: "ころも", opts: ["ころも", "しめす", "はば"] }
 ];
 
-/**
- * GAME ENGINE
- */
+/** ゲーム定数と変数 */
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const scoreEl = document.getElementById('score');
@@ -308,19 +307,22 @@ const comboBar = document.getElementById('combo-bar');
 const CELL_COUNT = 9;
 let cellSize, width, height;
 
-let player = { gridX: 4, gridY: 4, vX: 4, vY: 4, score: 0, combo: 0, comboTimer: 0, maxCombo: 0 };
+let player = { gridX: 4, gridY: 4, vX: 4, vY: 4, tilt: 0, score: 0, combo: 0, comboTimer: 0, maxCombo: 0 };
 let enemies = [];
 let particles = [];
 let usedQuizzes = [];
-let reviewData = [];
 let gameStarted = false, isGameOver = false, isPaused = false;
 let lastTime = 0, spawnTimer = 0, timeLeft = 30.0, shake = 0;
 let moveCooldown = 0;
 let gameMode = 'relax';
 const keys = {};
 
+// クイズ管理用
+let quizPendingCount = 0; 
+let resetComboOnResume = false; // クイズ終了後にコンボをリセットするか
+
 function resize() {
-    const size = Math.min(window.innerWidth * 0.95, window.innerHeight * 0.6);
+    const size = Math.min(window.innerWidth * 0.95, window.innerHeight * 0.7);
     canvas.width = canvas.height = width = height = size;
     cellSize = size / CELL_COUNT;
 }
@@ -328,21 +330,16 @@ window.addEventListener('resize', resize);
 resize();
 
 function spawnEnemy() {
-    if (isPaused) return;
-    const limit = gameMode === 'hard' ? 45 : 18;
+    if (isPaused || isGameOver) return;
+    const limit = gameMode === 'hard' ? 55 : 25;
     if (enemies.length > limit) return;
-    let x, y;
+    let x, y, attempts = 0;
     do {
         x = Math.floor(Math.random() * CELL_COUNT);
         y = Math.floor(Math.random() * CELL_COUNT);
-    } while (Math.abs(x - player.gridX) + Math.abs(y - player.gridY) < 2);
-    
-    enemies.push({ 
-        gridX: x, gridY: y, vX: x, vY: y, 
-        moveTimer: 0, 
-        isRare: Math.random() < (gameMode === 'hard' ? 0.15 : 0.08),
-        phase: Math.random() * Math.PI * 2
-    });
+        attempts++;
+    } while (attempts < 10 && Math.abs(x - player.gridX) + Math.abs(y - player.gridY) < 2);
+    enemies.push({ gridX: x, gridY: y, vX: x, vY: y, moveTimer: 0, isRare: Math.random() < (gameMode === 'hard' ? 0.2 : 0.1), phase: Math.random() * Math.PI * 2 });
 }
 
 function handleInput(dt) {
@@ -350,62 +347,71 @@ function handleInput(dt) {
     moveCooldown -= dt;
     if (moveCooldown <= 0) {
         let dx = 0, dy = 0;
-        if (keys['ArrowUp'] || keys['w']) dy = -1;
-        else if (keys['ArrowDown'] || keys['s']) dy = 1;
-        else if (keys['ArrowLeft'] || keys['a']) dx = -1;
-        else if (keys['ArrowRight'] || keys['d']) dx = 1;
-        
+        if (keys['arrowup'] || keys['w']) dy = -1;
+        else if (keys['arrowdown'] || keys['s']) dy = 1;
+        else if (keys['arrowleft'] || keys['a']) dx = -1;
+        else if (keys['arrowright'] || keys['d']) dx = 1;
         if (dx !== 0 || dy !== 0) {
             const nx = Math.max(0, Math.min(CELL_COUNT-1, player.gridX + dx));
             const ny = Math.max(0, Math.min(CELL_COUNT-1, player.gridY + dy));
             if (nx !== player.gridX || ny !== player.gridY) {
-                player.gridX = nx; player.gridY = ny;
-                playSound('move');
-                checkHit();
-                moveCooldown = 0.08;
+                player.gridX = nx; player.gridY = ny; player.tilt = dx * 0.5;
+                playSound('move'); checkHit(); moveCooldown = 0.07;
             }
-        }
+        } else { player.tilt *= 0.8; }
     }
 }
 
 function checkHit() {
+    if (!enemies || enemies.length === 0) return;
     for (let i = enemies.length - 1; i >= 0; i--) {
         const e = enemies[i];
+        if (!e) continue;
         if (e.gridX === player.gridX && e.gridY === player.gridY) {
+            const points = e.isRare ? 500 : 100;
+            const rareStatus = e.isRare;
+            const gx = e.gridX; const gy = e.gridY;
             enemies.splice(i, 1);
             player.combo++;
-            player.comboTimer = 1.4; // 70% duration
+            player.comboTimer = 1.4;
             player.maxCombo = Math.max(player.maxCombo, player.combo);
-            
-            const points = e.isRare ? 500 : 100;
             player.score += points;
             scoreEl.innerText = player.score;
-            shake = e.isRare ? 25 : 10;
-            createExplosion(e.gridX, e.gridY, e.isRare ? '#fbbf24' : '#ef4444', e.isRare ? 30 : 15);
-            playSound('hit', 200 + player.combo * 5);
+            shake = rareStatus ? 30 : 12;
+            createExplosion(gx, gy, rareStatus ? '#fbbf24' : '#ef4444', rareStatus ? 40 : 20);
+            playSound('hit', 150 + player.combo * 8);
 
-            if (player.combo >= 100) {
-                enemies = []; // 100コンボで敵一掃
-                startQuizSequence();
+            // 20コンボごとに、(コンボ数 / 20) の整数部分と同じ数だけクイズを追加
+            if (player.combo > 0 && player.combo % 20 === 0) {
+                quizPendingCount += Math.floor(player.combo / 20);
+                if (!isPaused) {
+                    enemies = []; // クイズ開始時に敵を消去
+                    startNextQuiz();
+                }
             }
         }
     }
 }
 
-function startQuizSequence() {
-    isPaused = true;
-    const available = MASTER_RADICAL_LIST.filter(r => !usedQuizzes.includes(r.q));
-    if (available.length === 0) {
-        // 全問解いた場合はリセットして継続
-        usedQuizzes = [];
+function startNextQuiz() {
+    if (quizPendingCount <= 0) {
+        finalizeQuizzes();
+        return;
     }
+
+    isPaused = true;
+    shake = 50;
     
-    // 50問の中からランダムに1問選択
-    const quiz = available[Math.floor(Math.random() * available.length)];
+    const available = MASTER_RADICAL_LIST.filter(r => !usedQuizzes.includes(r.q));
+    const quiz = available.length > 0 
+        ? available[Math.floor(Math.random() * available.length)]
+        : MASTER_RADICAL_LIST[Math.floor(Math.random() * MASTER_RADICAL_LIST.length)];
+    
     usedQuizzes.push(quiz.q);
     
     const overlay = document.getElementById('quiz-overlay');
-    document.getElementById('quiz-progress').innerText = `UNIQUE CHALLENGE: ${usedQuizzes.length} / 50`;
+    document.getElementById('quiz-pending-count').innerText = `残り問題数: ${quizPendingCount}`;
+    document.getElementById('quiz-progress').innerText = `発見した部首: ${Math.min(usedQuizzes.length, 50)} / 50`;
     document.getElementById('quiz-question').innerText = quiz.q;
     
     const optsBox = document.getElementById('quiz-options');
@@ -416,20 +422,24 @@ function startQuizSequence() {
         btn.innerText = opt;
         btn.onclick = () => {
             if (opt === quiz.a) {
-                const bonus = 10000;
+                const bonus = 2000 * Math.min(usedQuizzes.length, 10); 
                 player.score += bonus;
                 scoreEl.innerText = player.score;
                 playSound('correct');
-                showPop(`QUIZ BONUS +${bonus}`, '#fbbf24');
-                createExplosion(CELL_COUNT/2, CELL_COUNT/2, '#3b82f6', 50, true);
+                showPop(`正解！コンボ継続！ +${bonus}`, '#facc15');
+                createExplosion(CELL_COUNT/2, CELL_COUNT/2, '#ffffff', 80, true);
             } else {
-                reviewData.push(quiz);
-                showPop(`MISS`, '#ef4444');
+                playSound('wrong');
+                showPop(`ミス！コンボリセット`, '#ef4444');
+                resetComboOnResume = true; // 不正解ならリセットフラグを立てる
             }
-            overlay.classList.add('hidden');
-            isPaused = false;
-            player.combo = 0; // コンボリセット
-            comboContainer.classList.add('hidden');
+            
+            quizPendingCount--;
+            if (quizPendingCount > 0) {
+                startNextQuiz();
+            } else {
+                finalizeQuizzes();
+            }
         };
         optsBox.appendChild(btn);
     });
@@ -437,41 +447,50 @@ function startQuizSequence() {
     overlay.classList.remove('hidden');
 }
 
+function finalizeQuizzes() {
+    const overlay = document.getElementById('quiz-overlay');
+    overlay.classList.add('hidden');
+    isPaused = false;
+    
+    if (resetComboOnResume) {
+        player.combo = 0;
+        comboContainer.classList.add('hidden');
+        resetComboOnResume = false;
+    } else {
+        // 正解時はコンボタイマーを少し回復させて復帰しやすくする
+        player.comboTimer = 1.4;
+    }
+}
+
 function createExplosion(gx, gy, color, count, center = false) {
     const sx = center ? width/2 : (gx + 0.5) * cellSize;
     const sy = center ? height/2 : (gy + 0.5) * cellSize;
     for (let i = 0; i < count; i++) {
-        particles.push({
-            x: sx, y: sy,
-            vx: (Math.random()-0.5)*20, vy: (Math.random()-0.5)*20,
-            life: 1.0, color, size: Math.random()*5 + 1
-        });
+        const ang = Math.random() * Math.PI * 2;
+        const spd = Math.random() * 25 + 5;
+        particles.push({ x: sx, y: sy, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, life: 1.0, color, size: Math.random()*6 + 2 });
     }
 }
 
 function showPop(text, color) {
     const div = document.createElement('div');
     div.className = 'score-pop';
-    div.style.color = color;
-    div.style.left = '50%';
-    div.style.top = '45%';
+    div.style.color = color; div.style.left = '50%'; div.style.top = '40%'; div.style.textShadow = `0 0 20px ${color}`;
     div.innerText = text;
     document.getElementById('game-container').appendChild(div);
-    setTimeout(() => div.remove(), 1000);
+    setTimeout(() => div.remove(), 1200);
 }
 
 function update(dt) {
     if (isGameOver || !gameStarted || isPaused) return;
-    
     handleInput(dt);
     timeLeft -= dt;
     if (timeLeft <= 0) { timeLeft = 0; isGameOver = true; showResults(); }
     timerEl.innerText = timeLeft.toFixed(1);
 
-    // ビジュアル同期 (Lerp)
-    const l = 25 * dt;
-    player.vX += (player.gridX - player.vX) * l;
-    player.vY += (player.gridY - player.vY) * l;
+    const ease = 18 * dt;
+    player.vX += (player.gridX - player.vX) * ease;
+    player.vY += (player.gridY - player.vY) * ease;
 
     if (player.combo > 0) {
         player.comboTimer -= dt;
@@ -479,171 +498,106 @@ function update(dt) {
         comboEl.innerText = player.combo.toString().padStart(2, '0');
         comboBar.style.width = (player.comboTimer / 1.4 * 100) + "%";
         if (player.comboTimer <= 0) {
-            startQuizSequence();
+            if (quizPendingCount > 0) startNextQuiz();
+            else {
+                player.combo = 0;
+                comboContainer.classList.add('hidden');
+            }
         }
     }
 
     spawnTimer += dt;
-    const rate = gameMode === 'hard' ? 0.07 : 0.4;
+    const rate = gameMode === 'hard' ? 0.05 : 0.25;
     if (spawnTimer > rate) { spawnEnemy(); spawnTimer = 0; }
 
-    enemies.forEach(e => {
-        e.vX += (e.gridX - e.vX) * (l * 0.5);
-        e.vY += (e.gridY - e.vY) * (l * 0.5);
+    for (let i = enemies.length - 1; i >= 0; i--) {
+        const e = enemies[i]; if (!e) continue;
+        e.vX += (e.gridX - e.vX) * (ease * 0.4);
+        e.vY += (e.gridY - e.vY) * (ease * 0.4);
         e.moveTimer += dt;
-        const mRate = gameMode === 'hard' ? 0.35 : 0.8;
+        const mRate = gameMode === 'hard' ? 0.3 : 0.7;
         if (e.moveTimer > mRate) {
             e.moveTimer = 0;
-            const dirs = [[0,1],[0,-1],[1,0],[-1,0]];
-            const d = dirs[Math.floor(Math.random()*4)];
+            const dirs = [[0,1],[0,-1],[1,0],[-1,0]]; const d = dirs[Math.floor(Math.random()*4)];
             e.gridX = Math.max(0, Math.min(CELL_COUNT-1, e.gridX + d[0]));
             e.gridY = Math.max(0, Math.min(CELL_COUNT-1, e.gridY + d[1]));
             if (e.gridX === player.gridX && e.gridY === player.gridY) checkHit();
         }
-    });
-
-    particles.forEach((p, i) => {
-        p.x += p.vx; p.y += p.vy; p.life -= dt;
+    }
+    for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i]; p.x += p.vx; p.y += p.vy; p.life -= dt * 1.5;
         if (p.life <= 0) particles.splice(i, 1);
-    });
-    if (shake > 0) shake *= 0.9;
+    }
+    if (shake > 0) shake *= 0.85;
 }
 
 function draw() {
     ctx.clearRect(0, 0, width, height);
     ctx.save();
     if (shake > 1) ctx.translate((Math.random()-0.5)*shake, (Math.random()-0.5)*shake);
-
-    // グリッド線
-    ctx.strokeStyle = 'rgba(59, 130, 246, 0.15)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(59, 130, 246, 0.1)'; ctx.lineWidth = 1;
     for (let i = 0; i <= CELL_COUNT; i++) {
         ctx.beginPath(); ctx.moveTo(i*cellSize, 0); ctx.lineTo(i*cellSize, height); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(0, i*cellSize); ctx.lineTo(width, i*cellSize); ctx.stroke();
     }
-
-    // パーティクル
     particles.forEach(p => {
-        ctx.globalAlpha = p.life;
-        ctx.fillStyle = p.color;
+        ctx.globalAlpha = p.life; ctx.shadowBlur = 10; ctx.shadowColor = p.color; ctx.fillStyle = p.color;
         ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
     });
-    ctx.globalAlpha = 1;
-
-    // 敵の描画 (幾何学的なクリスタル)
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
     enemies.forEach(e => {
-        const x = (e.vX + 0.5) * cellSize;
-        const y = (e.vY + 0.5) * cellSize;
-        const r = cellSize * 0.35 + Math.sin(Date.now()*0.01 + e.phase)*3;
-        
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.rotate(Date.now() * 0.003 + e.phase);
-        
-        ctx.shadowBlur = e.isRare ? 20 : 10;
-        ctx.shadowColor = e.isRare ? '#fbbf24' : '#ef4444';
-        ctx.fillStyle = e.isRare ? '#fbbf24' : '#ef4444';
-        
-        // 八角形
+        if (!e) return;
+        const x = (e.vX + 0.5) * cellSize, y = (e.vY + 0.5) * cellSize;
+        const r = cellSize * 0.38 + Math.sin(Date.now()*0.01 + e.phase)*5;
+        ctx.save(); ctx.translate(x, y); ctx.rotate(Date.now() * 0.005 + e.phase);
+        ctx.shadowBlur = 15; ctx.shadowColor = e.isRare ? '#fbbf24' : '#ef4444'; ctx.fillStyle = e.isRare ? '#fbbf24' : '#ef4444';
         ctx.beginPath();
-        for (let i = 0; i < 8; i++) {
-            const ang = i * Math.PI / 4;
-            const dist = i % 2 === 0 ? r : r * 0.6;
-            ctx.lineTo(Math.cos(ang)*dist, Math.sin(ang)*dist);
+        for (let i = 0; i < 4; i++) {
+            const ang = i * Math.PI / 2; ctx.lineTo(Math.cos(ang)*r, Math.sin(ang)*r);
+            ctx.lineTo(Math.cos(ang + Math.PI/4)*r*0.4, Math.sin(ang + Math.PI/4)*r*0.4);
         }
-        ctx.closePath();
-        ctx.fill();
-        
-        ctx.fillStyle = 'rgba(255,255,255,0.3)';
-        ctx.beginPath(); ctx.arc(0, 0, r*0.2, 0, Math.PI*2); ctx.fill();
-        ctx.restore();
+        ctx.closePath(); ctx.fill(); ctx.restore();
     });
-
-    // プレイヤーの描画 (スラスター付)
-    const px = (player.vX + 0.5) * cellSize;
-    const py = (player.vY + 0.5) * cellSize;
-    const ps = cellSize * 0.6;
-
-    // スラスター
-    ctx.fillStyle = '#3b82f6';
-    ctx.globalAlpha = 0.4 + Math.random()*0.4;
-    for(let i=0; i<3; i++) {
-        const rx = px + (Math.random()-0.5)*ps;
-        const ry = py + ps*0.4 + Math.random()*ps*0.3;
-        ctx.beginPath(); ctx.arc(rx, ry, Math.random()*5, 0, Math.PI*2); ctx.fill();
-    }
-    ctx.globalAlpha = 1.0;
-
-    ctx.save();
-    ctx.shadowBlur = 15 + player.combo;
-    ctx.shadowColor = '#3b82f6';
-    ctx.fillStyle = '#0f172a';
-    ctx.strokeStyle = '#60a5fa';
-    ctx.lineWidth = 2;
-    
-    // ボディ
-    ctx.beginPath();
-    ctx.moveTo(px, py - ps/2);
-    ctx.lineTo(px + ps/2, py + ps/3);
-    ctx.lineTo(px, py + ps/6);
-    ctx.lineTo(px - ps/2, py + ps/3);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    // コア
-    ctx.fillStyle = '#60a5fa';
-    ctx.beginPath(); ctx.arc(px, py, ps*0.15, 0, Math.PI*2); ctx.fill();
-    ctx.restore();
-
-    ctx.restore();
+    const px = (player.vX + 0.5) * cellSize, py = (player.vY + 0.5) * cellSize, ps = cellSize * 0.7;
+    const grad = ctx.createRadialGradient(px, py + ps*0.3, 0, px, py + ps*0.6, ps*0.5);
+    grad.addColorStop(0, '#60a5fa'); grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(px, py + ps*0.3, ps*0.5 + Math.random()*5, 0, Math.PI*2); ctx.fill();
+    ctx.save(); ctx.translate(px, py); ctx.rotate(player.tilt);
+    ctx.shadowBlur = 20 + Math.min(player.combo, 40); ctx.shadowColor = '#3b82f6';
+    ctx.fillStyle = '#1e293b'; ctx.strokeStyle = '#60a5fa'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(0, -ps*0.5); ctx.lineTo(ps*0.4, ps*0.3); ctx.lineTo(0, ps*0.1); ctx.lineTo(-ps*0.4, ps*0.3); ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, -ps*0.1, ps*0.12, 0, Math.PI*2); ctx.fill();
+    ctx.restore(); ctx.restore();
 }
 
 function showResults() {
     document.getElementById('ui-overlay').classList.add('hidden');
     document.getElementById('result-screen').classList.remove('hidden');
     document.getElementById('final-score').innerText = player.score.toLocaleString();
-    document.getElementById('final-stats').innerText = `MAX COMBO: ${player.maxCombo} | UNIQUE SOLVED: ${usedQuizzes.length}`;
-    
-    const list = document.getElementById('review-list');
-    list.innerHTML = reviewData.length > 0 
-        ? [...new Set(reviewData)].map(r => `<div class="p-2 mb-1 bg-white/5 border-l-2 border-red-500 text-sm">【${r.q}】 : ${r.a}</div>`).join('')
-        : "<div class='text-blue-400 font-bold'>PERFECT PERFORMANCE</div>";
+    document.getElementById('final-stats').innerText = `最高コンボ数: ${player.maxCombo} | 解いた部首数: ${usedQuizzes.length}`;
 }
 
 function loop(time) {
     const dt = Math.min(0.1, (time - (lastTime || time)) / 1000);
-    lastTime = time;
-    update(dt);
-    draw();
+    lastTime = time; update(dt); draw();
     if (!isGameOver) requestAnimationFrame(loop);
 }
 
 function startGame(mode) {
-    initAudio();
-    gameMode = mode;
-    gameStarted = true; isGameOver = false; isPaused = false;
-    timeLeft = 30.0; player.score = 0; player.combo = 0; player.maxCombo = 0;
+    initAudio(); gameMode = mode; gameStarted = true; isGameOver = false; isPaused = false;
+    timeLeft = 30.0; player.score = 0; player.combo = 0; player.maxCombo = 0; quizPendingCount = 0;
     player.gridX = 4; player.gridY = 4; player.vX = 4; player.vY = 4;
-    enemies = []; particles = []; reviewData = []; usedQuizzes = [];
+    enemies = []; particles = []; usedQuizzes = [];
     scoreEl.innerText = "0";
     document.getElementById('start-screen').classList.add('hidden');
     document.getElementById('result-screen').classList.add('hidden');
     document.getElementById('ui-overlay').classList.remove('hidden');
-    lastTime = performance.now();
-    requestAnimationFrame(loop);
+    lastTime = performance.now(); requestAnimationFrame(loop);
 }
 
-window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = keys[e.key] = true);
-window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = keys[e.key] = false);
-
-// Mobile
-['up-btn','down-btn','left-btn','right-btn'].forEach((id, i) => {
-    const b = document.getElementById(id);
-    const k = ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'][i];
-    b.onpointerdown = (e) => { e.preventDefault(); keys[k] = true; };
-    b.onpointerup = () => keys[k] = false;
-});
+window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 </script>
 </body>
 </html>
