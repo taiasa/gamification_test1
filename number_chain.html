@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Number Chain: BOSS RUSH (Fixed)</title>
+    <title>Number Chain: SPEED TACTICS</title>
     <style>
         :root {
             --bg-color: #050508;
@@ -111,7 +111,7 @@
         .boss-mode-ui #target-val-disp { color: var(--col-neon-purple) !important; text-shadow: 0 0 20px var(--col-neon-purple); }
 
         .log-area {
-            font-size: 12px; color: #aaa; height: 200px; width: 100%; overflow: hidden;
+            font-size: 12px; color: #aaa; height: 180px; width: 100%; overflow: hidden;
             border-top: 1px solid #333; padding-top: 10px; margin-top: auto;
             display: flex; flex-direction: column-reverse;
             font-family: monospace;
@@ -197,6 +197,10 @@
             color: var(--col-neon-pink) !important;
         }
         @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        .dot-count-label {
+            font-size: 10px; color: #666; margin-top: 5px; text-align: right;
+        }
     </style>
 </head>
 <body>
@@ -218,7 +222,12 @@
                 <div class="speed-indicator"><div class="speed-bar" id="speed-bar"></div></div>
                 <div style="font-size:10px; color:#666; margin-top:2px;">数字が増えると速くなります</div>
             </div>
-            <div style="margin-top:20px;">
+            <div style="margin-top:15px;">
+                <div class="hud-label">フィールド上のドット数</div>
+                <div class="hud-value" id="dot-count-disp" style="font-size:24px; color:#ddd;">0 / 25</div>
+                <div style="font-size:10px; color:#888;">※1.5秒ごとに自然発生します</div>
+            </div>
+            <div style="margin-top:auto;">
                 <div class="hud-label">ボス出現まで</div>
                 <div class="hud-value" id="timer-disp" style="color:var(--col-neon-yellow)">--</div>
             </div>
@@ -235,17 +244,17 @@
             <!-- メニュー画面 -->
             <div id="menu-screen" class="screen-overlay">
                 <div class="title-main">Number Chain</div>
-                <div style="color:#aaa; font-size:16px; letter-spacing:4px; margin-bottom:20px; border-bottom:1px solid #444; padding-bottom:10px;">BOSS RUSH EDITION</div>
+                <div style="color:#aaa; font-size:16px; letter-spacing:4px; margin-bottom:20px; border-bottom:1px solid #444; padding-bottom:10px;">SPEED TACTICS EDITION</div>
                 
                 <div style="text-align:left; background:rgba(255,255,255,0.08); padding:20px; border-radius:4px; font-size:14px; line-height:1.7; max-width:520px; margin-bottom:20px; border-left: 4px solid #fff;">
-                    <strong>【基本ルール】</strong><br>
-                    1. <span style="color:#0ff">数値(＋,－,×)</span>を拾って計算する<br>
+                    <strong>【1.5秒の攻防戦】</strong><br>
+                    1. ドットを食べても即補充されません。<span style="color:#0ff">1.5秒ごとに自然発生</span>します。<br>
                     2. <span style="color:#f05">ターゲット</span>と同じ数値になると<span style="color:#0f6">自動でクリア！</span><br>
-                    3. ターゲットを超えても<span style="color:#ffdd00">10%以内ならセーフ(警告)</span>。引き算で戻せ！<br>
+                    3. 目標値が大きいほど<span style="color:#ffdd00">獲得スコアが大幅アップ</span>。<br>
                     <br>
-                    <strong>【ボス戦】</strong><br>
-                    ・巨大なHPを<span style="color:#b026ff">「割り切れる数(約数)」</span>で攻撃して1にしろ。<br>
-                    ・もしボスHPが素数になったら…<span style="color:#f05">「虹色のドット」</span>でとどめを刺せ！
+                    <strong>【ボス戦：予告システム】</strong><br>
+                    ・ボスの攻撃（約数ドット）は<span style="color:#b026ff">2秒間の予告</span>のあとに出現します。<br>
+                    ・いきなり現れることはありません。予告を見て位置取りをせよ！
                 </div>
 
                 <div style="text-align:center; margin-bottom:20px;">
@@ -255,8 +264,8 @@
                 </div>
 
                 <div style="display:flex; flex-direction:column; gap:5px; transform:scale(0.8);">
-                    <button class="btn btn-easy" id="btn-easy">初心者モード (Mouse)</button>
-                    <button class="btn btn-hard" id="btn-hard">上級者モード (Mouse)</button>
+                    <button class="btn btn-easy" id="btn-easy">初心者モード</button>
+                    <button class="btn btn-hard" id="btn-hard">上級者モード</button>
                 </div>
             </div>
         </div>
@@ -283,7 +292,11 @@
 
 <script>
 /**
- * Number Chain: Boss Rush (Fixed & Enhanced)
+ * Number Chain: Speed Tactics
+ * - 1.5 Second Spawn Rule (Faster Pacing)
+ * - Boss Warning System
+ * - Score Multiplier
+ * - Safe Start Logic
  */
 
 const CONFIG = {
@@ -299,14 +312,17 @@ const CONFIG = {
         mul: '#ffcc00',
         div: '#ff00ff',
         danger: '#ff0055',
+        warning: '#ffff00',
         text: '#ffffff'
     },
     bossTime: 60,
     baseSpeed: 10,
-    minSpeed: 4
+    minSpeed: 4,
+    spawnInterval: 90, // 1.5 seconds (60fps * 1.5)
+    maxDots: 25,
+    bossWarningTime: 120 // 2 seconds
 };
 
-// 素数判定ヘルパー
 function isPrime(num) {
     if (num <= 1) return false;
     if (num === 2) return true;
@@ -333,6 +349,7 @@ class Game {
         this.velocity = {x: 0, y: 0};
         this.inputQueue = [];
         this.dots = [];
+        this.pendingDots = []; 
         this.particles = [];
         this.floatTexts = [];
         
@@ -351,31 +368,35 @@ class Game {
         this.loop = this.loop.bind(this);
         this.handleInput = this.handleInput.bind(this);
         
+        // Input Listener
         window.addEventListener('keydown', this.handleInput);
         
-        // マウス操作用のフォールバック
-        document.getElementById('btn-easy').addEventListener('click', () => this.startGame('easy'));
-        document.getElementById('btn-hard').addEventListener('click', () => this.startGame('hard'));
+        // Button Handlers
+        const startHandler = (mode) => {
+            AudioSys.resume(); // User gesture trigger
+            this.startGame(mode);
+        };
+        
+        document.getElementById('btn-easy').addEventListener('click', () => startHandler('easy'));
+        document.getElementById('btn-hard').addEventListener('click', () => startHandler('hard'));
         document.getElementById('menu-screen').addEventListener('click', (e) => {
-            if(e.target.id === 'retry-btn') this.startGame(this.mode);
+            if(e.target.id === 'retry-btn') startHandler(this.mode);
+            else if (this.state === 'MENU') AudioSys.resume(); // Ensure resume on any click
         });
 
-        // ループ開始
         requestAnimationFrame(this.loop);
     }
 
     fitWindow() {
-        const wrapper = document.getElementById('main-wrapper');
         const scaler = document.getElementById('scaler');
-        const padding = 20;
-        const baseW = 1080 + padding; 
-        const baseH = 640 + padding;
+        const baseW = 1100; 
+        const baseH = 660;
         const scale = Math.min(window.innerWidth / baseW, window.innerHeight / baseH, 1.0);
         scaler.style.transform = `scale(${scale})`;
     }
 
     startGame(mode) {
-        AudioSys.resume(); // 必須：ユーザー操作時にオーディオコンテキスト再開
+        if (this.state === 'PLAYING' || this.state === 'BOSS_BATTLE') return;
         this.mode = mode;
         this.init();
     }
@@ -385,6 +406,7 @@ class Game {
         this.velocity = {x: 0, y: -1};
         this.inputQueue = [];
         this.dots = [];
+        this.pendingDots = [];
         this.particles = [];
         this.floatTexts = [];
         this.currentVal = 0;
@@ -400,18 +422,17 @@ class Game {
         document.getElementById('target-label').innerText = "目標値 (ターゲット)";
 
         this.setNormalTarget();
-        this.spawnDots(15); 
+        this.spawnDots(10, false); 
         
         AudioSys.playStart();
         AudioSys.startBGM(false); 
-        this.log("ゲームスタート！ " + (this.mode === 'easy' ? "[初心者]" : "[上級者]"));
+        this.log("ゲームスタート！(1.5秒ごとにドット出現)");
     }
 
     // --- Game System ---
 
     getSpeedInterval() {
         if (this.state === 'BOSS_BATTLE') return 5;
-        // 値が大きくなると少し速くなる
         const speedUp = Math.floor(this.currentVal / 30); 
         const interval = Math.max(CONFIG.minSpeed, CONFIG.baseSpeed - speedUp);
         return interval;
@@ -420,75 +441,45 @@ class Game {
     setNormalTarget() {
         const base = this.mode === 'easy' ? 10 : 20;
         const max = this.mode === 'easy' ? 40 : 150;
-        const scaler = Math.min(60, Math.floor(this.score / 500));
+        const scaler = Math.min(60, Math.floor(this.score / 1000));
         
         this.targetVal = Math.floor(Math.random() * (max - base + scaler)) + base + scaler;
         this.currentVal = 0;
         
         this.updateUI();
-        this.spawnDots(5); 
+        if(this.dots.length < 5) this.spawnDots(5 - this.dots.length, false);
     }
 
-    spawnDots(count) {
-        // --- ボス戦のドット生成 ---
-        if (this.state === 'BOSS_BATTLE') {
-            this.dots = []; 
-            const factors = this.getFactors(this.targetVal);
-            
-            // ★素数対応（救済措置）
-            if (isPrime(this.targetVal)) {
-                // 素数の場合、その数自身で割るドットを必ず生成（特殊演出フラグ付き）
-                this.addDot('div', this.targetVal, "÷"+this.targetVal, true);
-                // 罠も少し混ぜる
-                for(let i=0; i<3; i++) {
-                    let n = Math.floor(Math.random() * 8) + 2; 
-                    if (this.targetVal % n !== 0) this.addDot('div', n, "÷"+n);
-                }
-                return;
-            }
+    spawnDots(count, useWarning = false) {
+        if (this.state === 'GAMEOVER') return;
 
-            // 通常ボス（合成数）
-            for(let i=0; i<3; i++) {
-                if(factors.length === 0) break;
-                const f = factors[Math.floor(Math.random() * factors.length)];
-                this.addDot('div', f, "÷"+f);
-            }
-            // 罠
-            for(let i=0; i<5; i++) {
-                let n;
-                let safety = 0;
-                do { n = Math.floor(Math.random() * 8) + 2; safety++; } 
-                while (this.targetVal % n === 0 && safety < 20);
-                
-                if (this.targetVal % n !== 0) this.addDot('div', n, "÷"+n);
-            }
+        // Boss Logic
+        if (this.state === 'BOSS_BATTLE') {
+            this.spawnBossDots(count);
             return;
         }
 
-        // --- 通常モードのドット生成 ---
-        let currentDotCount = this.dots.length;
-        if (currentDotCount >= 25) return;
-
-        // 警告状態（オーバーフロー中）なら、引き算を優先的に出す
+        // Normal Logic
         const limit = Math.floor(this.targetVal * 1.1);
         const isOverflow = this.currentVal > this.targetVal;
 
-        for(let i=0; i<count; i++) {
+        if (this.dots.length + this.pendingDots.length >= CONFIG.maxDots) return;
+
+        const room = CONFIG.maxDots - (this.dots.length + this.pendingDots.length);
+        const actualCount = Math.min(count, room);
+
+        for(let i=0; i<actualCount; i++) {
             let type, val, label;
             const r = Math.random();
 
             if (isOverflow) {
-                // 戻すための引き算を大量発生させる
-                type = 'sub'; 
-                val = Math.floor(Math.random()*5)+1;
+                type = 'sub'; val = Math.floor(Math.random()*5)+1;
             } else if (this.mode === 'easy') {
                 if (r < 0.7) { type = 'add'; val = Math.floor(Math.random()*5)+1; }
                 else { type = 'sub'; val = Math.floor(Math.random()*3)+1; }
             } else {
                 const diff = this.targetVal - this.currentVal;
-                if (r < 0.15 && diff > 20 && this.currentVal > 2) { 
-                    type = 'mul'; val = 2; 
-                } 
+                if (r < 0.15 && diff > 20 && this.currentVal > 2) { type = 'mul'; val = 2; } 
                 else if (r < 0.65) { type = 'add'; val = Math.floor(Math.random()*9)+1; }
                 else { type = 'sub'; val = Math.floor(Math.random()*5)+1; }
             }
@@ -497,29 +488,67 @@ class Game {
             else if (type === 'add') label = "+" + val;
             else label = "-" + val;
 
-            this.addDot(type, val, label);
+            this.addDot(type, val, label, false, useWarning);
         }
     }
 
-    addDot(type, val, label, isSpecial = false) {
+    spawnBossDots(count) {
+        const factors = this.getFactors(this.targetVal);
+        const isP = isPrime(this.targetVal);
+
+        if (isP) {
+            this.addDot('div', this.targetVal, "÷"+this.targetVal, true, true);
+            for(let i=0; i<3; i++) {
+                 let n = Math.floor(Math.random() * 8) + 2; 
+                 if (this.targetVal % n !== 0) this.addDot('div', n, "÷"+n, false, true);
+            }
+            return;
+        }
+
+        for(let i=0; i<count; i++) {
+            let type = 'div', val, label, isSpecial = false;
+            if (i < 2 && factors.length > 0) { 
+                val = factors[Math.floor(Math.random() * factors.length)];
+            } else { 
+                let safety = 0;
+                do { val = Math.floor(Math.random() * 8) + 2; safety++; } 
+                while (this.targetVal % val === 0 && safety < 20);
+            }
+            label = "÷" + val;
+            this.addDot(type, val, label, false, true); 
+        }
+    }
+
+    addDot(type, val, label, isSpecial, useWarning) {
         let x, y, attempts = 0;
-        while(attempts < 30) {
+        while(attempts < 50) {
             x = Math.floor(Math.random() * this.tileCount);
             y = Math.floor(Math.random() * this.tileCount);
-            // 自分の体や他のドットと被らない場所
+            
             const safe = !this.snake.some(s => s.x === x && s.y === y) && 
-                         !this.dots.some(d => d.x === x && d.y === y);
+                         !this.dots.some(d => d.x === x && d.y === y) &&
+                         !this.pendingDots.some(p => p.x === x && p.y === y);
             if(safe) break;
             attempts++;
         }
-        if(attempts < 30) {
-            this.dots.push({x, y, type, val, label, isSpecial, birth: this.frame});
+        
+        if(attempts < 50) {
+            if (useWarning) {
+                this.pendingDots.push({
+                    x, y, type, val, label, isSpecial, 
+                    timer: CONFIG.bossWarningTime, 
+                    maxTimer: CONFIG.bossWarningTime
+                });
+            } else {
+                this.dots.push({x, y, type, val, label, isSpecial, birth: this.frame});
+                this.addParticleBurst(x, y, CONFIG.colors[type], 5); 
+            }
         }
     }
 
     getFactors(num) {
         const factors = [];
-        for(let i=2; i<=12; i++) { // 少し範囲広げる
+        for(let i=2; i<=12; i++) {
             if (num % i === 0) factors.push(i);
         }
         return factors;
@@ -528,22 +557,19 @@ class Game {
     // --- Input Handling ---
 
     handleInput(e) {
-        // キー操作によるメニュー制御
         if (this.state === 'MENU' || this.state === 'GAMEOVER') {
-            if (e.code === 'KeyZ') {
+            if (e.code === 'KeyZ' || e.code === 'Enter') {
+                AudioSys.resume();
                 this.startGame('easy'); 
             } else if (e.code === 'KeyH') {
+                AudioSys.resume();
                 this.startGame('hard');
-            } else if (e.code === 'Enter') {
-                // Enterでもスタート可
-                this.startGame('easy');
             }
             return;
         }
 
         if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
         
-        // Input Buffering
         let nextMove = null;
         if (e.code === 'ArrowUp') nextMove = {x:0, y:-1};
         else if (e.code === 'ArrowDown') nextMove = {x:0, y:1};
@@ -562,13 +588,15 @@ class Game {
 
     secure() {
         AudioSys.playSecure();
-        this.score += this.targetVal * 10;
-        this.addParticleBurst(this.snake[0].x, this.snake[0].y, '#fff', 40);
-        this.log(`クリア！ (+${this.targetVal * 10}点)`);
         
-        // Snake Cut
+        const multiplier = 1 + (this.targetVal / 50);
+        const points = Math.floor(this.targetVal * 10 * multiplier);
+        
+        this.score += points;
+        this.addParticleBurst(this.snake[0].x, this.snake[0].y, '#fff', 40);
+        this.log(`クリア！ (+${points}点)`);
+        
         if(this.snake.length > 3) this.snake.length = 3;
-
         this.setNormalTarget();
     }
 
@@ -591,23 +619,23 @@ class Game {
         this.state = 'BOSS_BATTLE';
         this.bossPhaseCount++;
         
+        this.dots = [];
+        this.pendingDots = [];
+        
         const bosses = [120, 240, 360, 480, 720, 840, 1000];
         const baseBoss = bosses[Math.min(bosses.length-1, this.bossPhaseCount-1)];
-        // ランダム変動
         this.targetVal = baseBoss + (Math.floor(Math.random()*4) * 12); 
         
-        // たまに素数ボスにする（テスト用、あるいはレア要素）
-        if(Math.random() < 0.1) this.targetVal = 101 + Math.floor(Math.random()*10)*2;
+        if(Math.random() < 0.15) this.targetVal = 101 + Math.floor(Math.random()*10)*2;
 
         document.getElementById('main-wrapper').classList.add('boss-mode-ui');
         document.getElementById('target-label').innerText = "BOSS HP";
-        document.getElementById('msg-disp').innerText = "約数を拾ってHPを1にしろ！\n(割り切れないと即死)";
+        document.getElementById('msg-disp').innerText = "予告地点に約数が出現する！\n回避しながら待て！";
         
-        this.dots = [];
-        this.spawnDots(10);
+        this.spawnDots(8, true);
         
         AudioSys.startBGM(true); 
-        this.log("警告: ボス出現！");
+        this.log("WARNING: ボス接近！回避せよ！");
     }
 
     bossHit(dotVal) {
@@ -625,7 +653,7 @@ class Game {
             if (this.targetVal === 1) {
                 this.bossDefeated();
             } else {
-                this.spawnDots(1);
+                this.spawnDots(1, true); 
             }
         } else {
             this.gameOver(`計算ミス (即死)<br>${this.targetVal} は ${dotVal} で割り切れません！`);
@@ -637,6 +665,9 @@ class Game {
         this.score += 5000;
         this.state = 'PLAYING';
         this.bossTimerVal = CONFIG.bossTime;
+        
+        this.dots = [];
+        this.pendingDots = [];
         
         document.getElementById('main-wrapper').classList.remove('boss-mode-ui');
         document.getElementById('target-label').innerText = "目標値 (ターゲット)";
@@ -666,7 +697,7 @@ class Game {
             <div style="color:#0f6; font-weight:bold; margin-top:20px;">
                 <span class="key-badge">Z</span>キー でリトライ
             </div>
-            <button class="btn btn-easy" id="retry-btn" style="margin-top:10px;">リトライ (Mouse)</button>
+            <button class="btn btn-easy" id="retry-btn" style="margin-top:10px;">リトライ</button>
         `;
     }
 
@@ -675,13 +706,32 @@ class Game {
     update() {
         this.frame++;
         
-        // Timer
         if (this.state === 'PLAYING') {
             if (this.frame % 60 === 0) {
                 this.bossTimerVal--;
-                if (this.bossTimerVal <= 0) {
-                    this.enterBossMode();
+                if (this.bossTimerVal <= 0) this.enterBossMode();
+            }
+
+            // 1.5 seconds Spawn
+            if (this.frame % CONFIG.spawnInterval === 0) {
+                if (this.dots.length < CONFIG.maxDots) {
+                    this.spawnDots(1, false);
                 }
+            }
+        }
+
+        // Pending Dots (Warning)
+        for(let i = this.pendingDots.length - 1; i >= 0; i--) {
+            const p = this.pendingDots[i];
+            p.timer--;
+            if(p.timer <= 0) {
+                this.dots.push({
+                    x: p.x, y: p.y, type: p.type, val: p.val, 
+                    label: p.label, isSpecial: p.isSpecial, birth: this.frame
+                });
+                this.addParticleBurst(p.x, p.y, '#fff', 10);
+                AudioSys.playSpawn();
+                this.pendingDots.splice(i, 1);
             }
         }
 
@@ -696,12 +746,10 @@ class Game {
             
             const head = {x: this.snake[0].x + this.velocity.x, y: this.snake[0].y + this.velocity.y};
             
-            // Wall Collision
             if (head.x < 0 || head.x >= this.tileCount || head.y < 0 || head.y >= this.tileCount) {
                 this.gameOver("壁に衝突しました");
                 return;
             }
-            // Self Collision
             if (this.snake.some(s => s.x === head.x && s.y === head.y)) {
                 this.gameOver("自分の体に衝突しました");
                 return;
@@ -709,7 +757,6 @@ class Game {
 
             this.snake.unshift(head);
 
-            // Dot Collision
             let ate = false;
             for (let i = this.dots.length - 1; i >= 0; i--) {
                 const d = this.dots[i];
@@ -720,7 +767,6 @@ class Game {
                     if (this.state === 'BOSS_BATTLE') {
                         this.bossHit(d.val);
                     } else {
-                        // --- 通常ロジック ---
                         const prev = this.currentVal;
                         let nextVal = this.currentVal;
                         
@@ -728,11 +774,8 @@ class Game {
                         if(d.type === 'sub') nextVal = Math.max(0, nextVal - d.val);
                         if(d.type === 'mul') nextVal *= d.val;
                         
-                        // ★ 救済措置ロジック (10%許容)
                         const limit = Math.floor(this.targetVal * 1.1);
-
                         if (nextVal > limit) {
-                            // 許容範囲を超えたらアウト
                             this.gameOver(`許容範囲オーバー！<br>${nextVal} (上限: ${limit})<br>目標の10%を超えすぎました`);
                             return;
                         } 
@@ -740,13 +783,10 @@ class Game {
                         this.currentVal = nextVal;
                         AudioSys.playCollect(d.type);
                         
-                        // ドット補充（もし減りすぎていたら）
-                        this.spawnDots(1);
                         this.log(`取得: ${d.label} -> ${this.currentVal}`);
                         
-                        // ★ 自動クリア判定
                         if (this.currentVal === this.targetVal) {
-                            this.secure(); // Zボタン不要、自動移行
+                            this.secure();
                         }
                     }
                     break;
@@ -758,7 +798,6 @@ class Game {
 
         this.updateUI();
         
-        // Particles
         this.particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.life -= p.decay; });
         this.particles = this.particles.filter(p => p.life > 0);
         this.floatTexts.forEach(t => { t.y -= 0.5; t.life -= 0.02; });
@@ -768,6 +807,7 @@ class Game {
     updateUI() {
         document.getElementById('score-disp').innerText = this.score;
         document.getElementById('timer-disp').innerText = this.state === 'BOSS_BATTLE' ? "戦闘中!!" : this.bossTimerVal.toString().padStart(2,'0');
+        document.getElementById('dot-count-disp').innerText = `${this.dots.length} / ${CONFIG.maxDots}`;
         
         const cDiv = document.getElementById('current-val-disp');
         const tDiv = document.getElementById('target-val-disp');
@@ -781,26 +821,19 @@ class Game {
             cDiv.style.color = '#555'; 
             cDiv.innerText = "???";
             msgDiv.innerText = isPrime(this.targetVal) 
-                ? "【危険】素数です！\n虹色のドットを探せ！" 
-                : "約数を拾って攻撃せよ！";
+                ? "【危険】素数です！\n虹色のドット出現待ち…" 
+                : "予告地点に注意！\n約数を拾って攻撃せよ！";
             msgDiv.style.color = isPrime(this.targetVal) ? '#f0f' : '#fff';
-            
             vig.style.opacity = 0.4 + Math.sin(this.frame * 0.2) * 0.1;
-
         } else if (this.state === 'PLAYING') {
-            // 色判定
             if (this.currentVal === this.targetVal) {
                 cDiv.style.color = '#0f6';
             } else if (this.currentVal > this.targetVal) {
-                // 警告状態
-                cDiv.style.color = '#ffdd00'; // 警告色
+                cDiv.style.color = '#ffdd00';
                 cDiv.classList.add('blink-warn');
                 msgDiv.innerText = `警告：目標超過！\n(あと ${Math.floor(this.targetVal * 1.1) - this.currentVal} 許容)`;
                 msgDiv.style.color = '#ffdd00';
                 vig.style.opacity = 0.3;
-                
-                // ドットが少なければ、救済のためにドットを追加生成（引き算が出やすい）
-                if (this.frame % 30 === 0) this.spawnDots(1);
             } else {
                 cDiv.style.color = '#00f3ff';
                 cDiv.classList.remove('blink-warn');
@@ -820,11 +853,9 @@ class Game {
     }
 
     draw() {
-        // Background
         this.ctx.fillStyle = CONFIG.colors.bg;
         this.ctx.fillRect(0, 0, CONFIG.canvasSize, CONFIG.canvasSize);
         
-        // Grid
         this.ctx.strokeStyle = CONFIG.colors.grid;
         this.ctx.lineWidth = 1;
         this.ctx.beginPath();
@@ -834,11 +865,29 @@ class Game {
         }
         this.ctx.stroke();
 
-        // Dots
         this.ctx.textAlign = "center";
         this.ctx.textBaseline = "middle";
-        this.ctx.font = "900 16px 'Verdana', sans-serif";
+        
+        // Pending Dots (Warning)
+        this.ctx.lineWidth = 2;
+        this.pendingDots.forEach(p => {
+            const cx = p.x * CONFIG.gridSize + CONFIG.gridSize/2;
+            const cy = p.y * CONFIG.gridSize + CONFIG.gridSize/2;
+            const ratio = p.timer / p.maxTimer; 
+            
+            const size = (CONFIG.gridSize - 4) * (1.5 - ratio * 0.5); 
+            this.ctx.strokeStyle = `rgba(255, 255, 0, ${0.5 + Math.sin(this.frame*0.5)*0.5})`;
+            this.ctx.strokeRect(cx - size/2, cy - size/2, size, size);
+            
+            if (p.timer < 60) {
+                 this.ctx.fillStyle = "#ffff00";
+                 this.ctx.font = "bold 12px monospace";
+                 this.ctx.fillText("!", cx, cy);
+            }
+        });
 
+        // Dots
+        this.ctx.font = "900 16px 'Verdana', sans-serif";
         this.dots.forEach(d => {
             const cx = d.x * CONFIG.gridSize + CONFIG.gridSize/2;
             const cy = d.y * CONFIG.gridSize + CONFIG.gridSize/2;
@@ -846,7 +895,6 @@ class Game {
 
             this.ctx.shadowBlur = 10;
             
-            // ★ 素数用とどめドット（虹色演出）
             if (d.isSpecial) {
                 const hue = (this.frame * 10) % 360;
                 this.ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
@@ -943,6 +991,7 @@ const AudioSys = {
     ctx: null,
     masterGain: null,
     bgmTimer: null,
+    started: false,
     
     resume() {
         if (!this.ctx) {
@@ -953,12 +1002,14 @@ const AudioSys = {
             this.masterGain.connect(this.ctx.destination);
         }
         if (this.ctx.state === 'suspended') {
-            this.ctx.resume().catch(e => console.log(e));
+            this.ctx.resume().then(() => { this.started = true; }).catch(e => console.log(e));
+        } else {
+            this.started = true;
         }
     },
     
     playOsc(freq, type, dur, vol) {
-        if(!this.ctx) return;
+        if(!this.ctx || !this.started) return;
         const t = this.ctx.currentTime;
         const osc = this.ctx.createOscillator();
         const g = this.ctx.createGain();
@@ -979,6 +1030,7 @@ const AudioSys = {
         else if(type==='div') this.playOsc(1200, 'sine', 0.1, 0.2);
         else this.playOsc(880, 'square', 0.1, 0.15);
     },
+    playSpawn() { this.playOsc(1000, 'sine', 0.1, 0.1); }, // Slightly lighter sound
     playSecure() {
         [523, 659, 783, 1046].forEach((f, i) => setTimeout(() => this.playOsc(f, 'triangle', 0.4, 0.4), i*50));
     },
@@ -1017,7 +1069,7 @@ const AudioSys = {
     
     startBGM(isBoss) {
         this.stopBGM();
-        if(!this.ctx) return;
+        if(!this.ctx || !this.started) return;
         const interval = isBoss ? 250 : 500;
         const playBeat = () => {
             const t = this.ctx.currentTime;
