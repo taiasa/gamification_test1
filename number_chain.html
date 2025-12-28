@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Number Chain: BOSS RUSH (Fixed)</title>
+    <style>
+        :root {
+            --bg-color: #050508;
+            --main-font: "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+            --col-neon-blue: #00f3ff;
+            --col-neon-pink: #ff0055;
+            --col-neon-yellow: #ffdd00;
+            --col-neon-green: #00ff66;
+            --col-neon-purple: #b026ff;
+            --glass-bg: rgba(0, 10, 20, 0.9);
+        }
+
+        body {
+            background-color: #000;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            font-family: var(--main-font);
+            color: #fff;
+            user-select: none;
+            touch-action: none;
+            background-image: radial-gradient(circle at center, #1a1a24 0%, #000 100%);
+        }
+
+        #scaler {
+            transform-origin: center center;
+            transition: transform 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #main-wrapper {
+            display: flex;
+            flex-direction: row;
+            align-items: stretch;
+            justify-content: center;
+            gap: 15px;
+            width: 1080px;
+            height: 640px;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        .side-panel {
+            flex: 1;
+            background: var(--glass-bg);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            min-width: 200px;
+        }
+
+        .panel-left { 
+            border-right: 4px solid var(--col-neon-blue); 
+            align-items: flex-start;
+        }
+        .panel-right { 
+            border-left: 4px solid var(--col-neon-pink); 
+            align-items: flex-end;
+            text-align: right;
+        }
+
+        #game-container {
+            position: relative;
+            width: 640px;
+            height: 640px;
+            background: #000;
+            box-shadow: 0 0 50px rgba(0, 243, 255, 0.1);
+            border: 2px solid #222;
+            flex-shrink: 0;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated;
+        }
+
+        #crt-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%);
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .hud-label { font-size: 13px; color: #999; margin-bottom: 4px; font-weight: bold; }
+        .hud-value { font-size: 32px; font-weight: bold; margin-bottom: 15px; font-family: "Courier New", monospace; }
+        .hud-big { font-size: 64px; line-height: 1; color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.2); }
+        
+        .boss-mode-ui .panel-right { border-left-color: var(--col-neon-purple); }
+        .boss-mode-ui #target-val-disp { color: var(--col-neon-purple) !important; text-shadow: 0 0 20px var(--col-neon-purple); }
+
+        .log-area {
+            font-size: 12px; color: #aaa; height: 200px; width: 100%; overflow: hidden;
+            border-top: 1px solid #333; padding-top: 10px; margin-top: auto;
+            display: flex; flex-direction: column-reverse;
+            font-family: monospace;
+        }
+        .log-item { margin-bottom: 3px; border-bottom: 1px dashed #222; padding-bottom: 2px; }
+
+        .screen-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.94);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 30;
+            backdrop-filter: blur(8px);
+            transition: opacity 0.3s;
+        }
+        .hidden { opacity: 0; pointer-events: none; }
+
+        .title-main {
+            font-size: 52px; font-weight: 900; color: var(--col-neon-blue);
+            text-shadow: 4px 4px 0 var(--col-neon-pink);
+            margin-bottom: 5px;
+            font-style: italic;
+        }
+        .key-badge {
+            display: inline-block;
+            background: #333;
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 4px;
+            border: 1px solid #666;
+            font-family: monospace;
+            margin: 0 4px;
+            font-weight: bold;
+        }
+        .btn {
+            font-size: 18px; font-weight: bold; padding: 15px 40px; cursor: pointer;
+            border: 2px solid #fff; background: transparent; color: #fff;
+            transition: 0.2s; margin: 10px;
+            text-transform: uppercase;
+            min-width: 200px;
+        }
+        .btn:hover { background: #fff; color: #000; transform: scale(1.05); }
+        .btn-easy { border-color: var(--col-neon-green); color: var(--col-neon-green); }
+        .btn-hard { border-color: var(--col-neon-pink); color: var(--col-neon-pink); }
+
+        #boss-alert {
+            position: absolute; top: 35%; width: 100%; text-align: center;
+            font-size: 60px; font-weight: 900; color: var(--col-neon-yellow);
+            text-shadow: 0 0 20px red;
+            transform: scale(0); opacity: 0;
+            pointer-events: none; z-index: 25;
+            background: rgba(0,0,0,0.8);
+            padding: 20px 0;
+        }
+        @keyframes boss-anim {
+            0% { transform: scale(0); opacity: 0; }
+            10% { transform: scale(1.2); opacity: 1; }
+            20% { transform: scale(1); opacity: 1; }
+            80% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+        .boss-active { animation: boss-anim 4s forwards; }
+
+        #danger-vignette {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            box-shadow: inset 0 0 150px var(--col-neon-pink);
+            opacity: 0; pointer-events: none; z-index: 15;
+            transition: opacity 0.5s;
+        }
+        
+        .speed-indicator {
+            height: 4px; background: #333; width: 100%; margin-top: 5px; position: relative;
+        }
+        .speed-bar {
+            height: 100%; background: linear-gradient(90deg, #0ff, #f05); width: 0%; transition: width 0.2s;
+        }
+        
+        .blink-warn {
+            animation: blink 0.5s infinite;
+            color: var(--col-neon-pink) !important;
+        }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+<div id="scaler">
+    <div id="main-wrapper">
+        <!-- 左パネル -->
+        <div class="side-panel panel-left">
+            <div>
+                <div class="hud-label">スコア</div>
+                <div class="hud-value" id="score-disp">0</div>
+            </div>
+            <div>
+                <div class="hud-label">モード</div>
+                <div class="hud-value" id="mode-disp" style="font-size:18px; color:#aaa;">-</div>
+            </div>
+            <div>
+                <div class="hud-label">移動スピード</div>
+                <div class="speed-indicator"><div class="speed-bar" id="speed-bar"></div></div>
+                <div style="font-size:10px; color:#666; margin-top:2px;">数字が増えると速くなります</div>
+            </div>
+            <div style="margin-top:20px;">
+                <div class="hud-label">ボス出現まで</div>
+                <div class="hud-value" id="timer-disp" style="color:var(--col-neon-yellow)">--</div>
+            </div>
+            <div class="log-area" id="game-log"></div>
+        </div>
+
+        <!-- 中央: ゲーム画面 -->
+        <div id="game-container">
+            <canvas id="gameCanvas" width="640" height="640"></canvas>
+            <div id="crt-overlay"></div>
+            <div id="danger-vignette"></div>
+            <div id="boss-alert">WARNING<br><span style="font-size:30px">BOSS APPROACHING</span></div>
+
+            <!-- メニュー画面 -->
+            <div id="menu-screen" class="screen-overlay">
+                <div class="title-main">Number Chain</div>
+                <div style="color:#aaa; font-size:16px; letter-spacing:4px; margin-bottom:20px; border-bottom:1px solid #444; padding-bottom:10px;">BOSS RUSH EDITION</div>
+                
+                <div style="text-align:left; background:rgba(255,255,255,0.08); padding:20px; border-radius:4px; font-size:14px; line-height:1.7; max-width:520px; margin-bottom:20px; border-left: 4px solid #fff;">
+                    <strong>【基本ルール】</strong><br>
+                    1. <span style="color:#0ff">数値(＋,－,×)</span>を拾って計算する<br>
+                    2. <span style="color:#f05">ターゲット</span>と同じ数値になると<span style="color:#0f6">自動でクリア！</span><br>
+                    3. ターゲットを超えても<span style="color:#ffdd00">10%以内ならセーフ(警告)</span>。引き算で戻せ！<br>
+                    <br>
+                    <strong>【ボス戦】</strong><br>
+                    ・巨大なHPを<span style="color:#b026ff">「割り切れる数(約数)」</span>で攻撃して1にしろ。<br>
+                    ・もしボスHPが素数になったら…<span style="color:#f05">「虹色のドット」</span>でとどめを刺せ！
+                </div>
+
+                <div style="text-align:center; margin-bottom:20px;">
+                    <div style="font-size:18px; font-weight:bold; color:var(--col-neon-green); margin-bottom:5px;">
+                        <span class="key-badge">Z</span>キーでスタート
+                    </div>
+                </div>
+
+                <div style="display:flex; flex-direction:column; gap:5px; transform:scale(0.8);">
+                    <button class="btn btn-easy" id="btn-easy">初心者モード (Mouse)</button>
+                    <button class="btn btn-hard" id="btn-hard">上級者モード (Mouse)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右パネル -->
+        <div class="side-panel panel-right">
+            <div>
+                <div class="hud-label">現在の数値</div>
+                <div class="hud-value hud-big" id="current-val-disp" style="color:var(--col-neon-blue)">0</div>
+            </div>
+            <div style="margin-top: 50px;">
+                <div class="hud-label" id="target-label">目標値 (ターゲット)</div>
+                <div class="hud-value hud-big" id="target-val-disp" style="color:var(--col-neon-pink)">00</div>
+            </div>
+            <div id="msg-disp" style="margin-top:20px; font-weight:bold; color:var(--col-neon-green); height:60px; font-size:16px; white-space: pre-wrap;"></div>
+            
+            <div style="margin-top:auto; font-size:12px; color:#666;">
+                [矢印キー] 移動<br>
+                [Z] 決定 / スタート
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+/**
+ * Number Chain: Boss Rush (Fixed & Enhanced)
+ */
+
+const CONFIG = {
+    canvasSize: 640,
+    gridSize: 32,
+    colors: {
+        bg: '#050508',
+        grid: '#111122',
+        snake: '#00f3ff',
+        snakeBoss: '#b026ff',
+        add: '#00ccff',
+        sub: '#00ff66',
+        mul: '#ffcc00',
+        div: '#ff00ff',
+        danger: '#ff0055',
+        text: '#ffffff'
+    },
+    bossTime: 60,
+    baseSpeed: 10,
+    minSpeed: 4
+};
+
+// 素数判定ヘルパー
+function isPrime(num) {
+    if (num <= 1) return false;
+    if (num === 2) return true;
+    if (num % 2 === 0) return false;
+    const sqrt = Math.sqrt(num);
+    for (let i = 3; i <= sqrt; i += 2) {
+        if (num % i === 0) return false;
+    }
+    return true;
+}
+
+class Game {
+    constructor() {
+        this.canvas = document.getElementById('gameCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.tileCount = CONFIG.canvasSize / CONFIG.gridSize;
+
+        this.state = 'MENU'; 
+        this.mode = 'easy';
+        this.frame = 0;
+        
+        // Entities
+        this.snake = [];
+        this.velocity = {x: 0, y: 0};
+        this.inputQueue = [];
+        this.dots = [];
+        this.particles = [];
+        this.floatTexts = [];
+        
+        // Game Logic
+        this.currentVal = 0;
+        this.targetVal = 0;
+        this.score = 0;
+        this.bossTimerVal = CONFIG.bossTime;
+        this.bossPhaseCount = 0;
+        
+        // Window Resize
+        this.fitWindow();
+        window.addEventListener('resize', () => this.fitWindow());
+        
+        // Bindings
+        this.loop = this.loop.bind(this);
+        this.handleInput = this.handleInput.bind(this);
+        
+        window.addEventListener('keydown', this.handleInput);
+        
+        // マウス操作用のフォールバック
+        document.getElementById('btn-easy').addEventListener('click', () => this.startGame('easy'));
+        document.getElementById('btn-hard').addEventListener('click', () => this.startGame('hard'));
+        document.getElementById('menu-screen').addEventListener('click', (e) => {
+            if(e.target.id === 'retry-btn') this.startGame(this.mode);
+        });
+
+        // ループ開始
+        requestAnimationFrame(this.loop);
+    }
+
+    fitWindow() {
+        const wrapper = document.getElementById('main-wrapper');
+        const scaler = document.getElementById('scaler');
+        const padding = 20;
+        const baseW = 1080 + padding; 
+        const baseH = 640 + padding;
+        const scale = Math.min(window.innerWidth / baseW, window.innerHeight / baseH, 1.0);
+        scaler.style.transform = `scale(${scale})`;
+    }
+
+    startGame(mode) {
+        AudioSys.resume(); // 必須：ユーザー操作時にオーディオコンテキスト再開
+        this.mode = mode;
+        this.init();
+    }
+
+    init() {
+        this.snake = [{x: 10, y: 15}, {x: 10, y: 16}, {x: 10, y: 17}];
+        this.velocity = {x: 0, y: -1};
+        this.inputQueue = [];
+        this.dots = [];
+        this.particles = [];
+        this.floatTexts = [];
+        this.currentVal = 0;
+        this.score = 0;
+        this.bossTimerVal = CONFIG.bossTime;
+        this.bossPhaseCount = 0;
+        this.state = 'PLAYING';
+        
+        document.getElementById('menu-screen').classList.add('hidden');
+        document.getElementById('mode-disp').innerText = this.mode === 'easy' ? "初心者" : "上級者";
+        document.getElementById('game-log').innerHTML = '';
+        document.getElementById('main-wrapper').classList.remove('boss-mode-ui');
+        document.getElementById('target-label').innerText = "目標値 (ターゲット)";
+
+        this.setNormalTarget();
+        this.spawnDots(15); 
+        
+        AudioSys.playStart();
+        AudioSys.startBGM(false); 
+        this.log("ゲームスタート！ " + (this.mode === 'easy' ? "[初心者]" : "[上級者]"));
+    }
+
+    // --- Game System ---
+
+    getSpeedInterval() {
+        if (this.state === 'BOSS_BATTLE') return 5;
+        // 値が大きくなると少し速くなる
+        const speedUp = Math.floor(this.currentVal / 30); 
+        const interval = Math.max(CONFIG.minSpeed, CONFIG.baseSpeed - speedUp);
+        return interval;
+    }
+
+    setNormalTarget() {
+        const base = this.mode === 'easy' ? 10 : 20;
+        const max = this.mode === 'easy' ? 40 : 150;
+        const scaler = Math.min(60, Math.floor(this.score / 500));
+        
+        this.targetVal = Math.floor(Math.random() * (max - base + scaler)) + base + scaler;
+        this.currentVal = 0;
+        
+        this.updateUI();
+        this.spawnDots(5); 
+    }
+
+    spawnDots(count) {
+        // --- ボス戦のドット生成 ---
+        if (this.state === 'BOSS_BATTLE') {
+            this.dots = []; 
+            const factors = this.getFactors(this.targetVal);
+            
+            // ★素数対応（救済措置）
+            if (isPrime(this.targetVal)) {
+                // 素数の場合、その数自身で割るドットを必ず生成（特殊演出フラグ付き）
+                this.addDot('div', this.targetVal, "÷"+this.targetVal, true);
+                // 罠も少し混ぜる
+                for(let i=0; i<3; i++) {
+                    let n = Math.floor(Math.random() * 8) + 2; 
+                    if (this.targetVal % n !== 0) this.addDot('div', n, "÷"+n);
+                }
+                return;
+            }
+
+            // 通常ボス（合成数）
+            for(let i=0; i<3; i++) {
+                if(factors.length === 0) break;
+                const f = factors[Math.floor(Math.random() * factors.length)];
+                this.addDot('div', f, "÷"+f);
+            }
+            // 罠
+            for(let i=0; i<5; i++) {
+                let n;
+                let safety = 0;
+                do { n = Math.floor(Math.random() * 8) + 2; safety++; } 
+                while (this.targetVal % n === 0 && safety < 20);
+                
+                if (this.targetVal % n !== 0) this.addDot('div', n, "÷"+n);
+            }
+            return;
+        }
+
+        // --- 通常モードのドット生成 ---
+        let currentDotCount = this.dots.length;
+        if (currentDotCount >= 25) return;
+
+        // 警告状態（オーバーフロー中）なら、引き算を優先的に出す
+        const limit = Math.floor(this.targetVal * 1.1);
+        const isOverflow = this.currentVal > this.targetVal;
+
+        for(let i=0; i<count; i++) {
+            let type, val, label;
+            const r = Math.random();
+
+            if (isOverflow) {
+                // 戻すための引き算を大量発生させる
+                type = 'sub'; 
+                val = Math.floor(Math.random()*5)+1;
+            } else if (this.mode === 'easy') {
+                if (r < 0.7) { type = 'add'; val = Math.floor(Math.random()*5)+1; }
+                else { type = 'sub'; val = Math.floor(Math.random()*3)+1; }
+            } else {
+                const diff = this.targetVal - this.currentVal;
+                if (r < 0.15 && diff > 20 && this.currentVal > 2) { 
+                    type = 'mul'; val = 2; 
+                } 
+                else if (r < 0.65) { type = 'add'; val = Math.floor(Math.random()*9)+1; }
+                else { type = 'sub'; val = Math.floor(Math.random()*5)+1; }
+            }
+
+            if (type === 'mul') label = "×" + val;
+            else if (type === 'add') label = "+" + val;
+            else label = "-" + val;
+
+            this.addDot(type, val, label);
+        }
+    }
+
+    addDot(type, val, label, isSpecial = false) {
+        let x, y, attempts = 0;
+        while(attempts < 30) {
+            x = Math.floor(Math.random() * this.tileCount);
+            y = Math.floor(Math.random() * this.tileCount);
+            // 自分の体や他のドットと被らない場所
+            const safe = !this.snake.some(s => s.x === x && s.y === y) && 
+                         !this.dots.some(d => d.x === x && d.y === y);
+            if(safe) break;
+            attempts++;
+        }
+        if(attempts < 30) {
+            this.dots.push({x, y, type, val, label, isSpecial, birth: this.frame});
+        }
+    }
+
+    getFactors(num) {
+        const factors = [];
+        for(let i=2; i<=12; i++) { // 少し範囲広げる
+            if (num % i === 0) factors.push(i);
+        }
+        return factors;
+    }
+
+    // --- Input Handling ---
+
+    handleInput(e) {
+        // キー操作によるメニュー制御
+        if (this.state === 'MENU' || this.state === 'GAMEOVER') {
+            if (e.code === 'KeyZ') {
+                this.startGame('easy'); 
+            } else if (e.code === 'KeyH') {
+                this.startGame('hard');
+            } else if (e.code === 'Enter') {
+                // Enterでもスタート可
+                this.startGame('easy');
+            }
+            return;
+        }
+
+        if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+        
+        // Input Buffering
+        let nextMove = null;
+        if (e.code === 'ArrowUp') nextMove = {x:0, y:-1};
+        else if (e.code === 'ArrowDown') nextMove = {x:0, y:1};
+        else if (e.code === 'ArrowLeft') nextMove = {x:-1, y:0};
+        else if (e.code === 'ArrowRight') nextMove = {x:1, y:0};
+
+        if (nextMove) {
+            const lastMove = this.inputQueue.length > 0 ? this.inputQueue[this.inputQueue.length - 1] : this.velocity;
+            if (lastMove.x !== 0 && nextMove.x === -lastMove.x) return;
+            if (lastMove.y !== 0 && nextMove.y === -lastMove.y) return;
+            if (this.inputQueue.length < 2) this.inputQueue.push(nextMove);
+        }
+    }
+
+    // --- Game Actions ---
+
+    secure() {
+        AudioSys.playSecure();
+        this.score += this.targetVal * 10;
+        this.addParticleBurst(this.snake[0].x, this.snake[0].y, '#fff', 40);
+        this.log(`クリア！ (+${this.targetVal * 10}点)`);
+        
+        // Snake Cut
+        if(this.snake.length > 3) this.snake.length = 3;
+
+        this.setNormalTarget();
+    }
+
+    enterBossMode() {
+        this.state = 'BOSS_WARNING';
+        const alert = document.getElementById('boss-alert');
+        alert.classList.remove('boss-active');
+        void alert.offsetWidth; 
+        alert.classList.add('boss-active');
+        
+        AudioSys.playAlarm();
+        AudioSys.stopBGM();
+
+        setTimeout(() => {
+            if(this.state !== 'GAMEOVER') this.startBossBattle();
+        }, 3000);
+    }
+
+    startBossBattle() {
+        this.state = 'BOSS_BATTLE';
+        this.bossPhaseCount++;
+        
+        const bosses = [120, 240, 360, 480, 720, 840, 1000];
+        const baseBoss = bosses[Math.min(bosses.length-1, this.bossPhaseCount-1)];
+        // ランダム変動
+        this.targetVal = baseBoss + (Math.floor(Math.random()*4) * 12); 
+        
+        // たまに素数ボスにする（テスト用、あるいはレア要素）
+        if(Math.random() < 0.1) this.targetVal = 101 + Math.floor(Math.random()*10)*2;
+
+        document.getElementById('main-wrapper').classList.add('boss-mode-ui');
+        document.getElementById('target-label').innerText = "BOSS HP";
+        document.getElementById('msg-disp').innerText = "約数を拾ってHPを1にしろ！\n(割り切れないと即死)";
+        
+        this.dots = [];
+        this.spawnDots(10);
+        
+        AudioSys.startBGM(true); 
+        this.log("警告: ボス出現！");
+    }
+
+    bossHit(dotVal) {
+        if (this.targetVal % dotVal === 0) {
+            const prev = this.targetVal;
+            this.targetVal = this.targetVal / dotVal;
+            
+            AudioSys.playDamage();
+            this.addParticleBurst(this.snake[0].x, this.snake[0].y, CONFIG.colors.div, 25);
+            this.addFloatText(`÷${dotVal}`, this.snake[0].x, this.snake[0].y, '#fff');
+            this.log(`攻撃成功: ${prev} ÷ ${dotVal} = ${this.targetVal}`);
+            this.score += 500;
+            this.shake = 10;
+
+            if (this.targetVal === 1) {
+                this.bossDefeated();
+            } else {
+                this.spawnDots(1);
+            }
+        } else {
+            this.gameOver(`計算ミス (即死)<br>${this.targetVal} は ${dotVal} で割り切れません！`);
+        }
+    }
+
+    bossDefeated() {
+        AudioSys.playSecure();
+        this.score += 5000;
+        this.state = 'PLAYING';
+        this.bossTimerVal = CONFIG.bossTime;
+        
+        document.getElementById('main-wrapper').classList.remove('boss-mode-ui');
+        document.getElementById('target-label').innerText = "目標値 (ターゲット)";
+        document.getElementById('msg-disp').innerText = "";
+        
+        this.addFloatText("BOSS撃破!!", 10, 10, '#fff');
+        this.log("ボス撃破! ボーナス +5000点");
+        
+        this.setNormalTarget();
+        AudioSys.startBGM(false);
+    }
+
+    gameOver(reason) {
+        this.state = 'GAMEOVER';
+        AudioSys.playExplosion();
+        AudioSys.stopBGM();
+        
+        const menu = document.getElementById('menu-screen');
+        menu.classList.remove('hidden');
+        menu.innerHTML = `
+            <div class="title-main" style="color:#f05; font-size:40px;">GAME OVER</div>
+            <div style="font-size:24px; margin:10px 0;">スコア: ${this.score}</div>
+            <div style="color:#fff; background:rgba(100,0,0,0.5); padding:20px; border:1px solid #f05; margin:20px; text-align:center; border-radius:8px;">
+                <div style="color:#aaa; font-size:12px; margin-bottom:5px;">死因</div>
+                <div style="font-size:18px; font-weight:bold;">${reason}</div>
+            </div>
+            <div style="color:#0f6; font-weight:bold; margin-top:20px;">
+                <span class="key-badge">Z</span>キー でリトライ
+            </div>
+            <button class="btn btn-easy" id="retry-btn" style="margin-top:10px;">リトライ (Mouse)</button>
+        `;
+    }
+
+    // --- Update Loop ---
+
+    update() {
+        this.frame++;
+        
+        // Timer
+        if (this.state === 'PLAYING') {
+            if (this.frame % 60 === 0) {
+                this.bossTimerVal--;
+                if (this.bossTimerVal <= 0) {
+                    this.enterBossMode();
+                }
+            }
+        }
+
+        // Speed Bar
+        const interval = this.getSpeedInterval();
+        const ratio = (CONFIG.baseSpeed - interval) / (CONFIG.baseSpeed - CONFIG.minSpeed);
+        document.getElementById('speed-bar').style.width = `${Math.min(100, ratio * 100)}%`;
+
+        if (this.frame % interval === 0) {
+            // Apply Input
+            if (this.inputQueue.length > 0) this.velocity = this.inputQueue.shift();
+            
+            const head = {x: this.snake[0].x + this.velocity.x, y: this.snake[0].y + this.velocity.y};
+            
+            // Wall Collision
+            if (head.x < 0 || head.x >= this.tileCount || head.y < 0 || head.y >= this.tileCount) {
+                this.gameOver("壁に衝突しました");
+                return;
+            }
+            // Self Collision
+            if (this.snake.some(s => s.x === head.x && s.y === head.y)) {
+                this.gameOver("自分の体に衝突しました");
+                return;
+            }
+
+            this.snake.unshift(head);
+
+            // Dot Collision
+            let ate = false;
+            for (let i = this.dots.length - 1; i >= 0; i--) {
+                const d = this.dots[i];
+                if (d.x === head.x && d.y === head.y) {
+                    ate = true;
+                    this.dots.splice(i, 1);
+                    
+                    if (this.state === 'BOSS_BATTLE') {
+                        this.bossHit(d.val);
+                    } else {
+                        // --- 通常ロジック ---
+                        const prev = this.currentVal;
+                        let nextVal = this.currentVal;
+                        
+                        if(d.type === 'add') nextVal += d.val;
+                        if(d.type === 'sub') nextVal = Math.max(0, nextVal - d.val);
+                        if(d.type === 'mul') nextVal *= d.val;
+                        
+                        // ★ 救済措置ロジック (10%許容)
+                        const limit = Math.floor(this.targetVal * 1.1);
+
+                        if (nextVal > limit) {
+                            // 許容範囲を超えたらアウト
+                            this.gameOver(`許容範囲オーバー！<br>${nextVal} (上限: ${limit})<br>目標の10%を超えすぎました`);
+                            return;
+                        } 
+                        
+                        this.currentVal = nextVal;
+                        AudioSys.playCollect(d.type);
+                        
+                        // ドット補充（もし減りすぎていたら）
+                        this.spawnDots(1);
+                        this.log(`取得: ${d.label} -> ${this.currentVal}`);
+                        
+                        // ★ 自動クリア判定
+                        if (this.currentVal === this.targetVal) {
+                            this.secure(); // Zボタン不要、自動移行
+                        }
+                    }
+                    break;
+                }
+            }
+            
+            if(!ate) this.snake.pop();
+        }
+
+        this.updateUI();
+        
+        // Particles
+        this.particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.life -= p.decay; });
+        this.particles = this.particles.filter(p => p.life > 0);
+        this.floatTexts.forEach(t => { t.y -= 0.5; t.life -= 0.02; });
+        this.floatTexts = this.floatTexts.filter(t => t.life > 0);
+    }
+
+    updateUI() {
+        document.getElementById('score-disp').innerText = this.score;
+        document.getElementById('timer-disp').innerText = this.state === 'BOSS_BATTLE' ? "戦闘中!!" : this.bossTimerVal.toString().padStart(2,'0');
+        
+        const cDiv = document.getElementById('current-val-disp');
+        const tDiv = document.getElementById('target-val-disp');
+        const msgDiv = document.getElementById('msg-disp');
+        const vig = document.getElementById('danger-vignette');
+        
+        tDiv.innerText = this.targetVal;
+        cDiv.innerText = this.currentVal;
+        
+        if (this.state === 'BOSS_BATTLE') {
+            cDiv.style.color = '#555'; 
+            cDiv.innerText = "???";
+            msgDiv.innerText = isPrime(this.targetVal) 
+                ? "【危険】素数です！\n虹色のドットを探せ！" 
+                : "約数を拾って攻撃せよ！";
+            msgDiv.style.color = isPrime(this.targetVal) ? '#f0f' : '#fff';
+            
+            vig.style.opacity = 0.4 + Math.sin(this.frame * 0.2) * 0.1;
+
+        } else if (this.state === 'PLAYING') {
+            // 色判定
+            if (this.currentVal === this.targetVal) {
+                cDiv.style.color = '#0f6';
+            } else if (this.currentVal > this.targetVal) {
+                // 警告状態
+                cDiv.style.color = '#ffdd00'; // 警告色
+                cDiv.classList.add('blink-warn');
+                msgDiv.innerText = `警告：目標超過！\n(あと ${Math.floor(this.targetVal * 1.1) - this.currentVal} 許容)`;
+                msgDiv.style.color = '#ffdd00';
+                vig.style.opacity = 0.3;
+                
+                // ドットが少なければ、救済のためにドットを追加生成（引き算が出やすい）
+                if (this.frame % 30 === 0) this.spawnDots(1);
+            } else {
+                cDiv.style.color = '#00f3ff';
+                cDiv.classList.remove('blink-warn');
+                msgDiv.innerText = "";
+                vig.style.opacity = 0;
+            }
+        }
+    }
+
+    log(msg) {
+        const log = document.getElementById('game-log');
+        const item = document.createElement('div');
+        item.className = 'log-item';
+        item.innerText = `> ${msg}`;
+        log.prepend(item);
+        if(log.children.length > 10) log.lastChild.remove();
+    }
+
+    draw() {
+        // Background
+        this.ctx.fillStyle = CONFIG.colors.bg;
+        this.ctx.fillRect(0, 0, CONFIG.canvasSize, CONFIG.canvasSize);
+        
+        // Grid
+        this.ctx.strokeStyle = CONFIG.colors.grid;
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        for(let i=0; i<=CONFIG.canvasSize; i+=CONFIG.gridSize) {
+            this.ctx.moveTo(i, 0); this.ctx.lineTo(i, CONFIG.canvasSize);
+            this.ctx.moveTo(0, i); this.ctx.lineTo(CONFIG.canvasSize, i);
+        }
+        this.ctx.stroke();
+
+        // Dots
+        this.ctx.textAlign = "center";
+        this.ctx.textBaseline = "middle";
+        this.ctx.font = "900 16px 'Verdana', sans-serif";
+
+        this.dots.forEach(d => {
+            const cx = d.x * CONFIG.gridSize + CONFIG.gridSize/2;
+            const cy = d.y * CONFIG.gridSize + CONFIG.gridSize/2;
+            const pulse = 1 + Math.sin(this.frame * 0.15) * 0.1;
+
+            this.ctx.shadowBlur = 10;
+            
+            // ★ 素数用とどめドット（虹色演出）
+            if (d.isSpecial) {
+                const hue = (this.frame * 10) % 360;
+                this.ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+                this.ctx.shadowColor = `hsl(${hue}, 100%, 70%)`;
+                this.ctx.shadowBlur = 20;
+            } else {
+                this.ctx.shadowColor = CONFIG.colors[d.type];
+                this.ctx.fillStyle = CONFIG.colors[d.type];
+            }
+            
+            this.ctx.beginPath();
+            this.ctx.arc(cx, cy, (CONFIG.gridSize/2 - 4) * pulse, 0, Math.PI*2);
+            this.ctx.fill();
+
+            this.ctx.shadowBlur = 0;
+            this.ctx.fillStyle = '#000';
+            this.ctx.fillText(d.label, cx, cy+1);
+        });
+
+        // Snake
+        if(this.snake.length > 0) {
+            const isBoss = this.state === 'BOSS_BATTLE';
+            this.ctx.shadowBlur = 15;
+            this.ctx.shadowColor = isBoss ? CONFIG.colors.snakeBoss : CONFIG.colors.snake;
+            this.ctx.strokeStyle = isBoss ? CONFIG.colors.snakeBoss : CONFIG.colors.snake;
+            this.ctx.lineWidth = CONFIG.gridSize - 8;
+            this.ctx.lineCap = 'round';
+            this.ctx.lineJoin = 'round';
+
+            this.ctx.beginPath();
+            this.ctx.moveTo(this.snake[0].x*CONFIG.gridSize+CONFIG.gridSize/2, this.snake[0].y*CONFIG.gridSize+CONFIG.gridSize/2);
+            for(let i=1; i<this.snake.length; i++) {
+                this.ctx.lineTo(this.snake[i].x*CONFIG.gridSize+CONFIG.gridSize/2, this.snake[i].y*CONFIG.gridSize+CONFIG.gridSize/2);
+            }
+            this.ctx.stroke();
+            
+            this.ctx.fillStyle = '#fff';
+            this.ctx.fillRect(this.snake[0].x*CONFIG.gridSize+4, this.snake[0].y*CONFIG.gridSize+4, CONFIG.gridSize-8, CONFIG.gridSize-8);
+        }
+
+        // Particles
+        this.particles.forEach(p => {
+            this.ctx.globalAlpha = p.life;
+            this.ctx.fillStyle = p.col;
+            this.ctx.beginPath();
+            this.ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+            this.ctx.fill();
+        });
+        this.ctx.globalAlpha = 1;
+
+        // Float Text
+        this.ctx.shadowBlur = 0;
+        this.ctx.font = "bold 20px monospace";
+        this.floatTexts.forEach(t => {
+            this.ctx.fillStyle = t.col;
+            this.ctx.fillText(t.text, t.x, t.y);
+        });
+    }
+
+    addParticleBurst(x, y, col, count) {
+        const cx = x * CONFIG.gridSize + CONFIG.gridSize/2;
+        const cy = y * CONFIG.gridSize + CONFIG.gridSize/2;
+        for(let i=0; i<count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = Math.random() * 5 + 2;
+            this.particles.push({
+                x: cx, y: cy,
+                vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed,
+                col: col, size: Math.random()*3+2, life: 1.0, decay: 0.03
+            });
+        }
+    }
+    
+    addFloatText(text, x, y, col) {
+        this.floatTexts.push({
+            text, x: x*CONFIG.gridSize+CONFIG.gridSize/2, y: y*CONFIG.gridSize,
+            col, life: 1.0
+        });
+    }
+
+    loop() {
+        if(this.state !== 'MENU' && this.state !== 'GAMEOVER') {
+            this.update();
+            this.draw();
+        } else if (this.state === 'GAMEOVER') {
+            this.draw();
+        }
+        requestAnimationFrame(this.loop);
+    }
+}
+
+// --- Audio System ---
+const AudioSys = {
+    ctx: null,
+    masterGain: null,
+    bgmTimer: null,
+    
+    resume() {
+        if (!this.ctx) {
+            const AC = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AC();
+            this.masterGain = this.ctx.createGain();
+            this.masterGain.gain.value = 0.25;
+            this.masterGain.connect(this.ctx.destination);
+        }
+        if (this.ctx.state === 'suspended') {
+            this.ctx.resume().catch(e => console.log(e));
+        }
+    },
+    
+    playOsc(freq, type, dur, vol) {
+        if(!this.ctx) return;
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, t);
+        g.gain.setValueAtTime(vol, t);
+        g.gain.exponentialRampToValueAtTime(0.01, t+dur);
+        osc.connect(g); g.connect(this.masterGain);
+        osc.start(t); osc.stop(t+dur+0.1);
+    },
+
+    playStart() {
+        if(!this.ctx) return;
+        [440, 554, 659, 880].forEach((f, i) => setTimeout(() => this.playOsc(f, 'square', 0.5, 0.3), i*100));
+    },
+    playCollect(type) {
+        if(type==='mul') this.playOsc(440, 'sawtooth', 0.2, 0.2);
+        else if(type==='div') this.playOsc(1200, 'sine', 0.1, 0.2);
+        else this.playOsc(880, 'square', 0.1, 0.15);
+    },
+    playSecure() {
+        [523, 659, 783, 1046].forEach((f, i) => setTimeout(() => this.playOsc(f, 'triangle', 0.4, 0.4), i*50));
+    },
+    playDamage() { this.playOsc(200, 'sawtooth', 0.3, 0.5); this.playOsc(100, 'square', 0.3, 0.5); },
+    playAlarm() {
+        if(!this.ctx) return;
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        osc.frequency.setValueAtTime(600, t);
+        osc.frequency.linearRampToValueAtTime(800, t+0.3);
+        osc.frequency.linearRampToValueAtTime(600, t+0.6);
+        g.gain.value = 0.3;
+        osc.connect(g); g.connect(this.masterGain);
+        osc.start(t); osc.stop(t+1.8);
+    },
+    playExplosion() {
+        if(!this.ctx) return;
+        const dur = 1.0;
+        const count = this.ctx.sampleRate * dur;
+        const buf = this.ctx.createBuffer(1, count, this.ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for(let i=0; i<count; i++) data[i] = Math.random()*2-1;
+        const src = this.ctx.createBufferSource();
+        src.buffer = buf;
+        const g = this.ctx.createGain();
+        g.gain.value = 0.8;
+        g.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime+dur);
+        src.connect(g); g.connect(this.masterGain);
+        src.start();
+    },
+    
+    stopBGM() {
+        if(this.bgmTimer) clearTimeout(this.bgmTimer);
+    },
+    
+    startBGM(isBoss) {
+        this.stopBGM();
+        if(!this.ctx) return;
+        const interval = isBoss ? 250 : 500;
+        const playBeat = () => {
+            const t = this.ctx.currentTime;
+            const osc = this.ctx.createOscillator();
+            const g = this.ctx.createGain();
+            osc.frequency.setValueAtTime(isBoss?120:80, t);
+            osc.frequency.exponentialRampToValueAtTime(0.01, t+0.1);
+            g.gain.setValueAtTime(0.5, t);
+            g.gain.exponentialRampToValueAtTime(0.01, t+0.1);
+            osc.connect(g); g.connect(this.masterGain);
+            osc.start(t); osc.stop(t+0.1);
+            
+            setTimeout(() => {
+                const nOsc = this.ctx.createOscillator();
+                const nG = this.ctx.createGain();
+                nOsc.type = 'square';
+                nOsc.frequency.value = 800;
+                nG.gain.setValueAtTime(0.05, this.ctx.currentTime);
+                nG.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime+0.05);
+                nOsc.connect(nG); nG.connect(this.masterGain);
+                nOsc.start(); nOsc.stop(this.ctx.currentTime+0.05);
+            }, interval/2);
+
+            this.bgmTimer = setTimeout(playBeat, interval);
+        };
+        playBeat();
+    }
+};
+
+window.onload = () => { new Game(); };
+</script>
+</body>
+</html>
