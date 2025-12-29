@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NEON LINK：閃光の一筆書き</title>
+    <style>
+        :root {
+            --bg: #020205;
+            --primary: #00f2ff;
+            --primary-glow: rgba(0, 242, 255, 0.6);
+            --secondary: #ff0055;
+            --secondary-glow: rgba(255, 0, 85, 0.6);
+            --text: #ffffff;
+            --panel-bg: rgba(5, 5, 12, 0.96);
+            --font-main: "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: var(--font-main);
+            touch-action: none;
+            user-select: none;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* --- UI SYSTEM --- */
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--panel-bg);
+            z-index: 10;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .screen.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #game-hud {
+            justify-content: flex-start;
+            background: transparent;
+            pointer-events: none;
+        }
+        #game-hud > * { pointer-events: auto; }
+
+        /* TYPOGRAPHY */
+        h1 {
+            font-size: 3.5rem;
+            margin: 0 0 10px 0;
+            color: var(--primary);
+            text-shadow: 0 0 20px var(--primary), 0 0 40px var(--primary);
+            line-height: 1.1;
+            text-align: center;
+            letter-spacing: -2px;
+            animation: pulseText 3s infinite alternate;
+        }
+        .sub-title {
+            font-size: 1rem;
+            color: #fff;
+            letter-spacing: 5px;
+            margin-bottom: 40px;
+            text-shadow: 0 0 10px #fff;
+        }
+
+        @keyframes pulseText {
+            0% { text-shadow: 0 0 20px var(--primary), 0 0 40px var(--primary); transform: scale(1); }
+            100% { text-shadow: 0 0 40px var(--primary), 0 0 80px var(--primary), 0 0 20px #fff; transform: scale(1.02); }
+        }
+
+        h2 { border-bottom: 2px solid var(--secondary); padding-bottom: 5px; margin-bottom: 20px; text-shadow: 0 0 10px var(--secondary); font-size: 1.5rem; }
+        p { color: #ccc; text-align: center; max-width: 500px; margin-bottom: 30px; font-weight: bold; text-shadow: 0 0 5px #aaa; line-height: 1.6; }
+
+        /* BUTTONS */
+        .btn-group { display: flex; flex-direction: column; gap: 15px; }
+        .row-group { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
+        button {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--text);
+            color: var(--text);
+            padding: 14px 28px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            font-family: inherit;
+            cursor: pointer;
+            min-width: 200px;
+            text-transform: uppercase;
+            transition: all 0.15s ease-out;
+            backdrop-filter: blur(5px);
+            position: relative;
+            overflow: hidden;
+            border-radius: 4px;
+        }
+        button:hover { background: var(--text); color: var(--bg); transform: scale(1.05); box-shadow: 0 0 25px rgba(255,255,255,0.4); }
+        button:active { transform: scale(0.95); }
+        
+        button.primary { border-color: var(--primary); color: var(--primary); box-shadow: 0 0 15px var(--primary-glow) inset; }
+        button.primary:hover { background: var(--primary); color: var(--bg); box-shadow: 0 0 40px var(--primary); }
+        
+        button.danger { border-color: var(--secondary); color: var(--secondary); box-shadow: 0 0 15px var(--secondary-glow) inset; }
+        button.danger:hover { background: var(--secondary); color: var(--bg); box-shadow: 0 0 40px var(--secondary); }
+
+        button.giveup {
+            border-color: #ffaa00; color: #ffaa00; font-size: 0.9rem; padding: 8px 16px; min-width: auto;
+        }
+        button.giveup:hover { background: #ffaa00; color: #000; box-shadow: 0 0 20px #ffaa00; }
+
+        /* INPUTS */
+        input[type="number"] {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            padding: 10px;
+            font-family: inherit;
+            font-size: 1.2rem;
+            width: 80px;
+            text-align: center;
+            box-shadow: 0 0 10px var(--primary-glow);
+            border-radius: 4px;
+        }
+
+        /* HUD */
+        .hud-header {
+            width: 100%;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.95), transparent);
+            box-sizing: border-box;
+        }
+        .progress-container {
+            flex-grow: 1; margin: 0 20px;
+        }
+        .progress-bar {
+            width: 100%; height: 8px; background: #222; margin-top: 5px;
+            position: relative; border: 1px solid #444; border-radius: 4px; overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%; background: var(--primary); width: 0%; transition: width 0.3s cubic-bezier(0.4, 2, 0.6, 1);
+            box-shadow: 0 0 15px var(--primary);
+        }
+
+        /* EDITOR UI */
+        #editor-panel {
+            position: absolute; bottom: 0; width: 100%;
+            background: rgba(10,10,15,0.95); padding: 15px 15px 40px 15px;
+            display: flex; flex-direction: column; align-items: center;
+            border-top: 1px solid var(--primary);
+            box-shadow: 0 0 30px rgba(0, 242, 255, 0.2);
+            box-sizing: border-box;
+            z-index: 20;
+        }
+        
+        /* Floating Message Animation */
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-50px) scale(1.5); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="canvas"></canvas>
+
+    <!-- TITLE -->
+    <div id="screen-title" class="screen active">
+        <h1>NEON LINK<br><span style="font-size:2rem">閃光の一筆書き</span></h1>
+        <div class="sub-title">HYPER PUZZLE ARCHITECT</div>
+        <div class="btn-group">
+            <button id="btn-start" class="primary">アーケードモード</button>
+            <button id="btn-maker">メイキングモード</button>
+        </div>
+    </div>
+
+    <!-- LEVEL SELECT -->
+    <div id="screen-select" class="screen">
+        <h2>難易度選択</h2>
+        <p>ランダムに選ばれた5つの難問に挑戦。<br>全ての点を一筆書きで繋げ！</p>
+        <div class="btn-group">
+            <button onclick="app.startArcade('easy')" style="color:#00ff88; border-color:#00ff88;">初級 (BEGINNER)</button>
+            <button onclick="app.startArcade('medium')" style="color:#00f2ff; border-color:#00f2ff;">中級 (NORMAL)</button>
+            <button onclick="app.startArcade('hard')" style="color:#ff0055; border-color:#ff0055;">上級 (EXPERT)</button>
+            <button onclick="app.showScreen('title')">戻る</button>
+        </div>
+    </div>
+
+    <!-- MAKER SETUP -->
+    <div id="screen-maker-setup" class="screen">
+        <h2>グリッド設定</h2>
+        <div style="display:flex; gap:20px; align-items:center; margin-bottom:30px;">
+            <div style="text-align:center;">
+                <div style="font-size:0.8rem; color:#888;">横幅</div>
+                <input type="number" id="inp-w" value="6" min="3" max="15">
+            </div>
+            <div style="font-size:1.5rem; color:var(--text); padding-top:15px;">×</div>
+            <div style="text-align:center;">
+                <div style="font-size:0.8rem; color:#888;">縦幅</div>
+                <input type="number" id="inp-h" value="6" min="3" max="15">
+            </div>
+        </div>
+        <p style="font-size:0.8rem; color:var(--primary);">※大きすぎると解けない場合があります</p>
+        <div class="btn-group">
+            <button id="btn-create-grid" class="primary">作成開始</button>
+            <button onclick="app.showScreen('title')">戻る</button>
+        </div>
+    </div>
+
+    <!-- GAME HUD -->
+    <div id="game-hud" class="screen">
+        <div class="hud-header" id="hud-header">
+            <div>
+                <div id="level-text" style="font-weight:bold; color:var(--primary); text-shadow:0 0 10px var(--primary); white-space:nowrap;">STAGE 1</div>
+            </div>
+            <div class="progress-container">
+                <div class="progress-bar"><div id="progress-fill" class="progress-fill"></div></div>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button onclick="app.solveCurrentLevel()" class="giveup" id="btn-giveup">答えを見る</button>
+                <button onclick="app.quitGame()" style="padding:8px 12px; min-width:auto; font-size:0.8rem;">終了</button>
+            </div>
+        </div>
+
+        <!-- Editor Controls -->
+        <div id="editor-panel" style="display:none;">
+            <div style="color:var(--primary); font-size:0.9rem; margin-bottom:10px; font-weight:bold;">タップして点を配置</div>
+            <div class="row-group">
+                <button onclick="app.testEditor()" class="primary" style="min-width:80px;">テストプレイ</button>
+                <button onclick="app.resetEditor()" class="danger" style="min-width:80px;">クリア</button>
+                <button onclick="app.quitGame()" style="min-width:80px;">終了</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESULT -->
+    <div id="screen-result" class="screen">
+        <h1 style="font-size:3rem; color:#fff; text-shadow:0 0 20px #fff;">完全制覇！</h1>
+        <p id="result-msg" style="color:var(--primary); font-size:1.2rem;">全ての回路が接続されました</p>
+        <button onclick="app.showScreen('title')" class="primary">タイトルへ戻る</button>
+    </div>
+</div>
+
+<script>
+/* 
+   NEON LINK: 閃光の一筆書き - ULTIMATE EDITION
+   Features: Auto-Solver, Guaranteed Solvability, Japanese UI, Hyper FX
+*/
+
+// --- PUZZLE DATABASE ---
+// 1=Node, 0=Empty, -=Row Separator
+const PUZZLE_DB = {
+    easy: [
+        "111-101-111", "1111-1111", "010-111-010", "110-111-011", "111-100-111",
+        "11111-00100", "111-010-111-010", "1111-1001-1111", "011-111-110", "11-11-11",
+        "101-111-101", "1110-0111", "010-111-010-111", "11011-01110", "11111-10001",
+        "111-111-010-010", "00100-11111-00100", "1100-1100-1111", "0110-1111-0110"
+    ],
+    medium: [
+        "11111-10001-10001-11111", "1111-0110-0110-1111", "11100-11110-01111-00111",
+        "10101-11111-10101", "01110-11011-10001-11011-01110", "111111-001100-001100-111111",
+        "111-101-111-101-111", "010-111-101-111-010", "111100-001111-111100-001111",
+        "11111-10101-11111-10101-11111", "110011-110011-111111", "001100-011110-110011-011110-001100",
+        "1111-1000-1111-0001-1111", "111111-111111-011110", "10001-11111-10001-11111-10001",
+        "01110-11011-10101-11011-01110", "1111-1001-1111-1001-1111", "11000-11100-11110-11111",
+        "0011-0110-1100-0110-0011", "11101-10111-11101"
+    ],
+    hard: [
+        "111111-100001-100001-100001-111111", "111111-111111-111111-111111",
+        "1110000-1111000-0111100-0011110-0001111", "1010101-0101010-1010101-0101010",
+        "11111-10001-10101-10001-11111", "0011100-0110110-1100011-1100011-0110110-0011100",
+        "11100111-11100111-11111111", "1000001-1100011-1010101-1100011-1000001",
+        "11111111-10000001-10011001-10000001-11111111", "0101010-1111111-0101010-1111111-0101010",
+        "1100000-1110000-1111000-1111100-1111110-1111111", "0111110-1100011-1010101-1000001-1111111",
+        "11111-00100-00100-00100-11111-00100-00100-00100-11111", "11011-11011-11111-11011-11011-11011",
+        "0001000-0011100-0111110-1111111-0001000", "11110000-00111100-00001111",
+        "10000001-01000010-00100100-00011000-11111111", "1111-1001-1001-1111-1001-1001-1111",
+        "11100111-10100101-10111101", "010101-101010-010101-101010-010101-101010"
+    ]
+};
+
+// --- SOLVER (The Brain) ---
+const Solver = {
+    // DFS Algorithm to find Hamilton Path
+    solve(nodes) {
+        if(nodes.length < 2) return null;
+
+        // Build Adjacency List
+        const adj = nodes.map(() => []);
+        nodes.forEach((n, i) => {
+            nodes.forEach((m, j) => {
+                if(i !== j && Math.abs(n.c - m.c) + Math.abs(n.r - m.r) === 1) {
+                    adj[i].push(j);
+                }
+            });
+        });
+
+        // Heuristic: Start from nodes with lowest degree (ends/corners)
+        const degrees = adj.map((a, i) => ({i, d: a.length}));
+        degrees.sort((a, b) => a.d - b.d);
+
+        const visited = new Uint8Array(nodes.length);
+        const pathIndices = [];
+
+        const dfs = (curr) => {
+            visited[curr] = 1;
+            pathIndices.push(curr);
+
+            if(pathIndices.length === nodes.length) return true;
+
+            // Prioritize neighbors with lower degrees to fail fast
+            const neighbors = adj[curr].slice().sort((a,b) => adj[a].length - adj[b].length);
+
+            for(let next of neighbors) {
+                if(!visited[next]) {
+                    if(dfs(next)) return true;
+                }
+            }
+
+            pathIndices.pop();
+            visited[curr] = 0;
+            return false;
+        };
+
+        // Try starting from best candidates
+        for(let start of degrees) {
+            // Optimization: If a node has 0 neighbors, impossible. If >2 degree 1 nodes, impossible (unless loop)
+            if(start.d === 0) return null;
+            
+            // Limit start points to avoid freeze on huge maps
+            // Only try the first few promising start nodes
+            if(dfs(start.i)) {
+                return pathIndices.map(i => nodes[i]);
+            }
+        }
+
+        return null;
+    }
+};
+
+// --- AUDIO SYSTEM (ENHANCED) ---
+const AudioSys = {
+    ctx: null,
+    init() {
+        if(!this.ctx) this.ctx = new (window.AudioContext||window.webkitAudioContext)();
+        if(this.ctx.state === 'suspended') this.ctx.resume();
+    },
+    playTone(freq, type, dur, vol=0.1, slide=0) {
+        if(!this.ctx) return;
+        const t = this.ctx.currentTime;
+        const o = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        o.type = type;
+        o.frequency.setValueAtTime(freq, t);
+        if(slide !== 0) o.frequency.exponentialRampToValueAtTime(freq + slide, t + dur);
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(vol, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+        o.connect(g); g.connect(this.ctx.destination);
+        o.start(); o.stop(t + dur + 0.1);
+    },
+    playConnect(i) {
+        // Cm9 Arpeggio: More exciting progression
+        const scale = [261.63, 293.66, 311.13, 392.00, 466.16, 523.25, 587.33, 622.25, 783.99, 932.33, 1046.5];
+        const idx = i % scale.length;
+        const octave = 1 + Math.floor(i / scale.length);
+        const freq = scale[idx] * octave;
+        
+        this.playTone(freq, 'sine', 0.4, 0.15);
+        this.playTone(freq * 0.5, 'triangle', 0.4, 0.05); // Sub bass
+        this.playTone(freq * 1.01, 'sawtooth', 0.1, 0.02); // Click
+    },
+    playWin() {
+        // Major Fanfare
+        const arpeggio = [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98, 2093.00, 2637.00];
+        arpeggio.forEach((f, i) => {
+            setTimeout(() => {
+                this.playTone(f, 'sawtooth', 0.6, 0.1);
+                this.playTone(f*1.005, 'square', 0.6, 0.05);
+            }, i * 50);
+        });
+        setTimeout(() => this.playTone(130.8, 'sawtooth', 1.5, 0.3, -50), 0); // Deep Bass
+    },
+    playError() {
+        this.playTone(150, 'sawtooth', 0.4, 0.1, -80);
+        this.playTone(110, 'square', 0.4, 0.1, -60);
+    }
+};
+
+// --- MAIN GAME CLASS ---
+class GameApp {
+    constructor() {
+        this.canvas = document.getElementById('canvas');
+        this.ctx = this.canvas.getContext('2d', { alpha: false });
+        this.screens = {
+            title: document.getElementById('screen-title'),
+            select: document.getElementById('screen-select'),
+            maker: document.getElementById('screen-maker-setup'),
+            hud: document.getElementById('game-hud'),
+            result: document.getElementById('screen-result')
+        };
+        
+        // State
+        this.mode = 'TITLE'; 
+        this.nodes = [];
+        this.path = [];
+        this.solutionPath = []; // Stores the auto-solved path
+        this.particles = [];
+        this.bgParticles = [];
+        this.floatingTexts = [];
+        this.levelQueue = [];
+        this.currentLevelIdx = 0;
+        this.isAutoPiloting = false;
+        
+        // Visuals
+        this.gridSize = 40;
+        this.nodeRadius = 8;
+        this.offsetX = 0;
+        this.offsetY = 0;
+        this.shake = 0;
+        this.time = 0;
+        this.camZoom = 1;
+        this.zoomTarget = 1;
+
+        // Editor
+        this.editorSize = {w:6, h:6};
+        this.editorNodes = [];
+
+        // Events
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        this.setupInput();
+        
+        // Bindings
+        document.getElementById('btn-start').onclick = () => this.showScreen('select');
+        document.getElementById('btn-maker').onclick = () => this.showScreen('maker');
+        document.getElementById('btn-create-grid').onclick = () => this.initEditor();
+        
+        // Background FX
+        for(let i=0; i<40; i++) this.addBgParticle();
+        
+        requestAnimationFrame(() => this.loop());
+    }
+
+    showScreen(id) {
+        Object.values(this.screens).forEach(s => s.classList.remove('active'));
+        this.screens[id].classList.add('active');
+        if(id === 'title') {
+            this.mode = 'TITLE';
+            this.path = [];
+            this.solutionPath = [];
+            this.isAutoPiloting = false;
+        }
+        AudioSys.init();
+    }
+
+    resize() {
+        this.width = window.innerWidth;
+        this.height = window.innerHeight;
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
+        this.calcGridMetrics();
+    }
+
+    calcGridMetrics() {
+        if(this.nodes.length === 0) return;
+        
+        const cs = this.nodes.map(n=>n.c);
+        const rs = this.nodes.map(n=>n.r);
+        const w = Math.max(...cs) - Math.min(...cs) + 1;
+        const h = Math.max(...rs) - Math.min(...rs) + 1;
+
+        const hudH = document.getElementById('hud-header').offsetHeight || 70;
+        const editorH = (this.mode === 'EDITOR' || this.mode === 'TEST') 
+            ? (document.getElementById('editor-panel').offsetHeight || 140) 
+            : 0;
+        
+        const pad = 30;
+        const availableW = this.width - pad*2;
+        const availableH = this.height - hudH - editorH - pad*2;
+        
+        this.gridSize = Math.min(availableW/w, availableH/h, 90); 
+        if(this.gridSize < 35) this.gridSize = 35; // Min safe tap size
+
+        this.nodeRadius = Math.max(6, this.gridSize * 0.15);
+        this.lineWidth = Math.max(4, this.gridSize * 0.12);
+
+        const gridPxW = (w-1) * this.gridSize;
+        const gridPxH = (h-1) * this.gridSize;
+
+        this.offsetX = (this.width - gridPxW)/2 - Math.min(...cs)*this.gridSize;
+        const topMargin = hudH + (availableH - gridPxH)/2;
+        this.offsetY = topMargin - Math.min(...rs)*this.gridSize;
+    }
+
+    // --- GAMEPLAY START ---
+    startArcade(diff) {
+        const pool = [...PUZZLE_DB[diff]];
+        this.levelQueue = [];
+        
+        // Pick random levels
+        for(let i=0; i<5; i++) {
+            if(pool.length===0) break;
+            const ridx = Math.floor(Math.random()*pool.length);
+            this.levelQueue.push(pool[ridx]);
+            pool.splice(ridx, 1);
+        }
+        
+        this.currentLevelIdx = 0;
+        this.mode = 'GAME';
+        this.showScreen('hud');
+        document.getElementById('editor-panel').style.display = 'none';
+        document.getElementById('btn-giveup').style.display = 'block';
+        
+        this.loadLevelSafe(this.levelQueue[0]);
+    }
+
+    // Ensures the level is solvable. If not, retries with new random transforms or new level.
+    loadLevelSafe(dataStr) {
+        let attempts = 0;
+        let solvable = false;
+        
+        while(attempts < 50) {
+            this.loadLevelData(dataStr, true); // apply random transform
+            const sol = Solver.solve(this.nodes);
+            if(sol) {
+                this.solutionPath = sol;
+                solvable = true;
+                break;
+            }
+            attempts++;
+        }
+
+        // Fatal fallback: if current puzzle is broken, try another random one from DB
+        if(!solvable) {
+            console.warn("Puzzle unsolvable, picking substitute...");
+            const allPuzzles = [...PUZZLE_DB.easy, ...PUZZLE_DB.medium];
+            const randomPick = allPuzzles[Math.floor(Math.random()*allPuzzles.length)];
+            return this.loadLevelSafe(randomPick);
+        }
+
+        this.isAutoPiloting = false;
+        this.path = [];
+        this.updateHUD();
+        this.calcGridMetrics();
+        this.camZoom = 0.5; this.zoomTarget = 1; // Entrance FX
+        this.addFloatingText(this.width/2, this.height/2, "START!", '#00f2ff');
+    }
+
+    loadLevelData(dataStr, randomTransform = false) {
+        this.nodes = [];
+        const rows = dataStr.split('-');
+        rows.forEach((row, r) => {
+            for(let c=0; c<row.length; c++) {
+                if(row[c] === '1') this.nodes.push({c, r});
+            }
+        });
+
+        if(randomTransform) {
+            const rot = Math.floor(Math.random()*4);
+            const flip = Math.random() > 0.5;
+            for(let i=0; i<rot; i++) this.nodes = this.nodes.map(n => ({c: -n.r, r: n.c}));
+            if(flip) this.nodes = this.nodes.map(n => ({c: -n.c, r: n.r}));
+        }
+
+        const minC = Math.min(...this.nodes.map(n=>n.c));
+        const minR = Math.min(...this.nodes.map(n=>n.r));
+        this.nodes.forEach(n => { n.c -= minC; n.r -= minR; });
+    }
+
+    solveCurrentLevel() {
+        if(this.mode !== 'GAME' || this.isAutoPiloting || this.winPending) return;
+        if(!this.solutionPath || this.solutionPath.length === 0) return;
+
+        this.isAutoPiloting = true;
+        this.path = []; // Reset player path
+        this.shake = 5;
+        AudioSys.playTone(600, 'sine', 0.5);
+        this.addFloatingText(this.width/2, this.height/2 - 50, "AUTO PILOT", '#ffaa00');
+
+        let step = 0;
+        const interval = setInterval(() => {
+            if(step >= this.solutionPath.length) {
+                clearInterval(interval);
+                this.checkWin(true); // Auto win
+                return;
+            }
+            
+            const nextNode = this.solutionPath[step];
+            this.path.push(nextNode);
+            AudioSys.playConnect(step);
+            this.burst(nextNode, '#ffaa00', 8);
+            this.shake = 2;
+            step++;
+        }, 150); // Speed of auto-play
+    }
+
+    updateHUD() {
+        document.getElementById('level-text').innerText = `STAGE ${this.currentLevelIdx+1} / ${this.levelQueue.length}`;
+        const pct = (this.currentLevelIdx / this.levelQueue.length) * 100;
+        document.getElementById('progress-fill').style.width = `${pct}%`;
+    }
+
+    // --- EDITOR ---
+    initEditor() {
+        let w = parseInt(document.getElementById('inp-w').value) || 6;
+        let h = parseInt(document.getElementById('inp-h').value) || 6;
+        w = Math.min(15, Math.max(3, w));
+        h = Math.min(15, Math.max(3, h));
+        
+        this.editorSize = {w, h};
+        this.editorNodes = [];
+        for(let r=0; r<h; r++) for(let c=0; c<w; c++) this.editorNodes.push({c, r, active:false});
+        
+        this.mode = 'EDITOR';
+        this.nodes = this.editorNodes;
+        this.path = [];
+        this.showScreen('hud');
+        document.getElementById('level-text').innerText = "メイキングモード";
+        document.getElementById('btn-giveup').style.display = 'none';
+        document.getElementById('editor-panel').style.display = 'flex';
+        this.calcGridMetrics();
+    }
+
+    handleEditorTap(x, y) {
+        const n = this.getNodeAt(x, y);
+        if(n) {
+            n.active = !n.active;
+            AudioSys.playTone(n.active ? 880 : 440, 'sine', 0.1);
+            this.burst(n, n.active ? '#00f2ff' : '#555', 5);
+        }
+    }
+
+    testEditor() {
+        const active = this.editorNodes.filter(n=>n.active).map(n=>({c:n.c, r:n.r}));
+        if(active.length < 2) { 
+            this.shake = 10; AudioSys.playError();
+            this.addFloatingText(this.width/2, this.height/2, "点が足りません！", '#ff0055');
+            return; 
+        }
+        
+        // Check solvability before testing
+        const sol = Solver.solve(active);
+        if(!sol) {
+            this.shake = 20; AudioSys.playError();
+            this.addFloatingText(this.width/2, this.height/2, "この配置は解けません！", '#ff0055');
+            return;
+        }
+
+        this.mode = 'TEST';
+        this.nodes = active;
+        this.path = [];
+        this.solutionPath = sol; // Store solution for editor too
+        document.getElementById('editor-panel').style.display = 'none';
+        document.getElementById('level-text').innerText = "テストプレイ";
+        document.getElementById('btn-giveup').style.display = 'block'; // Allow cheat in test
+        this.calcGridMetrics();
+    }
+
+    resetEditor() {
+        this.editorNodes.forEach(n => n.active = false);
+        this.shake = 5;
+        AudioSys.playTone(220, 'sawtooth', 0.2);
+    }
+
+    // --- INPUT ---
+    setupInput() {
+        const start = (x, y) => {
+            AudioSys.init();
+            if(this.mode === 'EDITOR') return this.handleEditorTap(x, y);
+            if(this.mode !== 'GAME' && this.mode !== 'TEST') return;
+            if(this.winPending || this.isAutoPiloting) return;
+
+            const n = this.getNodeAt(x,y);
+            if(n) {
+                this.path = [n];
+                AudioSys.playConnect(0);
+                this.burst(n, '#00f2ff', 10);
+                this.zoomTarget = 1.05;
+            }
+        };
+
+        const move = (x, y) => {
+            if((this.mode !== 'GAME' && this.mode !== 'TEST') || this.path.length===0 || this.winPending || this.isAutoPiloting) return;
+            const n = this.getNodeAt(x,y);
+            if(!n) return;
+            
+            const head = this.path[this.path.length-1];
+            if(n === head) return;
+
+            if(Math.abs(n.c - head.c) + Math.abs(n.r - head.r) === 1) {
+                // Backtrack
+                if(this.path.length > 1 && n === this.path[this.path.length-2]) {
+                    this.path.pop();
+                    AudioSys.playTone(300, 'triangle', 0.05);
+                    this.burst(head, '#555', 3);
+                    return;
+                }
+                // Forward
+                if(!this.path.includes(n)) {
+                    this.path.push(n);
+                    AudioSys.playConnect(this.path.length-1);
+                    this.burst(n, '#00f2ff', 12);
+                    this.shake = 2 + (this.path.length * 0.3); 
+                    this.zoomTarget = 1.0 + (this.path.length * 0.015);
+                    
+                    if(this.path.length % 5 === 0) {
+                        this.addFloatingText(this.offsetX + n.c*this.gridSize, this.offsetY + n.r*this.gridSize - 40, "GOOD!", '#00ff88');
+                    }
+
+                    this.checkWin(false);
+                }
+            }
+        };
+
+        const end = () => {
+            this.zoomTarget = 1;
+            if((this.mode === 'GAME' || this.mode === 'TEST') && !this.winPending && !this.isAutoPiloting) {
+                if(this.path.length > 0 && this.path.length < this.nodes.length) {
+                    this.path = [];
+                    AudioSys.playError();
+                    this.shake = 15;
+                    this.addFloatingText(this.width/2, this.height/2, "途切れました", '#ff0055');
+                }
+            }
+        };
+
+        this.canvas.addEventListener('pointerdown', e => { e.preventDefault(); this.canvas.setPointerCapture(e.pointerId); start(e.clientX, e.clientY); });
+        this.canvas.addEventListener('pointermove', e => { e.preventDefault(); move(e.clientX, e.clientY); });
+        this.canvas.addEventListener('pointerup', e => { e.preventDefault(); end(); });
+    }
+
+    getNodeAt(x, y) {
+        const radius = this.gridSize * 0.45; 
+        for(let n of this.nodes) {
+            const px = this.offsetX + n.c * this.gridSize;
+            const py = this.offsetY + n.r * this.gridSize;
+            if((x-px)**2 + (y-py)**2 < radius**2) return n;
+        }
+        return null;
+    }
+
+    checkWin(isAuto) {
+        if(this.path.length === this.nodes.length) {
+            this.winPending = true;
+            this.isAutoPiloting = false;
+            AudioSys.playWin();
+            this.shake = 40;
+            this.zoomTarget = 1.2;
+            
+            // Big FX
+            this.nodes.forEach(n => this.burst(n, '#ffffff', 8));
+            this.addFloatingText(this.width/2, this.height/2, isAuto ? "解析完了" : "完全接続！", '#ffffff');
+
+            setTimeout(() => {
+                this.winPending = false;
+                this.zoomTarget = 1;
+                if(this.mode === 'TEST') {
+                    this.mode = 'EDITOR';
+                    this.nodes = this.editorNodes;
+                    this.path = [];
+                    document.getElementById('editor-panel').style.display = 'flex';
+                    document.getElementById('level-text').innerText = "メイキングモード";
+                    document.getElementById('btn-giveup').style.display = 'none';
+                    this.calcGridMetrics();
+                } else {
+                    this.currentLevelIdx++;
+                    if(this.currentLevelIdx >= this.levelQueue.length) {
+                        this.showScreen('result');
+                    } else {
+                        this.loadLevelSafe(this.levelQueue[this.currentLevelIdx]);
+                        this.updateHUD();
+                    }
+                }
+            }, 1800);
+        }
+    }
+
+    // --- RENDER & FX ---
+    burst(n, color, count=8) {
+        const x = this.offsetX + n.c*this.gridSize;
+        const y = this.offsetY + n.r*this.gridSize;
+        for(let i=0; i<count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = Math.random() * 6 + 2;
+            this.particles.push({
+                x, y, color,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                life: 1.0,
+                decay: 0.02 + Math.random()*0.03
+            });
+        }
+    }
+    
+    addBgParticle() {
+        this.bgParticles.push({
+            x: Math.random()*this.width,
+            y: Math.random()*this.height,
+            vx: (Math.random()-0.5)*0.8,
+            vy: (Math.random()-0.5)*0.8,
+            size: Math.random()*3,
+            alpha: Math.random()*0.4
+        });
+    }
+
+    addFloatingText(x, y, text, color='#fff') {
+        this.floatingTexts.push({x, y, text, color, life: 1.0, vy: -3});
+    }
+
+    loop() {
+        this.time += 0.05;
+        
+        // CLEAR & BG
+        this.ctx.globalCompositeOperation = 'source-over';
+        this.ctx.fillStyle = '#020205';
+        this.ctx.fillRect(0,0,this.width, this.height);
+
+        // Cyber Grid Lines
+        this.ctx.strokeStyle = 'rgba(0, 242, 255, 0.05)';
+        this.ctx.lineWidth = 1;
+        const offset = (this.time * 20) % 100;
+        for(let i=0; i<this.height; i+=50) {
+            this.ctx.beginPath(); this.ctx.moveTo(0, i+offset); this.ctx.lineTo(this.width, i+offset); this.ctx.stroke();
+        }
+
+        // BG Particles
+        this.ctx.fillStyle = '#fff';
+        this.bgParticles.forEach(p => {
+            p.x += p.vx; p.y += p.vy;
+            if(p.x < 0) p.x = this.width; if(p.x > this.width) p.x = 0;
+            if(p.y < 0) p.y = this.height; if(p.y > this.height) p.y = 0;
+            this.ctx.globalAlpha = p.alpha + Math.sin(this.time + p.x)*0.2;
+            this.ctx.beginPath(); this.ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); this.ctx.fill();
+        });
+        this.ctx.globalAlpha = 1;
+
+        // Camera Shake
+        let sx=0, sy=0;
+        if(this.shake > 0) {
+            sx = (Math.random()-0.5)*this.shake;
+            sy = (Math.random()-0.5)*this.shake;
+            this.shake *= 0.9;
+            if(this.shake < 0.5) this.shake = 0;
+        }
+
+        this.camZoom += (this.zoomTarget - this.camZoom) * 0.1;
+        
+        this.ctx.save();
+        this.ctx.translate(this.width/2 + sx, this.height/2 + sy);
+        this.ctx.scale(this.camZoom, this.camZoom);
+        this.ctx.translate(-this.width/2, -this.height/2);
+
+        this.ctx.globalCompositeOperation = 'lighter'; // GLOW MODE
+
+        // Connecting hints
+        if(this.mode === 'GAME' || this.mode === 'TEST' || this.mode === 'EDITOR') {
+            this.ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+            this.nodes.forEach(n => {
+                const x = this.offsetX + n.c*this.gridSize;
+                const y = this.offsetY + n.r*this.gridSize;
+                this.ctx.beginPath(); this.ctx.arc(x,y,this.gridSize*0.5,0,Math.PI*2); this.ctx.stroke();
+            });
+        }
+
+        // Nodes
+        this.nodes.forEach(n => {
+            const x = this.offsetX + n.c * this.gridSize;
+            const y = this.offsetY + n.r * this.gridSize;
+            
+            if(this.mode === 'EDITOR' && !n.active) {
+                this.ctx.beginPath(); this.ctx.arc(x, y, 3, 0, Math.PI*2);
+                this.ctx.fillStyle = '#333'; this.ctx.fill();
+                return;
+            }
+
+            const inPath = this.path.includes(n);
+            const isHead = this.path.length > 0 && this.path[this.path.length-1] === n;
+
+            const pulse = Math.sin(this.time*3) * 3;
+            this.ctx.shadowBlur = inPath ? 25 + pulse : 0;
+            this.ctx.shadowColor = inPath ? (this.isAutoPiloting ? '#ffaa00' : '#00f2ff') : '#000';
+            
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, inPath ? this.nodeRadius*1.4 : this.nodeRadius, 0, Math.PI*2);
+            this.ctx.fillStyle = inPath ? (this.isAutoPiloting ? '#ffdd55' : (isHead ? '#ffffff' : '#00f2ff')) : '#444';
+            this.ctx.fill();
+            this.ctx.shadowBlur = 0;
+        });
+
+        // Path
+        if(this.path.length > 1) {
+            this.ctx.beginPath();
+            this.ctx.strokeStyle = this.isAutoPiloting ? '#ffaa00' : '#00f2ff';
+            this.ctx.lineWidth = this.lineWidth;
+            this.ctx.lineCap = 'round';
+            this.ctx.lineJoin = 'round';
+            this.ctx.shadowBlur = 20;
+            this.ctx.shadowColor = this.ctx.strokeStyle;
+            
+            const start = this.path[0];
+            this.ctx.moveTo(this.offsetX+start.c*this.gridSize, this.offsetY+start.r*this.gridSize);
+            for(let i=1; i<this.path.length; i++) {
+                const p = this.path[i];
+                this.ctx.lineTo(this.offsetX+p.c*this.gridSize, this.offsetY+p.r*this.gridSize);
+            }
+            this.ctx.stroke();
+            
+            this.ctx.lineWidth = this.lineWidth * 0.4;
+            this.ctx.strokeStyle = '#fff';
+            this.ctx.stroke();
+        }
+
+        // Particles
+        for(let i=this.particles.length-1; i>=0; i--) {
+            const p = this.particles[i];
+            p.x += p.vx; p.y += p.vy; p.life -= p.decay;
+            if(p.life<=0) { this.particles.splice(i,1); continue; }
+            this.ctx.globalAlpha = p.life;
+            this.ctx.fillStyle = p.color;
+            this.ctx.shadowBlur = 10 * p.life;
+            this.ctx.shadowColor = p.color;
+            this.ctx.beginPath(); this.ctx.arc(p.x, p.y, 4 * p.life, 0, Math.PI*2); this.ctx.fill();
+        }
+        this.ctx.globalAlpha = 1;
+
+        // Text FX
+        this.ctx.font = "bold 28px sans-serif";
+        this.ctx.textAlign = "center";
+        for(let i=this.floatingTexts.length-1; i>=0; i--) {
+            const t = this.floatingTexts[i];
+            t.y += t.vy; t.life -= 0.02;
+            if(t.life<=0) { this.floatingTexts.splice(i,1); continue; }
+            const scale = 1 + (1-t.life)*0.5;
+            this.ctx.save();
+            this.ctx.translate(t.x, t.y);
+            this.ctx.scale(scale, scale);
+            this.ctx.fillStyle = t.color;
+            this.ctx.shadowColor = t.color;
+            this.ctx.shadowBlur = 15;
+            this.ctx.globalAlpha = t.life;
+            this.ctx.fillText(t.text, 0, 0);
+            this.ctx.restore();
+        }
+        this.ctx.globalAlpha = 1;
+
+        this.ctx.restore();
+        requestAnimationFrame(() => this.loop());
+    }
+
+    toggleMute() { AudioSys.muted = !AudioSys.muted; }
+    quitGame() { this.showScreen('title'); }
+}
+
+window.onload = () => { window.app = new GameApp(); };
+</script>
+</body>
+</html>
