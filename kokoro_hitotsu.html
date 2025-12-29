@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>心を一つに！マッチでゴー！</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;900&display=swap');
+        
+        :root {
+            --primary: #FF3CAC;
+            --secondary: #784BA0;
+            --tertiary: #2B86C5;
+            --accent: #FFD700;
+        }
+
+        body {
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+            overflow: hidden;
+            height: 100vh;
+            color: white;
+        }
+
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+        }
+
+        .neo-button {
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+        }
+        .neo-button:hover { transform: scale(1.05); }
+        .neo-button:active { transform: scale(0.95); }
+
+        .canvas-wrapper {
+            aspect-ratio: 4 / 3;
+            max-height: 45vh;
+            width: 100%;
+            position: relative;
+        }
+
+        canvas {
+            touch-action: none;
+            background-color: #fff;
+            border-radius: 1.5rem;
+            cursor: crosshair;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        .neon-border {
+            animation: neonPulse 2s infinite alternate;
+        }
+        @keyframes neonPulse {
+            from { border-color: #fff; box-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px var(--primary); }
+            to { border-color: var(--accent); box-shadow: 0 0 5px #fff, 0 0 10px var(--accent), 0 0 15px var(--accent); }
+        }
+
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            border-radius: 50%;
+            animation: fadeOut 0.6s ease-out forwards;
+        }
+        @keyframes fadeOut {
+            to { transform: translate(var(--x), var(--y)) scale(0); opacity: 0; }
+        }
+
+        .bounce-in { animation: bounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes bounceIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center">
+
+    <!-- Main Container (Limited Size) -->
+    <div id="app-container" class="relative w-full max-w-md h-full max-h-[850px] flex flex-col p-4">
+        
+        <!-- Start Screen -->
+        <div id="screen-start" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/40 backdrop-blur-md rounded-[2rem] p-6 text-center">
+            <div class="mb-6 space-y-2">
+                <h1 class="text-4xl font-black italic tracking-tighter drop-shadow-2xl">
+                    <span class="text-yellow-400">心を一つに</span><br>マッチで<br>ゴー！
+                </h1>
+                <p class="text-sm font-bold opacity-80">君たちは本当にわかり合えているのか！？</p>
+            </div>
+
+            <div class="w-full space-y-4 glass-panel p-6 rounded-3xl">
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="setMode('normal')" id="btn-mode-normal" class="py-3 rounded-xl border-2 border-yellow-400 bg-yellow-400/20 text-xs font-black">合わせろ！モード</button>
+                    <button onclick="setMode('ox')" id="btn-mode-ox" class="py-3 rounded-xl border-2 border-white/20 bg-white/5 text-xs font-black opacity-50">○か×か！モード</button>
+                </div>
+
+                <div class="flex items-center justify-between px-2">
+                    <span class="text-sm font-bold">参加人数</span>
+                    <div class="flex items-center gap-4">
+                        <button onclick="adjust('player', -1)" class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">ー</button>
+                        <span id="val-player" class="text-2xl font-black w-6">3</span>
+                        <button onclick="adjust('player', 1)" class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">＋</button>
+                    </div>
+                </div>
+
+                <div id="time-config" class="flex items-center justify-between px-2">
+                    <span class="text-sm font-bold">制限時間</span>
+                    <div class="flex items-center gap-4">
+                        <button onclick="adjust('time', -5)" class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">ー</button>
+                        <span id="val-time" class="text-2xl font-black w-10 text-pink-400">20</span>
+                        <button onclick="adjust('time', 5)" class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">＋</button>
+                    </div>
+                </div>
+
+                <button onclick="startGame()" class="neo-button w-full py-5 bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-black text-xl rounded-2xl shadow-lg border-b-4 border-orange-700">
+                    GAME START!!
+                </button>
+            </div>
+        </div>
+
+        <!-- Ready Screen -->
+        <div id="screen-ready" class="hidden absolute inset-0 z-40 flex flex-col items-center justify-center bg-blue-600 rounded-[2rem] p-6 text-center">
+            <p class="text-xl font-bold opacity-70 mb-2">準備はいい？</p>
+            <h2 class="text-5xl font-black mb-10">Player <span id="ready-player-num" class="text-yellow-400">1</span></h2>
+            <button onclick="startTurn()" class="neo-button w-full max-w-xs py-5 bg-white text-blue-600 font-black text-2xl rounded-3xl shadow-2xl">
+                準備完了！
+            </button>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="screen-game" class="hidden h-full flex flex-col justify-between">
+            <div id="v-countdown" class="fixed inset-0 flex items-center justify-center pointer-events-none z-50 hidden">
+                <span id="v-count-num" class="text-[15rem] font-black italic text-white drop-shadow-2xl">3</span>
+            </div>
+
+            <!-- Header -->
+            <div class="flex justify-between items-center mb-2">
+                <div class="bg-black/20 px-4 py-1 rounded-full text-xs font-black border border-white/20">
+                    PLAYER <span id="game-current-p">1</span> / <span id="game-total-p">3</span>
+                </div>
+                <div class="w-32 h-3 bg-black/30 rounded-full overflow-hidden border border-white/20">
+                    <div id="timer-bar" class="h-full bg-yellow-300 w-full transition-all duration-1000 linear"></div>
+                </div>
+            </div>
+
+            <!-- Topic Area -->
+            <div class="glass-panel p-4 rounded-3xl text-center mb-4 neon-border border-2">
+                <span id="mode-label" class="text-[10px] bg-white/20 px-2 py-0.5 rounded-md font-bold mb-1 inline-block uppercase tracking-tighter">Normal Mode</span>
+                <h3 id="display-topic" class="text-lg font-black leading-tight text-white drop-shadow-sm">---</h3>
+            </div>
+
+            <!-- Canvas -->
+            <div class="canvas-wrapper mb-4">
+                <canvas id="main-canvas" class="w-full h-full"></canvas>
+                <div id="timeup-overlay" class="absolute inset-0 bg-red-600/80 flex items-center justify-center rounded-3xl hidden">
+                    <span class="text-4xl font-black italic bounce-in">TIME UP!</span>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="flex gap-4 h-16">
+                <button onclick="clearCanvas()" class="neo-button flex-1 bg-white/10 rounded-2xl font-bold text-sm">消去</button>
+                <button onclick="submitDrawing()" class="neo-button flex-[3] bg-gradient-to-r from-green-400 to-emerald-500 rounded-2xl font-black text-lg shadow-lg">書けた！</button>
+            </div>
+        </div>
+
+        <!-- Result Screen -->
+        <div id="screen-result" class="hidden absolute inset-0 z-40 bg-slate-900 rounded-[2rem] p-4 flex flex-col overflow-hidden">
+            <h2 class="text-2xl font-black text-center mb-2 text-pink-400">RESULT</h2>
+            <div class="bg-white/5 p-3 rounded-2xl text-center mb-4 border border-white/10">
+                <p id="result-topic-txt" class="text-sm font-bold italic opacity-80"></p>
+            </div>
+            
+            <div id="results-list" class="flex-grow overflow-y-auto space-y-4 pr-2 custom-scroll">
+                <!-- Results cards go here -->
+            </div>
+
+            <button onclick="restart()" class="neo-button mt-4 py-4 bg-pink-500 rounded-2xl font-black text-lg">TOPへ戻る</button>
+        </div>
+    </div>
+
+    <!-- Announcement -->
+    <div id="overlay-announce" class="fixed inset-0 z-[100] bg-yellow-400 flex items-center justify-center hidden">
+        <h2 class="text-6xl font-black italic text-blue-700 animate-bounce">結果発表！</h2>
+    </div>
+
+    <script>
+        // --- Data ---
+        const normalTopics = ["赤い果物", "怖い動物", "冬の食べ物", "空飛ぶもの", "子どもが嫌いな野菜", "かっこいい楽器", "無人島に持っていくもの", "宇宙人", "最強の武器", "サンタの持ち物", "透明なもの", "日本の有名な山", "美味しいパスタ", "朝食の定番", "学校の怖い場所", "キャンプといえば", "海にいる生き物", "ヒーローの色", "魔法使いの道具", "公園にあるもの", "給食の王様", "お祭りの屋台", "一番賢い動物", "泣いた時に欲しいもの", "忍者の道具", "お母さんの怒った顔", "透明な飲み物", "昔話の主人公", "宝石といえば", "春を感じるもの"];
+        const oxTopics = ["きのこ派？(○) たけのこ派？(×)", "一生ポテト生活はアリ？", "お化けより人間が怖い？", "10億円あっても仕事する？", "犬派(○) 猫派(×)", "タイムマシンなら未来へ？", "無人島一人暮らし余裕？", "ゾンビから生き残れる？", "生まれ変わっても自分？", "魔法が使えたら空を飛ぶ？", "スマホなしで生活できる？", "秘密の隠し場所がある？", "実はモテる方だ？", "1ヶ月無言は余裕？", "行列に1時間並べる？", "初対面ですぐ仲良くなれる？", "自分は運がいい？", "お化けより暗闇が怖い？", "一生野菜生活は無理？", "サプライズされるのが好き？"];
+
+        // --- Audio Context ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSfx(freq, type = 'sine', duration = 0.1, decay = 0.01) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(decay, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        const sounds = {
+            tap: () => playSfx(600, 'sine', 0.1),
+            tick: () => playSfx(800, 'square', 0.05, 0.001),
+            countdown: () => playSfx(440, 'triangle', 0.3),
+            finish: () => { playSfx(200, 'sawtooth', 0.5); playSfx(400, 'sawtooth', 0.5); },
+            fanfare: () => [523, 659, 783, 1046].forEach((f, i) => setTimeout(() => playSfx(f, 'sine', 0.4), i * 100))
+        };
+
+        // --- Game State ---
+        let state = {
+            mode: 'normal',
+            players: 3,
+            time: 20,
+            currentP: 1,
+            timeLeft: 20,
+            topic: '',
+            images: [],
+            timerId: null
+        };
+
+        const canvas = document.getElementById('main-canvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        let lastX = 0, lastY = 0;
+
+        // --- Functions ---
+        function adjust(type, delta) {
+            sounds.tap();
+            if (type === 'player') {
+                state.players = Math.min(Math.max(state.players + delta, 2), 10);
+                document.getElementById('val-player').innerText = state.players;
+            } else {
+                state.time = Math.min(Math.max(state.time + delta, 5), 30);
+                document.getElementById('val-time').innerText = state.time;
+            }
+        }
+
+        function setMode(m) {
+            sounds.tap();
+            state.mode = m;
+            document.getElementById('btn-mode-normal').style.opacity = m === 'normal' ? '1' : '0.5';
+            document.getElementById('btn-mode-ox').style.opacity = m === 'ox' ? '1' : '0.5';
+            document.getElementById('btn-mode-normal').classList.toggle('border-yellow-400', m === 'normal');
+            document.getElementById('btn-mode-ox').classList.toggle('border-yellow-400', m === 'ox');
+            
+            if (m === 'ox') {
+                state.time = 5;
+                document.getElementById('val-time').innerText = '5';
+                document.getElementById('time-config').style.opacity = '0.3';
+                document.getElementById('time-config').style.pointerEvents = 'none';
+            } else {
+                document.getElementById('time-config').style.opacity = '1';
+                document.getElementById('time-config').style.pointerEvents = 'auto';
+            }
+        }
+
+        function setupCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            ctx.lineWidth = state.mode === 'ox' ? 12 : 5;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = '#1a1a1a';
+        }
+
+        function startGame() {
+            sounds.fanfare();
+            const list = state.mode === 'normal' ? normalTopics : oxTopics;
+            state.topic = list[Math.floor(Math.random() * list.length)];
+            state.images = [];
+            state.currentP = 1;
+
+            document.getElementById('display-topic').innerText = state.topic;
+            document.getElementById('mode-label').innerText = state.mode === 'normal' ? 'Normal Mode' : 'OX Mode';
+            document.getElementById('game-total-p').innerText = state.players;
+            document.getElementById('screen-start').classList.add('hidden');
+            
+            prepTurn();
+        }
+
+        function prepTurn() {
+            document.getElementById('screen-game').classList.add('hidden');
+            document.getElementById('screen-ready').classList.remove('hidden');
+            document.getElementById('ready-player-num').innerText = state.currentP;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.getElementById('timeup-overlay').classList.add('hidden');
+            document.getElementById('v-countdown').classList.add('hidden');
+        }
+
+        function startTurn() {
+            sounds.tap();
+            document.getElementById('screen-ready').classList.add('hidden');
+            document.getElementById('screen-game').classList.remove('hidden');
+            document.getElementById('game-current-p').innerText = state.currentP;
+            setupCanvas();
+            
+            state.timeLeft = state.time;
+            runTimer();
+        }
+
+        function runTimer() {
+            updateTimerUI();
+            state.timerId = setInterval(() => {
+                state.timeLeft--;
+                updateTimerUI();
+                
+                if (state.timeLeft <= 3 && state.timeLeft > 0) {
+                    sounds.countdown();
+                    const vCount = document.getElementById('v-countdown');
+                    const vNum = document.getElementById('v-count-num');
+                    vNum.innerText = state.timeLeft;
+                    vCount.classList.remove('hidden');
+                    vNum.style.animation = 'none';
+                    vNum.offsetHeight;
+                    vNum.style.animation = 'bounceIn 0.5s forwards';
+                }
+
+                if (state.timeLeft <= 0) {
+                    submitDrawing();
+                } else {
+                    sounds.tick();
+                }
+            }, 1000);
+        }
+
+        function updateTimerUI() {
+            const bar = document.getElementById('timer-bar');
+            const percent = (state.timeLeft / state.time) * 100;
+            bar.style.width = `${percent}%`;
+            bar.style.backgroundColor = state.timeLeft <= 3 ? '#ff4757' : '#feca57';
+        }
+
+        function submitDrawing() {
+            if (!state.timerId && state.timeLeft <= 0) return;
+            clearInterval(state.timerId);
+            state.timerId = null;
+            sounds.finish();
+            
+            document.getElementById('timeup-overlay').classList.remove('hidden');
+            state.images.push(canvas.toDataURL());
+
+            setTimeout(() => {
+                if (state.currentP < state.players) {
+                    state.currentP++;
+                    prepTurn();
+                } else {
+                    finishGame();
+                }
+            }, 1200);
+        }
+
+        function finishGame() {
+            document.getElementById('screen-game').classList.add('hidden');
+            document.getElementById('overlay-announce').classList.remove('hidden');
+            sounds.fanfare();
+
+            setTimeout(() => {
+                document.getElementById('overlay-announce').classList.add('hidden');
+                showResults();
+            }, 2000);
+        }
+
+        function showResults() {
+            document.getElementById('screen-result').classList.remove('hidden');
+            document.getElementById('result-topic-txt').innerText = `お題: ${state.topic}`;
+            const list = document.getElementById('results-list');
+            list.innerHTML = '';
+
+            state.images.forEach((img, i) => {
+                const div = document.createElement('div');
+                div.className = 'bg-white p-3 rounded-2xl flex flex-col items-center gap-2 bounce-in shadow-xl';
+                div.style.animationDelay = `${i * 0.1}s`;
+                div.innerHTML = `
+                    <span class="text-xs font-black text-slate-400">PLAYER ${i+1}</span>
+                    <img src="${img}" class="w-full rounded-xl bg-slate-50 border border-slate-100">
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function restart() {
+            sounds.tap();
+            document.getElementById('screen-result').classList.add('hidden');
+            document.getElementById('screen-start').classList.remove('hidden');
+        }
+
+        function clearCanvas() {
+            sounds.tap();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // --- Interaction Particles ---
+        function createParticle(x, y) {
+            const p = document.createElement('div');
+            p.className = 'particle';
+            const size = Math.random() * 8 + 4;
+            p.style.width = size + 'px';
+            p.style.height = size + 'px';
+            p.style.background = `hsl(${Math.random() * 360}, 70%, 60%)`;
+            p.style.left = x + 'px';
+            p.style.top = y + 'px';
+            p.style.setProperty('--x', (Math.random() - 0.5) * 100 + 'px');
+            p.style.setProperty('--y', (Math.random() - 0.5) * 100 + 'px');
+            document.body.appendChild(p);
+            setTimeout(() => p.remove(), 600);
+        }
+
+        // --- Drawing Logic ---
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return [clientX - rect.left, clientY - rect.top];
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            e.preventDefault();
+            const [x, y] = getPos(e);
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            [lastX, lastY] = [x, y];
+            if (Math.random() > 0.8) createParticle(e.touches ? e.touches[0].clientX : e.clientX, e.touches ? e.touches[0].clientY : e.clientY);
+        }
+
+        canvas.addEventListener('mousedown', (e) => { isDrawing = true; [lastX, lastY] = getPos(e); });
+        canvas.addEventListener('touchstart', (e) => { isDrawing = true; [lastX, lastY] = getPos(e); });
+        window.addEventListener('mousemove', draw);
+        window.addEventListener('touchmove', draw, { passive: false });
+        window.addEventListener('mouseup', () => isDrawing = false);
+        window.addEventListener('touchend', () => isDrawing = false);
+
+        // --- Resize fix ---
+        window.addEventListener('resize', () => {
+            if (!document.getElementById('screen-game').classList.contains('hidden')) {
+                const temp = canvas.toDataURL();
+                setupCanvas();
+                const img = new Image();
+                img.onload = () => ctx.drawImage(img, 0, 0, canvas.width / (window.devicePixelRatio || 1), canvas.height / (window.devicePixelRatio || 1));
+                img.src = temp;
+            }
+        });
+
+    </script>
+</body>
+</html>
