@@ -360,16 +360,16 @@
         <!-- 1. 設定画面 -->
         <div id="screen-settings" class="screen active">
             <div class="panel">
-                <h1>確率体感シミュレーター</h1>
+                <h1>確率 DE ガチャ</h1>
                 <p style="font-size:12px; color:#aaa; margin-bottom:15px; text-align:center;">
-                    排出確率と回数を設定してください。<br>
+                    それぞれのアイテムが出現する確率と回数を設定してください。<br>
                     <span style="color:var(--accent-crimson);">※音が出ます</span>
                 </p>
 
                 <div id="settings-list" class="setting-list"></div>
                 
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; padding:0 10px;">
-                    <span style="font-size:12px; color:#888;">合計確率</span>
+                    <span style="font-size:12px; color:#888;">確率の合計</span>
                     <span id="total-prob" style="font-weight:bold; font-size:14px;">100%</span>
                 </div>
 
@@ -935,4 +935,5 @@ const app = App;
 window.onload = () => app.init();
 </script>
 </body>
+
 </html>
