@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>確率を体感せよ！確率　DE　ガチャ</title>
+    <style>
+        :root {
+            --bg-dark: #050505;
+            --panel-bg: rgba(20, 20, 25, 0.9);
+            --text-main: #f0f0f0;
+            --accent-gold: #ffd700;
+            --accent-crimson: #ff0040;
+            
+            /* Rarity Colors with Glow */
+            --c-common: #b0b0b0;
+            --c-uncommon: #2ecc71;
+            --c-rare: #0070dd;
+            --c-epic: #a335ee;
+            --c-legendary: #ff8000;
+            
+            --glow-common: 0 0 10px rgba(176, 176, 176, 0.5);
+            --glow-uncommon: 0 0 15px rgba(46, 204, 113, 0.6);
+            --glow-rare: 0 0 20px rgba(0, 112, 221, 0.7);
+            --glow-epic: 0 0 25px rgba(163, 53, 238, 0.8);
+            --glow-legendary: 0 0 30px rgba(255, 128, 0, 0.9);
+
+            --radius: 12px;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+        
+        body {
+            margin: 0;
+            font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+            background-color: #000;
+            color: var(--text-main);
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 背景エフェクト（星空パーティクル） */
+        .bg-effect {
+            position: fixed; inset: 0; z-index: -1;
+            background: radial-gradient(circle at center, #1a1b2e 0%, #000000 100%);
+            overflow: hidden;
+        }
+        .bg-particle {
+            position: absolute; width: 2px; height: 2px; background: rgba(255,255,255,0.3); border-radius: 50%;
+            animation: floatUp linear infinite;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(100vh) scale(0); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(-10vh) scale(1.5); opacity: 0; }
+        }
+
+        /* --- 画面コンテナ --- */
+        .screen-container {
+            width: 100%;
+            max-width: 480px;
+            height: 100%;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid rgba(255,255,255,0.1);
+            border-right: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .screen {
+            position: absolute;
+            inset: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            background: transparent;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+            z-index: 0;
+        }
+        .screen.active {
+            opacity: 1;
+            pointer-events: auto;
+            z-index: 10;
+        }
+
+        /* --- UIパーツ --- */
+        h1 {
+            text-align: center;
+            margin: 10px 0 20px 0;
+            font-size: 22px;
+            font-weight: 800;
+            background: linear-gradient(to bottom, #fff, #aaa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 4px 15px rgba(255,255,255,0.2);
+            letter-spacing: 0.1em;
+            border-bottom: 2px solid rgba(255,255,255,0.1);
+            padding-bottom: 10px;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-top: 1px solid rgba(255,255,255,0.3);
+            border-radius: var(--radius);
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8), inset 0 0 20px rgba(255,255,255,0.05);
+            display: flex;
+            flex-direction: column;
+            max-height: 100%;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        /* ボタンデザイン */
+        .btn-group {
+            display: flex; gap: 12px; margin-top: auto; padding-top: 10px;
+            width: 100%;
+            flex-shrink: 0;
+        }
+
+        .btn {
+            background: linear-gradient(180deg, #3d3d3d, #1a1a1a);
+            color: #ccc;
+            border: 1px solid #555;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            text-align: center;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #000;
+            transition: transform 0.1s, box-shadow 0.1s, filter 0.1s;
+            position: relative;
+            overflow: hidden;
+            text-shadow: 0 -1px 0 rgba(0,0,0,0.5);
+            flex: 1;
+        }
+        .btn:active { transform: translateY(4px); box-shadow: 0 0 0 #000; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); transform: none; box-shadow: 0 4px 0 #000; }
+        
+        .btn-primary {
+            background: linear-gradient(180deg, #ff2e63, #a6002b);
+            border: 1px solid #ff5c8d;
+            color: #fff;
+            box-shadow: 0 4px 0 #590017, 0 0 15px rgba(255, 46, 99, 0.4);
+            font-size: 16px;
+            letter-spacing: 1px;
+        }
+        .btn-primary:active { box-shadow: 0 0 0 #590017; }
+
+        .btn::after {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: linear-gradient(to right, transparent, rgba(255,255,255,0.2), transparent);
+            transform: rotate(45deg) translate(-100%, -100%);
+            transition: transform 0.5s;
+        }
+        .btn:hover::after { transform: rotate(45deg) translate(100%, 100%); }
+        
+        /* --- 設定画面 --- */
+        .setting-list { flex: 1; overflow-y: auto; margin-bottom: 10px; }
+        .setting-row {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 8px; font-size: 13px;
+            background: rgba(0,0,0,0.2);
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .badge {
+            padding: 2px 8px; border-radius: 3px; font-weight: 800;
+            font-size: 10px; width: 85px; text-align: center; color: #fff;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        input[type="number"] {
+            background: rgba(0,0,0,0.5); border: 1px solid #555; color: #fff;
+            padding: 6px; border-radius: 4px; width: 60px; text-align: right;
+            font-family: monospace; font-size: 14px;
+        }
+        input[type="number"]:focus { border-color: var(--accent-gold); outline: none; }
+
+        /* --- ガチャ演出エリア --- */
+        .gacha-stage {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            perspective: 800px;
+            position: relative;
+            min-height: 0;
+            padding-bottom: 20px;
+        }
+
+        .magic-circle-container {
+            position: relative;
+            width: 45vh; height: 45vh;
+            max-width: 80vw; max-height: 80vw;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        .magic-circle {
+            position: absolute; inset: 0;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.1);
+            box-shadow: 0 0 20px rgba(255,255,255,0.05);
+            opacity: 0.3;
+            transform: scale(0.8);
+            transition: all 0.3s ease;
+        }
+        .magic-circle::before {
+            content: ""; position: absolute; inset: 15%; border-radius: 50%;
+            border: 4px double currentColor;
+        }
+        .magic-circle::after {
+            content: ""; position: absolute; inset: 5%; border-radius: 50%;
+            border: 1px dotted currentColor; animation: spinReverse 10s linear infinite;
+        }
+        .magic-circle.active {
+            opacity: 1; transform: scale(1); animation: spin 4s linear infinite;
+        }
+        .magic-circle.active::before { animation: spin 2s linear infinite reverse; }
+
+        /* カード */
+        .card-wrapper {
+            width: 32vh; height: 46vh;
+            max-width: 60vw; max-height: 85vw;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.1, 0.9, 0.2, 1);
+            display: none; z-index: 20;
+        }
+        .card-wrapper.visible { display: block; }
+        .card-wrapper.flipped { transform: rotateY(180deg); }
+        .card-wrapper.shaking { animation: violentShake 0.5s linear infinite; }
+
+        .card-face {
+            position: absolute; inset: 0;
+            backface-visibility: hidden;
+            border-radius: 16px;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            background: #111;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            border: 2px solid #444;
+            overflow: hidden;
+        }
+        .card-front {
+            background: linear-gradient(135deg, #1a1a1a, #000);
+            border: 2px solid #555;
+        }
+        .card-front::after {
+            content: "?"; font-size: 8vh; color: rgba(255,255,255,0.1); font-weight: bold;
+        }
+        .card-front-pattern {
+            position: absolute; inset: 0;
+            background-image: radial-gradient(circle at 50% 50%, transparent 0%, transparent 40%, rgba(0,0,0,0.8) 100%),
+                              repeating-linear-gradient(45deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 2px, transparent 2px, transparent 10px);
+        }
+
+        .card-back {
+            transform: rotateY(180deg);
+            background: radial-gradient(circle at center, #2a2a2a, #050505);
+            padding: 10px;
+        }
+        .res-content {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            width: 100%; height: 100%;
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+            padding: 10px; background: rgba(0,0,0,0.2);
+        }
+        .res-icon { 
+            font-size: 8vh; margin: 10px 0; 
+            filter: drop-shadow(0 0 15px rgba(255,255,255,0.3));
+            animation: floatIcon 3s ease-in-out infinite;
+        }
+        .res-name { 
+            font-size: 2.2vh; font-weight: bold; margin: 5px 0 10px; line-height: 1.3; text-align: center; 
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+        .res-read { font-size: 1.2vh; color: #aaa; margin-bottom: 5px; }
+        .res-rarity { 
+            font-size: 2vh; letter-spacing: 4px; font-weight: 900; 
+            margin-top: auto; padding-top: 15px; width: 100%; text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            text-transform: uppercase;
+        }
+
+        .flash-overlay {
+            position: fixed; inset: 0; background: #fff;
+            opacity: 0; pointer-events: none; z-index: 100;
+        }
+        
+        .status-bar {
+            text-align: center; color: #aaa; margin-bottom: 8px; font-size: 13px;
+            background: rgba(0,0,0,0.6); padding: 4px 16px; border-radius: 20px;
+            align-self: center;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* --- 統計グラフ改修 --- */
+        .stat-item { margin-bottom: 15px; }
+        .stat-header { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; }
+        .bar-container {
+            height: 16px; background: rgba(30,30,30,1); border-radius: 4px;
+            position: relative; overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.15);
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+        }
+        /* 理論値マーカー（白い太線） */
+        .bar-theory-marker {
+            position: absolute; top: 0; bottom: 0;
+            width: 4px; /* 太くして視認性アップ */
+            background: #ffffff;
+            z-index: 5;
+            box-shadow: 0 0 6px rgba(255,255,255,0.8), 2px 0 5px rgba(0,0,0,0.5);
+            transform: translateX(-50%); /* 中心を確率に合わせる */
+        }
+        .bar-actual {
+            position: absolute; top: 2px; bottom: 2px; left: 2px;
+            z-index: 2; opacity: 0.9;
+            border-radius: 2px;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.3);
+            transition: width 1s cubic-bezier(0.2, 1, 0.3, 1);
+        }
+
+        @keyframes spin { 100% { transform: rotate(360deg) scale(1.1); } }
+        @keyframes spinReverse { 100% { transform: rotate(-360deg); } }
+        @keyframes floatIcon { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-8px);} }
+        @keyframes violentShake {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            20% { transform: translate(-4px, 4px) rotate(-3deg); }
+            40% { transform: translate(4px, -4px) rotate(3deg); }
+            60% { transform: translate(-4px, -4px) rotate(-3deg); }
+            80% { transform: translate(4px, 4px) rotate(3deg); }
+            100% { transform: translate(0, 0) rotate(0deg); }
+        }
+        @keyframes glowPulse { 
+            0% { box-shadow: 0 0 10px currentColor; filter: brightness(1); } 
+            50% { box-shadow: 0 0 40px currentColor; filter: brightness(1.3); } 
+            100% { box-shadow: 0 0 10px currentColor; filter: brightness(1); } 
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="bg-effect" id="bg-effect"></div>
+
+    <div class="screen-container">
+        
+        <!-- 1. 設定画面 -->
+        <div id="screen-settings" class="screen active">
+            <div class="panel">
+                <h1>確率体感シミュレーター</h1>
+                <p style="font-size:12px; color:#aaa; margin-bottom:15px; text-align:center;">
+                    排出確率と回数を設定してください。<br>
+                    <span style="color:var(--accent-crimson);">※音が出ます</span>
+                </p>
+
+                <div id="settings-list" class="setting-list"></div>
+                
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; padding:0 10px;">
+                    <span style="font-size:12px; color:#888;">合計確率</span>
+                    <span id="total-prob" style="font-weight:bold; font-size:14px;">100%</span>
+                </div>
+
+                <div class="setting-row" style="margin-bottom:20px;">
+                    <span style="font-weight:bold;">ガチャ回数</span>
+                    <input type="number" id="pull-count" value="10" min="1" max="1000">
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-primary" id="btn-start" onclick="app.start()">ガチャ準備完了</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. ガチャ実行画面 -->
+        <div id="screen-gacha" class="screen">
+            <div class="gacha-stage">
+                <div class="magic-circle-container">
+                    <div class="magic-circle" id="magic-circle"></div>
+                </div>
+                <div class="card-wrapper" id="card">
+                    <div class="card-face card-front">
+                        <div class="card-front-pattern"></div>
+                    </div>
+                    <div class="card-face card-back" id="card-back">
+                        <div class="res-content">
+                            <div class="res-read" id="res-read"></div>
+                            <div class="res-icon" id="res-icon"></div>
+                            <div class="res-name" id="res-name"></div>
+                            <div class="res-rarity" id="res-rarity"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="width: 100%; display: flex; flex-direction: column;">
+                <div id="status-text" class="status-bar">残り回数: 0</div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" style="flex:2;" id="btn-pull" onclick="app.pull()">召喚！</button>
+                    <button class="btn" style="flex:1;" id="btn-skip" onclick="app.skip()">スキップ</button>
+                </div>
+            </div>
+
+            <div class="flash-overlay" id="flash"></div>
+        </div>
+
+        <!-- 3. 結果統計画面 -->
+        <div id="screen-results" class="screen">
+            <div class="panel">
+                <h1>排出結果ログ</h1>
+                <p style="font-size:11px; color:#888; text-align:center; margin-bottom:15px;">
+                    [白い線: 理論上の確率] vs [色付きバー: 実際の確率]
+                </p>
+                
+                <div id="stats-container" style="flex:1; overflow-y:auto;"></div>
+                
+                <div class="btn-group">
+                    <button class="btn" onclick="app.reset()">設定に戻る</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+<script>
+/**
+ * サウンドマネージャー
+ */
+const SoundManager = {
+    ctx: null,
+    
+    init() {
+        if (!this.ctx) {
+            window.AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioContext();
+        }
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+    },
+
+    createOsc(type, freq, startTime, duration, vol = 0.1) {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, startTime);
+        gain.gain.setValueAtTime(vol, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+    },
+
+    playClick() {
+        this.init();
+        const t = this.ctx.currentTime;
+        this.createOsc('sine', 1200, t, 0.05, 0.1);
+    },
+
+    playCharge(freq = 400) {
+        this.init();
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, t);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.5, t + 0.1);
+        gain.gain.setValueAtTime(0.05, t);
+        gain.gain.linearRampToValueAtTime(0, t + 0.1);
+        
+        const biquad = this.ctx.createBiquadFilter();
+        biquad.type = "lowpass";
+        biquad.frequency.value = 1000;
+        osc.connect(biquad);
+        biquad.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.1);
+    },
+
+    playRumble() {
+        this.init();
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(50, t);
+        osc.frequency.linearRampToValueAtTime(60, t + 0.5);
+        gain.gain.setValueAtTime(0.1, t);
+        gain.gain.linearRampToValueAtTime(0, t + 0.5);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.5);
+    },
+
+    playResult(rarityIndex) {
+        this.init();
+        const t = this.ctx.currentTime;
+        if (rarityIndex <= 1) { // Common/Uncommon
+            this.createOsc('triangle', 400, t, 0.2, 0.1);
+            this.createOsc('sine', 600, t+0.05, 0.3, 0.1);
+        } else if (rarityIndex <= 3) { // Rare/Epic
+            [0, 0.1, 0.2, 0.3].forEach((d, i) => {
+                const note = 500 + (i * 150);
+                this.createOsc('square', note, t + d, 0.4, 0.05);
+            });
+        } else { // Legendary
+            const bufferSize = this.ctx.sampleRate * 2.0;
+            const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i/bufferSize, 2);
+            
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = buffer;
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(0.8, t);
+            
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(500, t);
+            filter.frequency.exponentialRampToValueAtTime(3000, t + 0.2);
+            
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.ctx.destination);
+            noise.start(t);
+
+            [0, 0.1, 0.2, 0.3, 0.4, 0.5].forEach((d, i) => {
+                this.createOsc('sine', 1000 + i*300, t + d, 0.8, 0.1);
+            });
+        }
+    }
+};
+
+/**
+ * データ定義
+ */
+const Config = [
+    { id: 'common',    name: 'COMMON',     jp:'コモン',        color: '#b0b0b0', glow: 'var(--glow-common)', rate: 50 },
+    { id: 'uncommon',  name: 'UNCOMMON',   jp:'アンコモン',    color: '#2ecc71', glow: 'var(--glow-uncommon)', rate: 30 },
+    { id: 'rare',      name: 'RARE',       jp:'レア',          color: '#0070dd', glow: 'var(--glow-rare)', rate: 12 },
+    { id: 'epic',      name: 'EPIC',       jp:'エピック',      color: '#a335ee', glow: 'var(--glow-epic)', rate: 7 },
+    { id: 'legendary', name: 'LEGENDARY',  jp:'レジェンダリー', color: '#ff8000', glow: 'var(--glow-legendary)', rate: 1 }
+];
+
+// JSON形式でアイテムリストを拡充
+const ItemDB = {
+    "common": [
+        {"name":"錆びたナイフ","read":"さびたないふ"},
+        {"name":"欠けた皿","read":"かけたさら"},
+        {"name":"雑草の束","read":"ざっそうのたば"},
+        {"name":"ボロ布のマント","read":"ぼろぬののまんと"},
+        {"name":"小石","read":"こいし"},
+        {"name":"折れた矢","read":"おれたや"},
+        {"name":"干し肉","read":"ほしにく"},
+        {"name":"木切れ","read":"きぎれ"},
+        {"name":"濁った水","read":"にごったみず"},
+        {"name":"ただのボタン","read":"ただのぼたん"},
+        {"name":"使い古しの包帯","read":"つかいふるしのほうたい"},
+        {"name":"空き瓶","read":"あきびん"},
+        {"name":"カビたパン","read":"かびたぱん"}
+    ],
+    "uncommon": [
+        {"name":"鉄の剣","read":"てつのけん"},
+        {"name":"兵士の盾","read":"へいしのたて"},
+        {"name":"薬草ポーション","read":"やくそうぽーしょん"},
+        {"name":"革のブーツ","read":"かわのぶーつ"},
+        {"name":"樫の杖","read":"かしのつえ"},
+        {"name":"銅の指輪","read":"どうのゆびわ"},
+        {"name":"狩人の弓","read":"かりうどのゆみ"},
+        {"name":"冒険者の服","read":"ぼうけんしゃのふく"},
+        {"name":"砥石","read":"といし"},
+        {"name":"解毒薬","read":"げどくやく"},
+        {"name":"青銅の兜","read":"せいどうのかぶと"},
+        {"name":"魔法のスクロール（初級）","read":"まほうのすくろーる"}
+    ],
+    "rare": [
+        {"name":"ミスリルソード","read":"みすりるそーど"},
+        {"name":"炎の籠手","read":"ほのおのこて"},
+        {"name":"氷結の槍","read":"ひょうけつのやり"},
+        {"name":"守護の指輪","read":"しゅごのゆびわ"},
+        {"name":"司祭の帽子","read":"しさいのぼうし"},
+        {"name":"疾風のブーツ","read":"しっぷうのぶーつ"},
+        {"name":"上級ポーション","read":"じょうきゅうぽーしょん"},
+        {"name":"魔導士のローブ","read":"まどうしのろーぶ"},
+        {"name":"フランベルジュ","read":"ふらんべるじゅ"},
+        {"name":"タワーシールド","read":"たわーしーるど"},
+        {"name":"エルフの弓","read":"えるふのゆみ"},
+        {"name":"力のペンダント","read":"ちからのぺんだんと"}
+    ],
+    "epic": [
+        {"name":"ドラゴンキラー","read":"どらごんきらー"},
+        {"name":"魔剣グラム","read":"まけんぐらむ"},
+        {"name":"賢者の石","read":"けんじゃのいし"},
+        {"name":"竜鱗の鎧","read":"りゅうりんのよろい"},
+        {"name":"鳳凰の羽飾り","read":"ほうおうのはねかざり"},
+        {"name":"雷神の戦斧","read":"らいじんのせんぷ"},
+        {"name":"吸血鬼のマント","read":"きゅうけつきのまんと"},
+        {"name":"天界の竪琴","read":"てんかいのたてごと"},
+        {"name":"不滅の盾アイギス","read":"ふめつのたてあいぎす"},
+        {"name":"世界樹の枝","read":"せかいじゅのえだ"}
+    ],
+    "legendary": [
+        {"name":"神剣ラグナロク","read":"しんけんらぐなろく"},
+        {"name":"禁断の聖杯","read":"きんだんのせいはい"},
+        {"name":"創世のオーブ","read":"そうせいの おーぶ"},
+        {"name":"虚無の外套","read":"きょむのがいとう"},
+        {"name":"星喰らいの牙","read":"ほしくらいのきば"},
+        {"name":"時を止める懐中時計","read":"ときをとめるかいちゅうどけい"},
+        {"name":"魔王の心臓","read":"まおうのしんぞう"},
+        {"name":"全知全能の書","read":"ぜんちぜんのうのしょ"}
+    ]
+};
+
+const App = {
+    currentSettings: [],
+    results: [],
+    totalPulls: 10,
+    remaining: 10,
+    isAnimating: false,
+
+    init() {
+        this.spawnBgParticles();
+        this.renderSettings();
+    },
+
+    spawnBgParticles() {
+        const bg = document.getElementById('bg-effect');
+        for(let i=0; i<30; i++) {
+            const p = document.createElement('div');
+            p.className = 'bg-particle';
+            p.style.left = Math.random() * 100 + '%';
+            p.style.animationDuration = (5 + Math.random() * 10) + 's';
+            p.style.animationDelay = (Math.random() * 5) + 's';
+            bg.appendChild(p);
+        }
+    },
+
+    renderSettings() {
+        const container = document.getElementById('settings-list');
+        container.innerHTML = '';
+        Config.forEach((c, i) => {
+            const row = document.createElement('div');
+            row.className = 'setting-row';
+            row.innerHTML = `
+                <div class="badge" style="background:${c.color}">${c.jp}</div>
+                <div style="display:flex; align-items:center; gap:5px;">
+                    <input type="number" id="rate-${i}" value="${c.rate}" onchange="app.checkProb()">
+                    <span>%</span>
+                </div>
+            `;
+            container.appendChild(row);
+        });
+        this.checkProb();
+    },
+
+    checkProb() {
+        let sum = 0;
+        Config.forEach((_, i) => sum += Number(document.getElementById(`rate-${i}`).value));
+        const el = document.getElementById('total-prob');
+        el.innerText = `${sum}%`;
+        el.style.color = sum === 100 ? '#4f4' : '#f44';
+        return sum === 100;
+    },
+
+    start() {
+        if(!this.checkProb()) { alert('確率の合計を100%にしてください'); return; }
+        SoundManager.playClick();
+        
+        this.currentSettings = Config.map((c, i) => ({
+            ...c, rate: Number(document.getElementById(`rate-${i}`).value)
+        }));
+        this.totalPulls = Number(document.getElementById('pull-count').value);
+        this.remaining = this.totalPulls;
+        this.results = [];
+
+        this.switchScreen('screen-gacha');
+        this.updateStatus();
+        this.resetForNext(true);
+    },
+
+    lottery() {
+        const r = Math.random() * 100;
+        let sum = 0;
+        let hit = this.currentSettings[0];
+        
+        for(let c of this.currentSettings) {
+            sum += c.rate;
+            if(r < sum) { hit = c; break; }
+        }
+        
+        const list = ItemDB[hit.id] || ItemDB['common'];
+        const item = list[Math.floor(Math.random() * list.length)];
+        return { rarity: hit, item: item };
+    },
+
+    getIcon(name) {
+        if(name.includes('剣')||name.includes('刀')||name.includes('ソード')||name.includes('キラー')||name.includes('ベルジュ')) return '⚔️';
+        if(name.includes('盾')||name.includes('シールド')||name.includes('アイギス')) return '🛡️';
+        if(name.includes('杖')||name.includes('オーブ')||name.includes('書')||name.includes('スクロール')) return '🔮';
+        if(name.includes('薬')||name.includes('ポーション')||name.includes('瓶')||name.includes('杯')) return '🧪';
+        if(name.includes('鎧')||name.includes('服')||name.includes('マント')||name.includes('外套')||name.includes('ローブ')) return '🧥';
+        if(name.includes('弓')||name.includes('矢')) return '🏹';
+        if(name.includes('斧')||name.includes('槍')) return '🪓';
+        if(name.includes('靴')||name.includes('ブーツ')) return '👢';
+        if(name.includes('指輪')||name.includes('首飾り')||name.includes('ペンダント')) return '💍';
+        if(name.includes('兜')||name.includes('帽子')) return '⛑️';
+        return '📦';
+    },
+
+    pull() {
+        if(this.isAnimating) return;
+        
+        const btn = document.getElementById('btn-pull');
+        // 文言による分岐
+        if(btn.innerText === "もう1回") {
+            this.resetForNext();
+            return;
+        } else if (btn.innerText === "結果を見る") {
+            this.showResult();
+            return;
+        }
+
+        if(this.remaining <= 0) return;
+
+        this.isAnimating = true;
+        this.remaining--;
+        this.updateStatus();
+        btn.disabled = true;
+        document.getElementById('btn-skip').disabled = true;
+
+        SoundManager.playClick();
+        const result = this.lottery();
+        this.results.push(result);
+
+        const resultIdx = Config.findIndex(c => c.id === result.rarity.id);
+        const circle = document.getElementById('magic-circle');
+        circle.classList.add('active');
+
+        // 演出ステップ
+        let step = 0;
+        const performStep = () => {
+            if (step > resultIdx) {
+                this.preRevealShake(result);
+                return;
+            }
+            const color = Config[step].color;
+            const glow = Config[step].glow;
+            circle.style.borderColor = color;
+            circle.style.boxShadow = glow;
+            circle.style.color = color;
+            SoundManager.playCharge(300 + step * 200);
+
+            step++;
+            let delay = (step > resultIdx) ? 800 : 400;
+            setTimeout(performStep, delay);
+        };
+        performStep();
+    },
+
+    preRevealShake(result) {
+        const circle = document.getElementById('magic-circle');
+        const cardWrapper = document.getElementById('card');
+        cardWrapper.classList.add('visible'); 
+        cardWrapper.classList.add('shaking');
+        
+        circle.style.opacity = 0;
+        SoundManager.playRumble();
+
+        setTimeout(() => {
+            cardWrapper.classList.remove('shaking');
+            setTimeout(() => {
+                this.reveal(result);
+            }, 400); // 溜め
+        }, 800);
+    },
+
+    reveal(result) {
+        const flash = document.getElementById('flash');
+        flash.style.opacity = 1;
+        
+        const rIdx = Config.findIndex(c => c.id === result.rarity.id);
+        SoundManager.playResult(rIdx);
+
+        setTimeout(() => {
+            flash.style.opacity = 0;
+            
+            const cardBack = document.getElementById('card-back');
+            const resRarity = document.getElementById('res-rarity');
+            
+            document.getElementById('res-read').innerText = result.item.read;
+            document.getElementById('res-icon').innerText = this.getIcon(result.item.name);
+            document.getElementById('res-name').innerText = result.item.name;
+            
+            resRarity.innerText = result.rarity.name;
+            resRarity.style.color = result.rarity.color;
+            resRarity.style.textShadow = result.rarity.glow;
+
+            cardBack.style.borderColor = result.rarity.color;
+            cardBack.style.boxShadow = result.rarity.glow;
+            
+            if(result.rarity.id === 'legendary') {
+                cardBack.style.animation = 'glowPulse 1s infinite alternate';
+                if(navigator.vibrate) navigator.vibrate([100,50,100,50,200]);
+            } else {
+                cardBack.style.animation = '';
+            }
+
+            document.getElementById('card').classList.add('flipped');
+
+            setTimeout(() => {
+                this.isAnimating = false;
+                const btn = document.getElementById('btn-pull');
+                btn.disabled = false;
+                document.getElementById('btn-skip').disabled = false;
+                
+                if (this.remaining > 0) {
+                    btn.innerText = "もう1回";
+                } else {
+                    btn.innerText = "結果を見る";
+                }
+            }, 800);
+        }, 150);
+    },
+
+    resetForNext(first = false) {
+        const card = document.getElementById('card');
+        const circle = document.getElementById('magic-circle');
+        const btn = document.getElementById('btn-pull');
+
+        card.classList.remove('flipped');
+        
+        const delay = first ? 0 : 300;
+        setTimeout(() => {
+            if(!first) {
+                card.classList.remove('visible');
+                const cardBack = document.getElementById('card-back');
+                cardBack.style.animation = '';
+                cardBack.style.borderColor = '#444';
+                cardBack.style.boxShadow = 'none';
+            }
+            circle.classList.remove('active');
+            circle.style.opacity = 0.3;
+            circle.style.transform = 'scale(0.8)';
+            circle.style.borderColor = 'rgba(255,255,255,0.1)';
+            circle.style.color = 'white';
+            circle.style.boxShadow = 'none';
+
+            btn.innerText = "召喚！";
+        }, delay);
+    },
+
+    skip() {
+        SoundManager.playClick();
+        while(this.remaining > 0) {
+            this.results.push(this.lottery());
+            this.remaining--;
+        }
+        this.showResult();
+    },
+
+    showResult() {
+        this.switchScreen('screen-results');
+        const container = document.getElementById('stats-container');
+        container.innerHTML = '';
+
+        const counts = {};
+        Config.forEach(c => counts[c.id] = 0);
+        this.results.forEach(r => counts[r.rarity.id]++);
+
+        Config.forEach(c => {
+            const count = counts[c.id];
+            const actualRate = (this.totalPulls > 0) ? ((count / this.totalPulls) * 100).toFixed(1) : 0;
+            const theoryRate = c.rate;
+            
+            // 色判定
+            const diff = actualRate - theoryRate;
+            let diffColor = "#888"; // 誤差範囲
+            if(diff > 2) diffColor = "#4f4"; // 運が良い
+            if(diff < -2) diffColor = "#f44"; // 運が悪い
+
+            const div = document.createElement('div');
+            div.className = 'stat-item';
+            div.innerHTML = `
+                <div class="stat-header">
+                    <span style="color:${c.color}; text-shadow:0 0 5px ${c.color}; font-weight:bold;">${c.jp}</span>
+                    <span>${count}回 (${actualRate}%) <small style="color:${diffColor}">[${diff>=0?'+':''}${diff.toFixed(1)}%]</small></span>
+                </div>
+                <div class="bar-container">
+                    <!-- 理論値マーカー -->
+                    <div class="bar-theory-marker" style="left:${Math.min(theoryRate, 100)}%;"></div>
+                    <!-- 実測値バー -->
+                    <div class="bar-actual" style="width:0%; background:${c.color}; box-shadow:0 0 10px ${c.color};"></div>
+                </div>
+            `;
+            container.appendChild(div);
+
+            setTimeout(() => {
+                div.querySelector('.bar-actual').style.width = `${Math.min(actualRate, 100)}%`;
+            }, 100);
+        });
+    },
+
+    switchScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    },
+
+    updateStatus() {
+        document.getElementById('status-text').innerText = `残り回数: ${this.remaining}`;
+    },
+
+    reset() {
+        SoundManager.playClick();
+        this.switchScreen('screen-settings');
+        document.getElementById('btn-pull').innerText = "召喚！";
+        document.getElementById('btn-pull').disabled = false;
+        document.getElementById('btn-skip').disabled = false;
+    }
+};
+
+const app = App;
+window.onload = () => app.init();
+</script>
+</body>
+</html>
