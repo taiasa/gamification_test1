@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberShortcut Dojo - Ultimate</title>
+    <style>
+        /* --- CSS Variables & Reset --- */
+        :root {
+            --bg-color: #050510;
+            --text-color: #e0e0e0;
+            --primary-neon: #00f3ff;
+            --secondary-neon: #ff00ff;
+            --gold: #ffd700;
+            --glass-bg: rgba(15, 15, 25, 0.9);
+            --border-radius: 12px;
+            --font-main: "M PLUS Rounded 1c", "Hiragino Kaku Gothic ProN", sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-image: 
+                linear-gradient(rgba(0, 243, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 243, 255, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        /* --- Effects --- */
+        #particle-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
+        .scanline {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
+            background-size: 100% 4px; pointer-events: none; z-index: 100; opacity: 0.4;
+        }
+
+        /* --- Layout (Compact) --- */
+        #app-container {
+            width: 90%; max-width: 750px;
+            min-height: auto; max-height: 95vh;
+            overflow-y: auto; /* サイズ縮小 */
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 2px solid var(--primary-neon);
+            border-radius: var(--border-radius);
+            padding: 1rem;
+            position: relative;
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.2);
+            text-align: center;
+            display: flex; flex-direction: column; align-items: center;
+            transition: all 0.5s ease;
+        }
+
+        h1 { font-size: 2.2rem; margin-bottom: 0.5rem; color: #fff; text-shadow: 0 0 10px var(--primary-neon), 2px 2px 0px var(--secondary-neon); font-weight: 900; letter-spacing: 2px; font-style: italic; }
+        h2 { font-size: 1.5rem; color: var(--primary-neon); margin-bottom: 1rem; }
+        p { line-height: 1.5; font-size: 1rem; margin-bottom: 1rem; }
+
+        /* --- Buttons --- */
+        .btn {
+            background: rgba(0,0,0,0.6); border: 2px solid var(--primary-neon); color: var(--primary-neon);
+            padding: 0.8rem 2rem; font-size: 1.1rem; border-radius: 50px; cursor: pointer; transition: 0.2s;
+            margin: 8px; font-weight: bold; box-shadow: 0 0 10px rgba(0, 243, 255, 0.1);
+            min-width: 180px;
+        }
+        .btn:hover { background: var(--primary-neon); color: #000; box-shadow: 0 0 20px var(--primary-neon); transform: scale(1.05); }
+        
+        .btn-gold { border-color: var(--gold); color: var(--gold); }
+        .btn-gold:hover { background: var(--gold); color: #000; box-shadow: 0 0 20px var(--gold); }
+        
+        .btn-sub { border-color: #888; color: #aaa; font-size: 0.9rem; padding: 0.6rem 1.5rem; min-width: 150px; }
+        .btn-sub:hover { border-color: #fff; color: #fff; background: rgba(255,255,255,0.1); transform: none; box-shadow: none; }
+
+        /* --- Screens --- */
+        .screen { display: none; width: 100%; animation: fadeIn 0.5s; }
+        .screen.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- Tutorial Grid --- */
+        .key-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 1.5rem 0; }
+        .check-key {
+            padding: 10px 15px; border: 2px solid #555; border-radius: 8px;
+            color: #777; font-size: 1rem; font-weight: bold; transition: 0.1s; min-width: 70px;
+        }
+        .check-key.checked {
+            border-color: var(--success-color); background: rgba(0, 255, 65, 0.2);
+            color: var(--success-color); box-shadow: 0 0 15px var(--success-color); transform: scale(1.1);
+        }
+
+        /* --- Game UI --- */
+        .hud { display: flex; justify-content: space-between; width: 100%; padding: 0 1rem; margin-bottom: 10px; font-family: monospace; font-size: 1.2rem; color: var(--primary-neon); }
+        
+        .mission-card {
+            background: linear-gradient(135deg, rgba(30,30,40,0.9), rgba(10,10,20,0.9));
+            border: 1px solid rgba(255,255,255,0.15); border-radius: var(--border-radius);
+            padding: 1.5rem; margin: 0 auto 1.5rem; width: 90%; position: relative;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.5);
+        }
+        .mission-app { font-size: 0.8rem; color: var(--secondary-neon); border: 1px solid var(--secondary-neon); display: inline-block; padding: 2px 10px; border-radius: 20px; margin-bottom: 0.5rem; background: rgba(0,0,0,0.3); }
+        .mission-title { font-size: 2.2rem; font-weight: bold; margin-bottom: 0.5rem; background: linear-gradient(to right, #fff, #bbb); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .mission-desc { font-size: 1rem; color: #ccc; margin-bottom: 1.5rem; min-height: 3rem; }
+
+        .key-visual { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 1rem; flex-wrap: wrap; }
+        .k-box {
+            background: #222; border-bottom: 4px solid #000; color: #fff; padding: 10px 20px;
+            border-radius: 8px; font-size: 1.5rem; font-weight: bold; min-width: 60px; transition: 0.1s;
+        }
+        .k-box.pressed {
+            background: var(--primary-neon); color: #000; border-bottom: 0px solid transparent;
+            transform: translateY(4px); box-shadow: 0 0 15px var(--primary-neon);
+        }
+        .plus { font-size: 1.2rem; color: #666; }
+
+        /* --- Certificate --- */
+        .cert-frame {
+            border: 3px double var(--gold); padding: 1.5rem; margin: 1rem auto; width: 90%;
+            background: rgba(0,0,0,0.4); border-radius: 10px;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.2);
+            animation: glowGold 3s infinite alternate;
+        }
+        @keyframes glowGold { from { box-shadow: 0 0 15px rgba(255, 215, 0, 0.2); } to { box-shadow: 0 0 30px rgba(255, 215, 0, 0.5); } }
+        .cert-title { font-size: 2.2rem; color: var(--gold); font-family: "serif"; margin-bottom: 0.5rem; text-shadow: 2px 2px 0 #000; }
+        .cert-text { font-size: 1rem; margin-bottom: 1rem; }
+        .cert-rank { font-size: 3rem; color: #fff; font-weight: bold; text-shadow: 0 0 20px var(--primary-neon); margin: 1rem 0; }
+
+        /* --- Feedback --- */
+        #feedback { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 6rem; font-weight: 900; pointer-events: none; opacity: 0; z-index: 200; text-shadow: 0 0 30px rgba(0,0,0,0.8); white-space: nowrap; }
+        .fb-success { color: var(--success-color); animation: popSuccess 0.8s forwards; }
+        @keyframes popSuccess { 0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; } 50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; } 100% { transform: translate(-50%, -50%) scale(1); opacity: 0; } }
+
+        .note-box {
+            font-size: 0.8rem; color: #aaa; margin: 1rem auto; max-width: 90%;
+            background: rgba(0,0,0,0.4); padding: 10px; border-radius: 8px;
+            border-left: 3px solid var(--warning-color); text-align: left;
+        }
+
+        @media(max-width: 600px) {
+            h1 { font-size: 1.8rem; } .mission-title { font-size: 1.6rem; } 
+            .btn { width: 100%; margin: 5px 0; } .k-box { font-size: 1.2rem; padding: 8px 15px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="scanline"></div>
+    <canvas id="particle-canvas"></canvas>
+    <div id="feedback"></div>
+
+    <div id="app-container">
+        
+        <!-- 1. Start Screen -->
+        <div id="screen-start" class="screen active">
+            <h1>CYBER SHORTCUT</h1>
+            <p style="color:var(--primary-neon);">情報空間を支配する「ショートカット道場」</p>
+            
+            <div class="note-box">
+                <strong>⚠️ 注意</strong><br>
+                ・ブラウザが閉じてしまう「Ctrl+W」や、メニューが開く「Windowsキー」など、<br>
+                　ゲーム進行を妨げる操作は<strong>自動的に除外</strong>されています。
+            </div>
+
+            <div style="margin-top: 1.5rem;">
+                <button class="btn btn-sub" onclick="app.startTutorial()">キー配置を確認する</button>
+            </div>
+            
+            <h3 style="margin-top: 1.5rem; color: #fff; border-bottom: 1px solid #555; display:inline-block; padding-bottom:5px;">MISSION SELECT</h3>
+            <div style="display: flex; flex-direction: column; align-items: center; margin-top: 0.5rem;">
+                <button class="btn" onclick="app.startGame(1)">
+                    LEVEL 1 <span style="font-size:0.7rem; display:block; color:#aaa;">超基本コース</span>
+                </button>
+                <button class="btn" onclick="app.startGame(2)">
+                    LEVEL 2 <span style="font-size:0.7rem; display:block; color:#aaa;">基本コース</span>
+                </button>
+                <button class="btn" onclick="app.startGame(3)">
+                    LEVEL 3 <span style="font-size:0.7rem; display:block; color:#aaa;">応用コース</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 2. Tutorial Screen (Key Check) -->
+        <div id="screen-tutorial" class="screen">
+            <h2>キー確認道場</h2>
+            <p>光ったら入力成功だ！<br>（Fnキーなどは反応しない場合があるよ）</p>
+            <div class="key-grid" id="tutorial-grid">
+                <!-- JS Generated -->
+            </div>
+            <div style="margin-top: 2rem;">
+                <button class="btn btn-gold" onclick="app.showScreen('start')">タイトルに戻る</button>
+            </div>
+        </div>
+
+        <!-- 3. Game Screen -->
+        <div id="screen-game" class="screen">
+            <div class="hud">
+                <span id="game-level">LEVEL 1</span>
+                <span id="game-progress">1 / ?</span>
+            </div>
+
+            <div class="mission-card">
+                <div class="mission-app" id="q-app">アプリ名</div>
+                <div class="mission-title" id="q-name">コピー</div>
+                <div class="mission-desc" id="q-desc">説明文</div>
+                
+                <div class="key-visual" id="q-keys">
+                    <!-- JS Generated -->
+                </div>
+            </div>
+
+            <p style="color: #888; font-size: 0.9rem;">
+                キーボードを押して実行せよ！<br>
+                <span id="shift-hint" style="display:none; color:var(--warning-color); font-weight:bold;">※Shiftキーを5回連打！</span>
+            </p>
+        </div>
+
+        <!-- 4. Certificate Screen -->
+        <div id="screen-cert" class="screen">
+            <div class="cert-frame">
+                <div class="cert-title">合格証書</div>
+                <p class="cert-text">
+                    あなたは本道場において<br>
+                    <span id="cert-level-name" style="color:var(--primary-neon); font-weight:bold; font-size:1.2rem;">LEVEL 1</span><br>
+                    の全課題を見事に完遂したことを証明する。
+                </p>
+                
+                <div class="cert-rank" id="cert-rank-text">RANK S</div>
+                <p style="font-size:0.8rem; color:#888;" id="cert-date">2025.12.31</p>
+            </div>
+            
+            <div style="margin-top:1.5rem;">
+                <button class="btn btn-gold" onclick="app.showScreen('start')">タイトルに戻る</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- Sound Manager ---
+        const sound = {
+            ctx: null,
+            init: function() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); if(this.ctx.state==='suspended') this.ctx.resume(); },
+            playTone: function(freq, type, dur, vol=0.1) {
+                if(!this.ctx) return;
+                const osc=this.ctx.createOscillator(); const g=this.ctx.createGain();
+                osc.type=type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                g.gain.setValueAtTime(vol, this.ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime+dur);
+                osc.connect(g); g.connect(this.ctx.destination); osc.start(); osc.stop(this.ctx.currentTime+dur);
+            },
+            playSuccess: function() { this.init(); this.playTone(880,'sine',0.1,0.2); setTimeout(()=>this.playTone(1760,'triangle',0.4,0.1), 80); },
+            playClick: function() { this.init(); this.playTone(400,'sine',0.1,0.1); },
+            playFanfare: function() {
+                this.init(); const now=this.ctx.currentTime;
+                [523,659,783,1046,783,1046].forEach((f,i)=> setTimeout(()=>this.playTone(f,'square',0.6,0.15), i*150));
+            }
+        };
+
+        // --- Particle System ---
+        const particles = {
+            canvas: document.getElementById('particle-canvas'), ctx: null, items: [],
+            init: function() { this.ctx=this.canvas.getContext('2d'); this.resize(); window.addEventListener('resize',()=>this.resize()); this.animate(); },
+            resize: function() { this.canvas.width=window.innerWidth; this.canvas.height=window.innerHeight; },
+            spawn: function(x,y,c='#00f3ff') { for(let i=0;i<30;i++) this.items.push({x:x,y:y,vx:(Math.random()-0.5)*15,vy:(Math.random()-0.5)*15,life:1,c:c}); },
+            animate: function() {
+                this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
+                for(let i=0;i<this.items.length;i++){
+                    let p=this.items[i]; p.x+=p.vx; p.y+=p.vy; p.vy+=0.5; p.life-=0.05;
+                    this.ctx.fillStyle=p.c; this.ctx.globalAlpha=p.life; this.ctx.fillRect(p.x,p.y,4,4);
+                    if(p.life<=0){this.items.splice(i,1);i--}
+                }
+                requestAnimationFrame(()=>this.animate());
+            }
+        };
+        particles.init();
+
+        // --- Data ---
+        const rawData = [
+            { level: 1, name: "コピー", key: "Ctrl + C", description: "選んだ文字や画像、ファイルをパソコンに覚えさせるよ。", app: "ほぼすべてのアプリ" },
+            { level: 1, name: "貼り付け", key: "Ctrl + V", description: "コピーしたり切り取ったりしたものを、好きな場所に置くよ。", app: "ほぼすべてのアプリ" },
+            { level: 1, name: "元に戻す", key: "Ctrl + Z", description: "一つ前の操作をなかったことにして、時間を戻せる魔法のキーだよ。", app: "ほぼすべてのアプリ" },
+            { level: 1, name: "やり直し", key: "Ctrl + Y", description: "「元に戻す」をやりすぎて、戻しすぎたときに一つ先に進めるよ。", app: "ほぼすべてのアプリ" },
+            { level: 1, name: "切り取り", key: "Ctrl + X", description: "選んだものを消して、パソコンに覚えさせるよ。移動に使うよ。", app: "ほぼすべてのアプリ" },
+            { level: 1, name: "上書き保存", key: "Ctrl + S", description: "今作っているものを記録するよ。こまめに押そう。", app: "メモ帳、Wordなど" },
+            { level: 1, name: "すべて選択", key: "Ctrl + A", description: "画面の中の文字やファイルを、全部まとめて一気に選ぶことができるよ。", app: "ほぼすべてのアプリ" },
+            { level: 1, name: "印刷", key: "Ctrl + P", description: "紙にプリントアウトするための画面を出すよ。", app: "ほぼすべてのアプリ" },
+            { level: 1, name: "検索", key: "Ctrl + F", description: "長い文章の中から、自分が探したい言葉を一瞬で見つけてくれるよ。", app: "ブラウザ、Wordなど" },
+            { level: 1, name: "新しいウィンドウ", key: "Ctrl + N", description: "新しくまっさらなウィンドウをもう一つ開くよ。", app: "ブラウザなど" }, 
+            { level: 1, name: "ファイルを開く", key: "Ctrl + O", description: "パソコンに保存してあるファイルを呼び出して開くときに使うよ。", app: "ほぼすべてのアプリ" },
+            { level: 1, name: "太字にする", key: "Ctrl + B", description: "選んだ文字を太くして、目立たせるよ。", app: "Googleドキュメントなど" },
+            { level: 1, name: "下線を引く", key: "Ctrl + U", description: "文字の下に線を引くよ。", app: "Googleドキュメントなど" },
+            { level: 1, name: "斜体にする", key: "Ctrl + I", description: "文字を斜めにするよ。", app: "Googleドキュメントなど" },  
+            { level: 2, name: "アプリ切替", key: "Alt + Tab", description: "別のアプリへ一瞬で移動するよ。", app: "Windows" }, 
+            { level: 2, name: "新しいタブ", key: "Ctrl + T", description: "ブラウザで別の調べ物をする窓を増やすよ。", app: "ブラウザ" }, 
+            { level: 2, name: "タブ復活", key: "Ctrl + Shift + T", description: "間違えて閉じたタブを復活させるよ。", app: "ブラウザ" }, 
+            { level: 2, name: "タブ移動", key: "Ctrl + Tab", description: "隣のタブへ移動するよ。", app: "ブラウザ" }, 
+            { level: 2, name: "お気に入り", key: "Ctrl + D", description: "今のページをブックマークに保存するよ。", app: "ブラウザ" },
+            { level: 2, name: "履歴を見る", key: "Ctrl + H", description: "今日や昨日にどんなページを見たか確認できるよ。", app: "ブラウザ" },
+            { level: 2, name: "アドレスバー", key: "Alt + D", description: "URLが入っている場所へ一瞬で移動するよ。", app: "ブラウザ" }, 
+            { level: 2, name: "更新", key: "F5", description: "画面を最新の状態に読み込み直すよ。", app: "ブラウザ" },
+            { level: 2, name: "行の先頭へ", key: "Home", description: "カーソルを行の最初まで持っていくよ。", app: "メモ帳など" },
+            { level: 2, name: "行の末尾へ", key: "End", description: "カーソルを行の最後まで持っていくよ。", app: "メモ帳など" },
+            { level: 2, name: "ページスクロール", key: "Alt + ArrowDown", description: "画面を大きく下に下げてくれるよ。", app: "ブラウザ" },
+            { level: 2, name: "ファイル検索", key: "Win + E", description: "エクスプローラーを開くよ。", app: "Windows" }, 
+            { level: 3, name: "カタカナ変換", key: "F7", description: "打っている文字をカタカナにするよ。", app: "入力中" },
+            { level: 3, name: "英字変換", key: "F10", description: "打った文字を英語に変えてくれるよ。", app: "入力中" },
+            { level: 3, name: "強制終了", key: "Alt + F4", description: "アプリを無理やり閉じるよ。", app: "Windows" }, 
+            { level: 3, name: "タスクマネージャ", key: "Ctrl + Shift + Escape", description: "パソコンの状態を調べるよ。", app: "Windows" }, 
+            { level: 3, name: "今日の日付", key: "Ctrl + ;", description: "今日の日付を一瞬で入力できるよ。", app: "Excel" },
+            { level: 3, name: "セル内改行", key: "Alt + Enter", description: "マスの中で改行したいときに使うよ。", app: "Excel" },
+            { level: 3, name: "列を選択", key: "Ctrl + Space", description: "縦一列を全部まとめて選ぶよ。", app: "Excel" },
+            { level: 3, name: "行を選択", key: "Shift + Space", description: "横一行を全部まとめて選ぶよ。", app: "Excel" },
+            { level: 1, name: "戻る", key: "Alt + ArrowLeft", description: "一つ前のページに戻るよ。", app: "ブラウザ" },
+            { level: 1, name: "進む", key: "Alt + ArrowRight", description: "戻ったあとに先のページへ進むよ。", app: "ブラウザ" },
+            { level: 2, name: "全画面", key: "F11", description: "画面いっぱいに表示するよ。", app: "ブラウザ" },
+            { level: 2, name: "新しいフォルダ", key: "Ctrl + Shift + N", description: "新しいフォルダを一瞬で作るよ。", app: "エクスプローラー" }, 
+            { level: 2, name: "ブックマークバー", key: "Ctrl + Shift + B", description: "お気に入りのバーを出したり消したりするよ。", app: "ブラウザ" },
+            { level: 2, name: "文字拡大", key: "Ctrl + +", description: "文字が小さくて読みづらいとき、大きくできるよ。", app: "ブラウザ" },
+            { level: 2, name: "文字縮小", key: "Ctrl + -", description: "文字を小さくするよ。", app: "ブラウザ" },
+            { level: 2, name: "サイズリセット", key: "Ctrl + 0", description: "文字のサイズを元に戻すよ。", app: "ブラウザ" },
+            { level: 1, name: "次の項目に移動", key: "Tab", description: "マウスを使わずにボタンや入力欄を移動できるよ。", app: "基本" },
+            { level: 1, name: "前の項目に移動", key: "Shift + Tab", description: "一つ前のボタンや入力欄に戻れるよ。", app: "基本" },
+            { level: 2, name: "ダウンロード", key: "Ctrl + J", description: "保存したファイルのリストを確認できるよ。", app: "ブラウザ" },
+            { level: 3, name: "リンク挿入", key: "Ctrl + K", description: "文字にURLを貼り付けてリンクにするよ。", app: "Office" },
+            { level: 3, name: "上をコピー", key: "Ctrl + D", description: "すぐ上のマスの内容をコピーするよ。", app: "Excel" },
+            { level: 3, name: "左をコピー", key: "Ctrl + R", description: "すぐ左のマスの内容をコピーするよ。", app: "Excel" }, 
+            { level: 1, name: "名前変更", key: "F2", description: "ファイルの名前を変えるよ。", app: "Windows" },
+            { level: 1, name: "削除", key: "Delete", description: "選んだものを消すよ。", app: "基本" },
+            { level: 1, name: "範囲選択", key: "Shift + ArrowRight", description: "一文字ずつ範囲を選んでいくよ。", app: "文章作成" },
+            { level: 2, name: "単語選択", key: "Ctrl + Shift + ArrowRight", description: "単語ごとにまとめて範囲を選ぶよ。", app: "文章作成" },
+            { level: 1, name: "一番上へ", key: "Ctrl + Home", description: "ページの一番最初へ戻るよ。", app: "基本" },
+            { level: 1, name: "一番下へ", key: "Ctrl + End", description: "ページの一番最後まで移動するよ。", app: "基本" },
+        ];
+
+        // --- App Logic ---
+        const app = {
+            questions: [], qIndex: 0, currentLevel: 1, canAnswer: false,
+            
+            // 安全フィルター
+            isSafe: function(q) {
+                const k = q.key.toLowerCase();
+                if(k.includes('win') || k.includes('windows')) return false;
+                if(k.includes('ctrl + w') || k.includes('ctrl + n') || k.includes('ctrl + t')) return false;
+                if(k.includes('ctrl + tab') || k.includes('alt + tab')) return false;
+                if(k.includes('alt + f4') || (k.includes('esc') && k.includes('shift'))) return false;
+                if(k.includes('ドラッグ') || k.includes('fn') || k.includes('launcher')) return false;
+                if(k.includes('ctrl + shift + n')) return false;
+                return true;
+            },
+
+            init: function() {
+                this.pool = rawData.filter(this.isSafe).map(this.parseKey);
+                
+                document.addEventListener('keydown', e => this.handleInput(e));
+                document.addEventListener('keyup', e => this.handleKeyUp(e));
+                
+                window.addEventListener('keydown', e => {
+                    if(e.key === 'F12') return;
+                    // Prevent behavior only when interacting with game logic
+                    const gameKeys = ['s','p','f','o','b','u','i','h','d','j','k','r','g','\\','+','-','0'];
+                    if(e.ctrlKey && gameKeys.includes(e.key.toLowerCase())) e.preventDefault();
+                    if((e.key.startsWith('F') && e.key !== 'F5') || e.key === 'Tab' || (e.altKey && e.key === 'Enter')) e.preventDefault();
+                    if(e.altKey && (e.key.startsWith('Arrow'))) e.preventDefault();
+                }, {passive:false});
+            },
+
+            parseKey: function(d) {
+                let p = { modifiers:[], main:'', special:null, raw:d };
+                if(d.key === "Shift * 5") { p.special='shift5'; p.main='Shift'; return p; }
+                
+                d.key.split('+').forEach(s => {
+                    s = s.trim().toLowerCase();
+                    if(['ctrl','shift','alt'].includes(s)) p.modifiers.push(s);
+                    else if(s === 'windowsキー' || s.includes('win')) {/*Filtered*/}
+                    else {
+                        const map = {'arrowright':'ArrowRight','arrowleft':'ArrowLeft','arrowup':'ArrowUp','arrowdown':'ArrowDown',
+                                     'enter':'Enter','delete':'Delete','space':' ','capslock':'CapsLock','home':'Home','end':'End'};
+                        p.main = map[s] || s; 
+                    }
+                });
+                return p;
+            },
+
+            showScreen: function(id) {
+                document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+                document.getElementById('screen-'+id).classList.add('active');
+                sound.playClick();
+            },
+
+            // --- Tutorial Mode ---
+            startTutorial: function() {
+                this.showScreen('tutorial');
+                const grid = document.getElementById('tutorial-grid');
+                grid.innerHTML = '';
+                const keys = [
+                    { l:'Ctrl', c:'Control' }, { l:'Shift', c:'Shift' }, { l:'Alt', c:'Alt' },
+                    { l:'Win', c:'Meta' }, { l:'Tab', c:'Tab' }, { l:'Enter', c:'Enter' },
+                    { l:'Space', c:' ' }, { l:'Esc', c:'Escape' }, { l:'Del', c:'Delete' },
+                    { l:'Home', c:'Home' }, { l:'End', c:'End' },
+                    { l:'↑', c:'ArrowUp' }, { l:'↓', c:'ArrowDown' }, { l:'←', c:'ArrowLeft' }, { l:'→', c:'ArrowRight' },
+                    { l:'F1', c:'F1' }, { l:'F2', c:'F2' }, { l:'F10', c:'F10' }
+                ];
+                keys.forEach(k => {
+                    let div = document.createElement('div'); div.className = 'check-key'; 
+                    div.textContent = k.l; div.dataset.code = k.c;
+                    grid.appendChild(div);
+                });
+            },
+
+            checkTutorialKey: function(e) {
+                const grid = document.getElementById('tutorial-grid');
+                if(!grid) return;
+                Array.from(grid.children).forEach(el => {
+                    let match = false;
+                    if(e.key === el.dataset.code) match = true;
+                    // Loose matching for modifiers
+                    if(e.key === 'Meta' && el.dataset.code === 'Meta') match = true;
+                    if(e.key === ' ' && el.dataset.code === ' ') match = true;
+                    if(match) {
+                        el.classList.add('checked');
+                        sound.playTone(600, 'sine', 0.1);
+                        particles.spawn(el.getBoundingClientRect().left+30, el.getBoundingClientRect().top+10);
+                    }
+                });
+            },
+
+            // --- Game Mode ---
+            startGame: function(lv) {
+                this.currentLevel = lv;
+                this.questions = this.pool.filter(q => q.raw.level === lv);
+                this.questions.sort(() => Math.random() - 0.5);
+                
+                if(this.questions.length === 0) { alert("このレベルの問題はすべて除外されました。"); return; }
+                
+                this.qIndex = 0;
+                this.showScreen('game');
+                this.loadQuestion();
+            },
+
+            loadQuestion: function() {
+                const q = this.questions[this.qIndex];
+                document.getElementById('game-level').textContent = `LEVEL ${this.currentLevel}`;
+                document.getElementById('game-progress').textContent = `${this.qIndex + 1} / ${this.questions.length}`;
+                
+                document.getElementById('q-app').textContent = q.raw.app;
+                document.getElementById('q-name').textContent = q.raw.name;
+                document.getElementById('q-desc').textContent = q.raw.description;
+                
+                const kv = document.getElementById('q-keys'); kv.innerHTML = '';
+                
+                if(q.special === 'shift5') {
+                    kv.innerHTML = `<div class="k-box" id="k-shift">Shift</div><div class="plus">× 5</div>`;
+                    document.getElementById('shift-hint').style.display='block';
+                    this.shiftCount = 0;
+                } else {
+                    document.getElementById('shift-hint').style.display='none';
+                    q.modifiers.forEach(m => {
+                        let d=document.createElement('div'); d.className='k-box'; d.id='k-'+m; d.textContent=m.charAt(0).toUpperCase()+m.slice(1);
+                        kv.appendChild(d); kv.appendChild(Object.assign(document.createElement('div'),{className:'plus',textContent:'+'}));
+                    });
+                    let md=document.createElement('div'); md.className='k-box'; md.id='k-main';
+                    let t = q.main.toUpperCase();
+                    if(t.startsWith('ARROW')) t = t.replace('ARROW','').replace('UP','↑').replace('DOWN','↓').replace('LEFT','←').replace('RIGHT','→');
+                    if(t === ' ') t = 'Space';
+                    md.textContent = t; kv.appendChild(md);
+                }
+                this.canAnswer = true;
+            },
+
+            handleInput: function(e) {
+                // Tutorial Check
+                if(document.getElementById('screen-tutorial').classList.contains('active')) {
+                    this.checkTutorialKey(e);
+                    return;
+                }
+
+                // Game Logic
+                if(!document.getElementById('screen-game').classList.contains('active') || !this.canAnswer) return;
+                
+                if(e.key==='Control') document.getElementById('k-ctrl')?.classList.add('pressed');
+                if(e.key==='Shift') document.getElementById('k-shift')?.classList.add('pressed');
+                if(e.key==='Alt') document.getElementById('k-alt')?.classList.add('pressed');
+
+                const q = this.questions[this.qIndex];
+
+                if(q.special === 'shift5') {
+                    if(e.key === 'Shift') {
+                        this.shiftCount++; sound.playClick();
+                        clearTimeout(this.shiftTimer); this.shiftTimer = setTimeout(()=>{this.shiftCount=0}, 800);
+                        if(this.shiftCount >= 5) this.success();
+                    }
+                    return;
+                }
+
+                const reqCtrl = q.modifiers.includes('ctrl');
+                const reqAlt = q.modifiers.includes('alt');
+                const reqShift = q.modifiers.includes('shift');
+
+                if(e.ctrlKey !== reqCtrl) return;
+                if(e.altKey !== reqAlt) return;
+                if(reqShift && !e.shiftKey) return;
+                if(['Control','Shift','Alt','Meta'].includes(e.key)) return;
+
+                let input = e.key.toLowerCase();
+                let target = q.main.toLowerCase();
+                
+                if(input === '+') input = '+'; 
+                if(target === ';') { if(input === ';' || input === '+') input = ';'; } 
+                if(target === ':') { if(input === ':' || input === '*') input = ':'; }
+                
+                if(input === target) {
+                    document.getElementById('k-main').classList.add('pressed');
+                    this.success();
+                }
+            },
+            
+            handleKeyUp: function(e) {
+                if(e.key==='Control') document.getElementById('k-ctrl')?.classList.remove('pressed');
+                if(e.key==='Shift') document.getElementById('k-shift')?.classList.remove('pressed');
+                if(e.key==='Alt') document.getElementById('k-alt')?.classList.remove('pressed');
+            },
+
+            success: function() {
+                this.canAnswer = false;
+                sound.playSuccess();
+                particles.spawn(window.innerWidth/2, window.innerHeight/2);
+                
+                const fb = document.getElementById('feedback');
+                fb.textContent = "PERFECT!"; fb.className = 'fb-success'; fb.style.opacity = 1;
+                
+                setTimeout(() => {
+                    fb.style.opacity = 0; fb.className = '';
+                    this.qIndex++;
+                    if(this.qIndex < this.questions.length) {
+                        this.loadQuestion();
+                    } else {
+                        this.finishGame();
+                    }
+                }, 1000);
+            },
+
+            finishGame: function() {
+                sound.playFanfare();
+                this.showScreen('cert');
+                const titles = {1: "超基本コース", 2: "基本コース", 3: "応用コース"};
+                document.getElementById('cert-level-name').textContent = titles[this.currentLevel];
+                const d = new Date();
+                document.getElementById('cert-date').textContent = `${d.getFullYear()}.${d.getMonth()+1}.${d.getDate()}`;
+            }
+        };
+
+        app.init();
+    </script>
+</body>
+</html>
