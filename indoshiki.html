@@ -2,13 +2,13 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>インド式計算マスターへの道</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Indian Math Master - インド式計算マスター</title>
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Courier+New:wght@700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -20,22 +20,46 @@
                 extend: {
                     fontFamily: {
                         sans: ['"Noto Sans JP"', 'sans-serif'],
-                        mono: ['"Courier New"', 'monospace'],
+                        mono: ['"Roboto Mono"', 'monospace'],
                     },
                     colors: {
+                        bg: '#F8FAFC', // Slate 50
+                        surface: '#FFFFFF',
                         brand: {
-                            50: '#EEF2FF',
-                            100: '#E0E7FF',
                             500: '#6366F1', // Indigo
                             600: '#4F46E5',
-                            700: '#4338CA',
+                            soft: '#EEF2FF',
                         },
                         accent: {
                             500: '#10B981', // Emerald
+                            600: '#059669',
                         },
                         warn: {
-                            500: '#F59E0B', // Amber
+                            500: '#F59E0B',
+                        },
+                        error: {
+                            500: '#EF4444',
                         }
+                    },
+                    animation: {
+                        'shake': 'shake 0.4s cubic-bezier(.36,.07,.19,.97) both',
+                        'pop': 'pop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                    },
+                    keyframes: {
+                        shake: {
+                            '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+                            '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+                            '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+                            '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
+                        },
+                        pop: {
+                            '0%': { transform: 'scale(0.9)', opacity: '0.5' },
+                            '100%': { transform: 'scale(1)', opacity: '1' }
+                        }
+                    },
+                    boxShadow: {
+                        'soft': '0 2px 10px rgba(0,0,0,0.05)',
+                        'key': '0 3px 0 #CBD5E1', 
                     }
                 }
             }
@@ -45,538 +69,444 @@
     <style>
         body {
             background-color: #F8FAFC;
-            color: #1E293B;
+            color: #334155;
+            -webkit-font-smoothing: antialiased;
+            touch-action: manipulation;
+            user-select: none;
+            overflow: hidden; /* Prevent body scroll */
         }
-        .math-text {
-            font-feature-settings: "tnum";
-            font-variant-numeric: tabular-nums;
+        /* Mobile height fix */
+        .app-height {
+            height: 100vh; /* Fallback */
+            height: 100dvh;
         }
-        .fade-in {
-            animation: fadeIn 0.3s ease-in-out;
+        .key-btn {
+            position: relative;
+            background: white;
+            border-radius: 0.75rem;
+            font-family: 'Roboto Mono', monospace;
+            font-weight: 500;
+            font-size: 1.25rem;
+            color: #475569;
+            box-shadow: 0 3px 0 #E2E8F0;
+            border: 1px solid #F1F5F9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.1s;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+        .key-btn:active, .key-btn.active {
+            transform: translateY(3px);
+            box-shadow: none;
+            background-color: #F1F5F9;
         }
-        .card-hover {
-            transition: all 0.3s ease;
+        .blink-caret {
+            animation: blink 1s step-end infinite;
+            border-right: 2px solid #6366F1;
         }
-        .card-hover:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-        }
+        @keyframes blink { 0%, 100% { border-color: transparent; } 50% { border-color: #6366F1; } }
     </style>
 </head>
-<body class="min-h-screen flex flex-col font-sans">
+<body class="app-height flex flex-col font-sans">
 
-    <!-- Header / Navigation -->
-    <header class="bg-white shadow-sm sticky top-0 z-50">
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <!-- Header -->
+    <header class="bg-white sticky top-0 z-30 border-b border-slate-100 h-12 flex-none">
+        <div class="max-w-md mx-auto px-4 h-full flex items-center justify-between">
             <div class="flex items-center gap-2 cursor-pointer" onclick="app.goHome()">
-                <!-- Icon: Calculator -->
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-brand-500"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></svg>
-                <h1 class="text-xl font-bold text-slate-800 tracking-tight">インド式計算マスターへの道</span></h1>
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="text-brand-500"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></svg>
+                <h1 class="text-sm font-bold text-slate-700 tracking-tight">インド式計算マスター</h1>
             </div>
-            <nav class="hidden md:flex gap-6 text-sm font-medium text-slate-500">
-                <button onclick="app.goHome()" class="hover:text-brand-500 transition-colors"></button>
-                <button onclick="app.startChallenge()" class="hover:text-brand-500 transition-colors flex items-center gap-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
-                    実力テスト
-                </button>
-            </nav>
+            <button onclick="app.startChallenge()" class="text-xs font-bold bg-slate-700 text-white px-3 py-1 rounded-full hover:bg-slate-600 transition-colors">
+                総合テスト
+            </button>
         </div>
     </header>
 
     <!-- Main Content Area -->
-    <main id="app-root" class="flex-grow max-w-4xl mx-auto w-full px-4 py-8 sm:px-6">
-        <!-- Views will be injected here -->
+    <main id="app-root" class="flex-grow w-full max-w-md mx-auto relative overflow-hidden flex flex-col">
+        <!-- Views injected here -->
     </main>
 
-    <!-- Application Logic -->
+    <!-- Sound Engine -->
     <script>
-        // --- Data & Logic ---
+        const Sound = {
+            ctx: null,
+            init: () => {
+                if (!Sound.ctx) Sound.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            },
+            play: (type) => {
+                Sound.init();
+                if (Sound.ctx.state === 'suspended') Sound.ctx.resume();
+                const t = Sound.ctx.currentTime;
+                const osc = Sound.ctx.createOscillator();
+                const gain = Sound.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(Sound.ctx.destination);
 
+                if (type === 'correct') {
+                    osc.type = 'sine'; 
+                    osc.frequency.setValueAtTime(660, t); 
+                    osc.frequency.setValueAtTime(880, t + 0.1); 
+                    gain.gain.setValueAtTime(0.1, t);
+                    gain.gain.linearRampToValueAtTime(0.3, t + 0.05);
+                    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+                    osc.start(t);
+                    osc.stop(t + 0.4);
+                } else if (type === 'wrong') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, t);
+                    gain.gain.setValueAtTime(0.1, t);
+                    gain.gain.linearRampToValueAtTime(0.2, t + 0.05);
+                    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+                    osc.start(t);
+                    osc.stop(t + 0.3);
+                } else if (type === 'tap') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(600, t);
+                    gain.gain.setValueAtTime(0.05, t);
+                    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
+                    osc.start(t);
+                    osc.stop(t + 0.05);
+                }
+            }
+        };
+
+        // --- Data ---
         const TECHNIQUES = [
             {
-                id: 't1',
-                title: '11〜19同士の掛け算',
-                desc: '19×19までの計算が暗算で瞬時に解ける魔法。',
-                example: '13 × 12',
-                color: 'bg-indigo-50 text-indigo-700',
-                icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>',
-                generate: () => {
-                    const a = Math.floor(Math.random() * 9) + 11;
-                    const b = Math.floor(Math.random() * 9) + 11;
-                    return { num1: a, num2: b, ans: a * b };
-                },
+                id: 't1', title: '11〜19の掛け算', subtitle: 'おみやげ算',
+                desc: '10代同士の掛け算', example: '13×12',
+                color: 'text-indigo-600 bg-indigo-50',
+                generate: () => ({ num1: Math.floor(Math.random()*9)+11, num2: Math.floor(Math.random()*9)+11, ans: 0, get calc(){return this.num1*this.num2} }),
                 explain: (n1, n2) => {
-                    const unit2 = n2 % 10;
-                    const sum = n1 + unit2;
-                    const prodUnits = (n1 % 10) * (n2 % 10);
+                    const u2 = n2 % 10, sum = n1 + u2;
                     return [
-                        { text: `まず、前の数「${n1}」と、後ろの数の1の位「${unit2}」を足します。`, math: `${n1} + ${unit2} = ${sum}` },
-                        { text: `その答えを10倍します（後ろに0をつける）。`, math: `${sum} × 10 = ${sum}0` },
-                        { text: `それぞれの1の位同士を掛け合わせます。`, math: `${n1 % 10} × ${unit2} = ${prodUnits}` },
-                        { text: `最後にそれらを足し合わせれば答えです！`, math: `${sum}0 + ${prodUnits} = ${n1 * n2}`, highlight: true }
+                        { text: `前の数「${n1}」に、後ろの1の位「${u2}」を足します。`, math: `${n1} + ${u2} = ${sum}` },
+                        { text: `その答えを10倍します。`, math: `${sum} × 10 = ${sum}0` },
+                        { text: `一の位同士を掛け合わせます。`, math: `${n1%10} × ${u2} = ${(n1%10)*u2}` },
+                        { text: `足し合わせれば答えです。`, math: `${sum}0 + ${(n1%10)*u2} = ${n1*n2}`, highlight: true }
                     ];
                 }
             },
             {
-                id: 't2',
-                title: '末尾が5の数の2乗',
-                desc: '35×35や75×75など、同じ数の掛け算を一瞬で。',
-                example: '35 × 35',
-                color: 'bg-emerald-50 text-emerald-700',
-                icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>',
-                generate: () => {
-                    const n = Math.floor(Math.random() * 9) + 1; 
-                    const num = n * 10 + 5;
-                    return { num1: num, num2: num, ans: num * num };
-                },
+                id: 't2', title: '一の位が5の数の2乗<br>（2乗：同じ数同士のかけ算）', subtitle: '一瞬の2乗',
+                desc: '同じ数の掛け算', example: '35×35',
+                color: 'text-emerald-600 bg-emerald-50',
+                generate: () => { const n = Math.floor(Math.random()*9)+1; const num = n*10+5; return { num1: num, num2: num, ans: num*num }; },
                 explain: (n1, n2) => {
-                    const tens = Math.floor(n1 / 10);
-                    const tensPlus1 = tens + 1;
-                    const head = tens * tensPlus1;
+                    const t = Math.floor(n1/10);
                     return [
-                        { text: `10の位の数字「${tens}」に注目します。`, math: `対象: ${tens}` },
-                        { text: `その数字に1を足した数を掛けます。`, math: `${tens} × (${tens}+1) = ${head}` },
-                        { text: `最後に、末尾に「25」をつけるだけです。`, math: `答え: ${head}25`, highlight: true }
+                        { text: `十の位「${t}」に注目します。`, math: `十の位: ${t}` },
+                        { text: `その数に1を足した数を掛けます。`, math: `${t} × ${t+1} = ${t*(t+1)}` },
+                        { text: `末尾に「25」をつけるだけです。`, math: `答え: ${t*(t+1)}25`, highlight: true }
                     ];
                 }
             },
             {
-                id: 't3',
-                title: '100に近い数の掛け算',
-                desc: '97×96のような大きな数も、引き算だけで解ける。',
-                example: '97 × 96',
-                color: 'bg-amber-50 text-amber-700',
-                icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>',
-                generate: () => {
-                    const a = Math.floor(Math.random() * 9) + 91; // 91-99
-                    const b = Math.floor(Math.random() * 9) + 91;
-                    return { num1: a, num2: b, ans: a * b };
-                },
+                id: 't3', title: '100に近い数同士のかけ算', subtitle: '大きな数の計算',
+                desc: '90代同士の掛け算', example: '97×96',
+                color: 'text-amber-600 bg-amber-50',
+                generate: () => { const a = Math.floor(Math.random()*9)+91; const b = Math.floor(Math.random()*9)+91; return { num1: a, num2: b, ans: a*b }; },
                 explain: (n1, n2) => {
-                    const diff1 = 100 - n1;
-                    const diff2 = 100 - n2;
-                    const upper = n1 - diff2;
-                    const lower = diff1 * diff2;
-                    const lowerStr = lower < 10 ? `0${lower}` : lower;
+                    const d1 = 100-n1, d2 = 100-n2;
                     return [
-                        { text: `100からの不足分を求めます。`, math: `${n1}→(-${diff1}), ${n2}→(-${diff2})` },
-                        { text: `斜めに引き算をします（どちらでも結果は同じ）。`, math: `${n1} - ${diff2} = ${upper}` },
-                        { text: `不足分同士を掛け算します。`, math: `${diff1} × ${diff2} = ${lowerStr}` },
-                        { text: `2つの数を並べると答えになります。`, math: `答え: ${upper}${lowerStr}`, highlight: true }
+                        { text: `100からの不足分を求めます。`, math: `-${d1}, -${d2}` },
+                        { text: `斜めに引き算をします。`, math: `${n1} - ${d2} = ${n1-d2}` },
+                        { text: `不足分同士を掛けます。`, math: `${d1} × ${d2} = ${d1*d2 < 10 ? '0'+(d1*d2) : d1*d2}` },
+                        { text: `並べれば答えです。`, math: `答え: ${n1-d2}${d1*d2 < 10 ? '0'+(d1*d2) : d1*d2}`, highlight: true }
                     ];
                 }
             },
             {
-                id: 't4',
-                title: '11の掛け算',
-                desc: 'どんな数でも11を掛けるときは足し算するだけ。',
-                example: '45 × 11',
-                color: 'bg-purple-50 text-purple-700',
-                icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>',
-                generate: () => {
-                    const a = Math.floor(Math.random() * 89) + 10; // 10-99 (avoid carrying logic complexity for basic step, keeping simple for demo, but logic supports it)
-                    // Let's ensure no carry for simplicity in explanation visualization for MVP, or handle carry simply.
-                    // For this demo, let's allow carry but explain it simply.
-                    return { num1: a, num2: 11, ans: a * 11 };
-                },
+                id: 't4', title: '11の掛け算', subtitle: 'サンドイッチ',
+                desc: 'どんな数×11', example: '42×11',
+                color: 'text-purple-600 bg-purple-50',
+                generate: () => { const a = Math.floor(Math.random()*89)+10; return { num1: a, num2: 11, ans: a*11 }; },
                 explain: (n1, n2) => {
-                    const tens = Math.floor(n1 / 10);
-                    const units = n1 % 10;
-                    const sum = tens + units;
-                    
-                    if (sum < 10) {
-                        return [
-                            { text: `数字を左右に広げます。`, math: `${tens} _ ${units}` },
-                            { text: `真ん中に、2つの数字の和を入れます。`, math: `${tens} + ${units} = ${sum}` },
-                            { text: `挟んで完了です！`, math: `答え: ${tens}${sum}${units}`, highlight: true }
-                        ];
-                    } else {
-                         return [
-                            { text: `数字を左右に広げ、和を求めます。`, math: `${tens} + ${units} = ${sum}` },
-                            { text: `和が10以上の場合は、繰り上がりを足します。`, math: `10の位: ${tens} + 1 = ${tens + 1}` },
-                            { text: `残りの1の位を真ん中に置きます。`, math: `答え: ${tens + 1}${sum % 10}${units}`, highlight: true }
-                        ];
-                    }
+                    const t = Math.floor(n1/10), u = n1%10, s = t+u;
+                    return s < 10 
+                        ? [{ text: `数字を左右に広げます。`, math: `${t} _ ${u}` }, { text: `和を真ん中に挟みます。`, math: `答え: ${t}${s}${u}`, highlight: true }]
+                        : [{ text: `和を求めます。`, math: `${t} + ${u} = ${s}` }, { text: `十の位に繰り上げます。`, math: `答え: ${t+1}${s%10}${u}`, highlight: true }];
                 }
             }
         ];
 
-        // --- State Management ---
+        // --- State ---
         const state = {
-            mode: 'home', // home, study, practice, challenge, result
+            mode: 'home',
             techId: null,
             problem: null,
             studyStep: 0,
             score: 0,
             questionCount: 0,
-            history: []
+            history: [],
+            inputBuffer: ''
         };
-
         const appRoot = document.getElementById('app-root');
 
-        // --- Application Object ---
+        // --- Logic ---
         const app = {
-            // Navigation
-            goHome: () => {
-                state.mode = 'home';
-                app.render();
-            },
-            
-            selectTechnique: (id) => {
-                state.techId = id;
-                app.openStudyMode();
-            },
-
-            // Mode Logic
-            openStudyMode: () => {
-                state.mode = 'study';
-                state.studyStep = 0;
+            goHome: () => { state.mode = 'home'; app.render(); },
+            selectTechnique: (id) => { state.techId = id; state.mode = 'menu'; app.render(); },
+            openStudy: () => {
+                state.mode = 'study'; state.studyStep = 0;
                 const tech = TECHNIQUES.find(t => t.id === state.techId);
-                // Generate a specific "nice" example for study if needed, or random
-                state.problem = tech.generate(); 
+                state.problem = { ...tech.generate() };
+                if(!state.problem.ans && state.problem.calc) state.problem.ans = state.problem.calc; 
                 app.render();
             },
-
-            nextStudyStep: () => {
-                state.studyStep++;
-                app.render();
-            },
-
+            nextStep: () => { state.studyStep++; app.render(); },
+            prevStep: () => { if(state.studyStep > 0) state.studyStep--; app.render(); },
+            
             startPractice: (techId = null) => {
                 state.mode = 'practice';
-                state.techId = techId || state.techId;
+                if(techId) state.techId = techId;
+                state.inputBuffer = '';
                 app.newProblem();
                 app.render();
             },
-
             startChallenge: () => {
-                state.mode = 'challenge';
-                state.score = 0;
-                state.questionCount = 1;
-                state.history = [];
+                state.mode = 'challenge'; state.score = 0; state.questionCount = 1; state.history = []; state.techId = null; state.inputBuffer = '';
                 app.newProblem(true);
                 app.render();
             },
-
-            newProblem: (isRandom = false) => {
-                let tech;
-                if (isRandom) {
-                    tech = TECHNIQUES[Math.floor(Math.random() * TECHNIQUES.length)];
+            newProblem: (random = false) => {
+                const tech = random ? TECHNIQUES[Math.floor(Math.random()*TECHNIQUES.length)] : TECHNIQUES.find(t => t.id === state.techId);
+                const p = tech.generate();
+                state.problem = { ...p, ans: p.ans || p.calc, technique: tech };
+            },
+            handleInput: (char) => {
+                Sound.play('tap');
+                if(char === 'C') state.inputBuffer = '';
+                else if(char === 'BS') state.inputBuffer = state.inputBuffer.slice(0, -1);
+                else if(state.inputBuffer.length < 5) state.inputBuffer += char;
+                app.updateDisplay();
+            },
+            updateDisplay: () => {
+                const el = document.getElementById('input-display');
+                if(el) {
+                    el.innerText = state.inputBuffer;
+                    el.className = state.inputBuffer ? "text-3xl font-mono font-bold text-slate-800" : "text-3xl font-mono font-bold text-slate-800 blink-caret h-8";
+                }
+            },
+            checkPractice: () => {
+                if(!state.inputBuffer) return;
+                const correct = parseInt(state.inputBuffer) === state.problem.ans;
+                if(correct) {
+                    Sound.play('correct');
+                    const fb = document.getElementById('feedback');
+                    fb.innerHTML = `<div class="text-emerald-500 font-bold text-5xl animate-pop">〇</div>`;
+                    fb.classList.remove('hidden');
+                    setTimeout(() => { state.inputBuffer = ''; app.newProblem(); app.render(); }, 800);
                 } else {
-                    tech = TECHNIQUES.find(t => t.id === state.techId);
-                }
-                
-                const prob = tech.generate();
-                state.problem = { ...prob, technique: tech };
-            },
-
-            checkAnswer: (inputVal) => {
-                const isCorrect = parseInt(inputVal) === state.problem.ans;
-                if (isCorrect) {
-                    // Logic handled in view (animation etc)
-                    if (state.mode === 'challenge') {
-                        state.score++;
-                        state.history.push({ ...state.problem, correct: true, userAns: inputVal });
-                        app.nextChallenge();
-                    } else {
-                        // Practice mode feedback
-                        document.getElementById('feedback').classList.remove('hidden');
-                        document.getElementById('ans-input').classList.add('text-accent-500', 'border-accent-500');
-                        setTimeout(() => {
-                            app.newProblem();
-                            app.render();
-                        }, 1200);
-                    }
-                } else if (state.mode === 'challenge') {
-                    // In challenge mode, wrong answer moves to next immediately (or could wait)
-                    // For this UI, let's wait a moment or just submit on Enter
+                    Sound.play('wrong');
+                    const box = document.getElementById('input-box');
+                    box.classList.remove('animate-shake');
+                    void box.offsetWidth; 
+                    box.classList.add('animate-shake', 'border-red-400', 'bg-red-50');
+                    setTimeout(() => box.classList.remove('border-red-400', 'bg-red-50'), 500);
                 }
             },
-            
             submitChallenge: () => {
-                const input = document.getElementById('ans-input');
-                const val = parseInt(input.value);
-                const isCorrect = val === state.problem.ans;
+                if(!state.inputBuffer) return;
+                const val = parseInt(state.inputBuffer);
+                const correct = val === state.problem.ans;
+                Sound.play(correct ? 'correct' : 'wrong');
+                state.history.push({ ...state.problem, correct, userAns: val });
+                if(correct) state.score++;
                 
-                state.history.push({ ...state.problem, correct: isCorrect, userAns: val });
-                if (isCorrect) state.score++;
-                
-                app.nextChallenge();
+                const fb = document.getElementById('feedback');
+                fb.innerHTML = correct ? `<div class="text-emerald-500 font-bold text-5xl animate-pop">〇</div>` : `<div class="text-red-500 font-bold text-5xl animate-pop">×</div>`;
+                fb.classList.remove('hidden');
+                setTimeout(() => { state.inputBuffer = ''; app.nextChallenge(); }, 800);
             },
-
             nextChallenge: () => {
-                if (state.questionCount >= 10) {
-                    state.mode = 'result';
-                    app.render();
-                } else {
-                    state.questionCount++;
-                    app.newProblem(true);
-                    app.render();
-                }
+                if(state.questionCount >= 10) { state.mode = 'result'; app.render(); }
+                else { state.questionCount++; app.newProblem(true); app.render(); }
             },
-
-            // --- Renders ---
             render: () => {
-                appRoot.innerHTML = '';
-                
-                switch (state.mode) {
-                    case 'home':
-                        appRoot.innerHTML = View.Home();
-                        break;
-                    case 'study':
-                        appRoot.innerHTML = View.Study();
-                        break;
-                    case 'practice':
-                        appRoot.innerHTML = View.Practice();
-                        setTimeout(() => document.getElementById('ans-input').focus(), 100);
-                        break;
-                    case 'challenge':
-                        appRoot.innerHTML = View.Challenge();
-                        setTimeout(() => document.getElementById('ans-input').focus(), 100);
-                        break;
-                    case 'result':
-                        appRoot.innerHTML = View.Result();
-                        break;
-                }
+                appRoot.innerHTML = View[state.mode] ? View[state.mode]() : View.Home();
             }
         };
 
-        // --- View Components (Template Literals) ---
+        // --- Views ---
+        const NumPad = (action) => `
+            <div class="grid grid-cols-3 gap-2 p-3 bg-slate-50 border-t border-slate-200 mt-auto flex-none">
+                ${[7,8,9,4,5,6,1,2,3].map(n => `<button class="key-btn h-12 sm:h-14" onclick="app.handleInput('${n}')">${n}</button>`).join('')}
+                <button class="key-btn h-12 sm:h-14 text-slate-400" onclick="app.handleInput('C')">C</button>
+                <button class="key-btn h-12 sm:h-14" onclick="app.handleInput('0')">0</button>
+                <button class="key-btn h-12 sm:h-14 bg-brand-500 text-white !border-brand-600 !shadow-brand-600" onclick="${action}">OK</button>
+            </div>`;
+
         const View = {
             Home: () => `
-                <div class="space-y-8 fade-in">
-                    <div class="text-center space-y-2">
-                        <h2 class="text-3xl font-bold text-slate-800">計算は、パズルだ</h2>
-                        <p class="text-slate-500">４つのテクニックを使いこなしてかけ算の暗算を極めよう</p>
+                <div class="p-4 overflow-y-auto h-full pb-20">
+                    <div class="text-center mb-4">
+                        <h2 class="text-lg font-bold text-slate-800">計算は、パズルだ</h2>
+                        <p class="text-xs text-slate-500">４つのテクニックを極めよう</p>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="grid grid-cols-2 gap-3 h-full content-start">
                         ${TECHNIQUES.map(t => `
-                            <div onclick="app.selectTechnique('${t.id}')" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 card-hover cursor-pointer flex flex-col justify-between h-full">
+                            <button onclick="app.selectTechnique('${t.id}')" class="bg-white p-3 rounded-xl shadow-soft border border-slate-100 flex flex-col justify-between h-32 active:scale-95 transition-transform text-left relative overflow-hidden group">
+                                <div class="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+                                    <span class="text-4xl font-bold ${t.color.split(' ')[0]}">${t.id.replace('t','')}</span>
+                                </div>
                                 <div>
-                                    <div class="flex items-start justify-between mb-4">
-                                        <div class="p-3 rounded-xl ${t.color.replace('text-', 'bg-').replace('50', '100')} ${t.color.split(' ')[1]}">
-                                            ${t.icon}
-                                        </div>
-                                        <span class="text-xs font-mono bg-slate-100 text-slate-500 py-1 px-2 rounded-lg">${t.example}</span>
-                                    </div>
-                                    <h3 class="text-xl font-bold text-slate-800 mb-2">${t.title}</h3>
-                                    <p class="text-slate-500 text-sm leading-relaxed">${t.desc}</p>
+                                    <div class="text-xs font-bold ${t.color.split(' ')[0]} mb-1">${t.subtitle}</div>
+                                    <h3 class="font-bold text-slate-800 text-sm leading-tight mb-1">${t.title}</h3>
                                 </div>
-                                <div class="mt-6 flex items-center text-brand-600 text-sm font-bold group">
-                                    学ぶ
-                                    <svg class="w-4 h-4 ml-1 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                                <div class="text-[10px] text-slate-400 border-t border-slate-50 pt-2 flex justify-between items-center">
+                                    <span>例: ${t.example}</span>
+                                    <svg class="w-3 h-3 text-brand-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                                 </div>
-                            </div>
+                            </button>
                         `).join('')}
                     </div>
                 </div>
             `,
-
-            Study: () => {
+            menu: () => { // TechMenu
+                const t = TECHNIQUES.find(x => x.id === state.techId);
+                return `
+                <div class="p-5 h-full flex flex-col">
+                    <button onclick="app.goHome()" class="text-xs text-slate-400 hover:text-slate-600 mb-4 flex items-center gap-1"><span class="text-lg">←</span> 一覧に戻る</button>
+                    <div class="bg-white rounded-2xl p-6 text-center shadow-soft border border-slate-50 mb-6">
+                        <h2 class="text-xl font-bold text-slate-800 mb-1">${t.title}</h2>
+                        <p class="text-xs text-slate-500 mb-4">${t.desc}</p>
+                        <div class="inline-block px-3 py-1 bg-slate-100 rounded text-xs font-mono text-slate-600">例: ${t.example}</div>
+                    </div>
+                    <div class="grid gap-3">
+                        <button onclick="app.openStudy()" class="bg-brand-50 rounded-xl p-4 flex items-center justify-between border border-brand-100 active:bg-brand-100">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-brand-500 text-white flex items-center justify-center font-bold text-sm">1</div>
+                                <div class="text-left">
+                                    <div class="font-bold text-brand-800 text-sm">解説モード</div>
+                                    <div class="text-[10px] text-brand-600">仕組みをステップごとに理解</div>
+                                </div>
+                            </div>
+                            <span class="text-brand-400">▶</span>
+                        </button>
+                        <button onclick="app.startPractice()" class="bg-emerald-50 rounded-xl p-4 flex items-center justify-between border border-emerald-100 active:bg-emerald-100">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-sm">2</div>
+                                <div class="text-left">
+                                    <div class="font-bold text-emerald-800 text-sm">練習モード</div>
+                                    <div class="text-[10px] text-emerald-600">問題を解いて定着させる</div>
+                                </div>
+                            </div>
+                            <span class="text-emerald-400">▶</span>
+                        </button>
+                    </div>
+                </div>`;
+            },
+            study: () => {
                 const tech = TECHNIQUES.find(t => t.id === state.techId);
                 const steps = tech.explain(state.problem.num1, state.problem.num2);
-                const currentStepData = steps[state.studyStep];
-                const isFinished = state.studyStep >= steps.length;
-                
+                const s = steps[state.studyStep];
+                const done = state.studyStep >= steps.length;
                 return `
-                <div class="fade-in max-w-2xl mx-auto">
-                    <!-- Navigation Breadcrumb -->
-                    <button onclick="app.goHome()" class="text-sm text-slate-400 hover:text-brand-500 mb-4 flex items-center">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-                        テクニック一覧に戻る
-                    </button>
-
-                    <div class="bg-white rounded-3xl shadow-lg border border-slate-100 overflow-hidden">
-                        <!-- Header -->
-                        <div class="bg-slate-50 p-6 border-b border-slate-100 flex justify-between items-center">
-                            <div>
-                                <h2 class="text-lg font-bold text-slate-800">${tech.title}</h2>
-                                <p class="text-sm text-slate-500">仕組みを理解しよう</p>
-                            </div>
-                            <div class="bg-brand-100 text-brand-700 px-3 py-1 rounded-full text-xs font-bold">
-                                STEP ${Math.min(state.studyStep + 1, steps.length)} / ${steps.length}
-                            </div>
+                <div class="flex flex-col h-full">
+                    <div class="p-4 flex justify-between items-center border-b border-slate-50">
+                        <button onclick="app.selectTechnique('${state.techId}')" class="text-xs text-slate-400">中断</button>
+                        <span class="text-xs font-bold text-slate-300">STEP ${Math.min(state.studyStep+1, steps.length)}/${steps.length}</span>
+                    </div>
+                    <div class="flex-grow flex flex-col items-center justify-center p-4 text-center">
+                        <div class="text-4xl font-mono font-bold text-slate-700 mb-6 tracking-wider">
+                            ${state.problem.num1} × ${state.problem.num2}
                         </div>
-
-                        <!-- Content -->
-                        <div class="p-8 text-center">
-                            <div class="mb-8 font-mono text-5xl font-bold text-slate-700 tracking-wider">
-                                ${state.problem.num1} × ${state.problem.num2}
+                        ${!done ? `
+                            <div class="bg-white w-full p-5 rounded-2xl shadow-soft border border-slate-50 animate-pop">
+                                <div class="text-xl font-mono text-brand-600 font-bold mb-3">${s.math}</div>
+                                <div class="text-sm text-slate-600 leading-relaxed">${s.text}</div>
                             </div>
-
-                            <div class="min-h-[160px] flex flex-col items-center justify-center">
-                                ${!isFinished ? `
-                                    <div class="text-4xl font-mono text-brand-600 mb-4 animate-bounce">
-                                        ${currentStepData.math}
-                                    </div>
-                                    <p class="text-lg text-slate-600 leading-relaxed max-w-md">
-                                        ${currentStepData.text}
-                                    </p>
-                                ` : `
-                                    <div class="text-center">
-                                        <div class="inline-block p-4 rounded-full bg-accent-500 text-white mb-4">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                                        </div>
-                                        <h3 class="text-2xl font-bold text-slate-800 mb-2">理解しましたね！</h3>
-                                        <p class="text-slate-500">次は実際に手を動かして練習してみましょう。</p>
-                                    </div>
-                                `}
+                        ` : `
+                            <div class="animate-pop">
+                                <div class="text-emerald-500 text-4xl mb-2">✓</div>
+                                <h3 class="font-bold text-slate-800">理解しました！</h3>
                             </div>
-                        </div>
-
-                        <!-- Footer Actions -->
-                        <div class="p-6 bg-slate-50 border-t border-slate-100 flex justify-end">
-                            ${!isFinished ? `
-                                <button onclick="app.nextStudyStep()" class="bg-brand-500 hover:bg-brand-600 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md hover:shadow-lg flex items-center">
-                                    次へ進む
-                                    <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
-                                </button>
-                            ` : `
-                                <button onclick="app.startPractice()" class="bg-accent-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md hover:shadow-lg flex items-center w-full justify-center sm:w-auto">
-                                    練習モードへ
-                                    <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                </button>
-                            `}
-                        </div>
+                        `}
+                    </div>
+                    <div class="p-4 border-t border-slate-100 bg-white grid grid-cols-2 gap-3">
+                        ${state.studyStep > 0 && !done ? `<button onclick="app.prevStep()" class="col-span-1 bg-slate-100 text-slate-600 py-3 rounded-lg text-sm font-bold">戻る</button>` : ''}
+                        ${!done 
+                            ? `<button onclick="app.nextStep()" class="${state.studyStep>0?'col-span-1':'col-span-2'} bg-brand-500 text-white py-3 rounded-lg text-sm font-bold shadow-md">次へ</button>` 
+                            : `<div class="col-span-2 grid grid-cols-2 gap-3">
+                                <button onclick="app.prevStep()" class="bg-slate-100 text-slate-600 py-3 rounded-lg text-sm font-bold">戻る</button>
+                                <button onclick="app.startPractice()" class="bg-emerald-500 text-white py-3 rounded-lg text-sm font-bold shadow-md">練習へ</button>
+                               </div>`}
                     </div>
                 </div>`;
             },
-
-            Practice: () => {
+            practice: () => {
                 const tech = TECHNIQUES.find(t => t.id === state.techId);
                 return `
-                <div class="fade-in max-w-xl mx-auto">
-                    <div class="flex items-center justify-between mb-6">
-                        <button onclick="app.openStudyMode()" class="text-sm text-slate-400 hover:text-brand-500 flex items-center">
-                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z"></path></svg>
-                            解説を見る
-                        </button>
-                        <span class="text-xs font-bold text-brand-500 bg-brand-50 px-3 py-1 rounded-full">PRACTICE</span>
+                <div class="flex flex-col h-full">
+                    <div class="p-3 flex justify-between items-center bg-white border-b border-slate-50">
+                        <button onclick="app.selectTechnique('${state.techId}')" class="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1.5 rounded-lg flex items-center gap-1">← メニュー</button>
+                        <span class="text-xs font-bold text-brand-200">PRACTICE</span>
                     </div>
-
-                    <!-- Hint Card -->
-                    <div class="bg-warn-50 border border-warn-100 p-4 rounded-xl mb-6 flex items-start gap-3">
-                        <svg class="w-6 h-6 text-warn-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
-                        <div class="text-sm text-warn-800">
-                            <strong>ヒント:</strong> ${tech.desc}
-                        </div>
-                    </div>
-
-                    <!-- Problem Card -->
-                    <div class="bg-white rounded-3xl shadow-xl p-10 text-center relative overflow-hidden">
-                        <div id="feedback" class="hidden absolute top-0 left-0 w-full h-full bg-accent-500/10 flex items-center justify-center z-10 backdrop-blur-sm transition-all">
-                            <div class="text-accent-600 font-bold text-3xl animate-bounce flex flex-col items-center">
-                                <svg class="w-16 h-16 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                正解！
-                            </div>
-                        </div>
-
-                        <div class="text-6xl font-mono font-bold text-slate-800 mb-8 tracking-widest">
+                    <div class="flex-grow flex flex-col items-center justify-center p-4 relative">
+                        <div id="feedback" class="hidden absolute inset-0 z-10 flex items-center justify-center bg-white/80"></div>
+                        <div class="text-xs text-brand-400 mb-2">${tech.subtitle}</div>
+                        <div class="text-5xl font-mono font-bold text-slate-700 mb-6 tracking-wider">
                             ${state.problem.num1} × ${state.problem.num2}
                         </div>
-                        
-                        <div class="relative max-w-xs mx-auto">
-                            <input type="number" id="ans-input" 
-                                oninput="app.checkAnswer(this.value)"
-                                class="w-full text-center text-4xl font-mono font-bold border-b-4 border-slate-200 focus:border-brand-500 outline-none py-2 bg-transparent transition-colors placeholder-slate-200 text-slate-700"
-                                placeholder="?" autofocus
-                            >
+                        <div id="input-box" class="w-40 h-14 bg-white border-2 border-slate-200 rounded-xl flex items-center justify-center shadow-inner">
+                             <div id="input-display" class="text-3xl font-mono font-bold text-slate-800 blink-caret h-8"></div>
                         </div>
-                        <p class="mt-4 text-slate-400 text-sm">答えを入力すると自動判定されます</p>
                     </div>
+                    ${NumPad('app.checkPractice()')}
                 </div>`;
             },
-
-            Challenge: () => {
-                return `
-                <div class="fade-in max-w-xl mx-auto">
-                    <div class="flex items-center justify-between mb-6">
-                         <div class="flex items-center gap-2">
-                            <span class="text-sm font-bold text-brand-600">Q.${state.questionCount}</span>
-                            <div class="w-32 h-2 bg-slate-200 rounded-full overflow-hidden">
-                                <div class="h-full bg-brand-500 transition-all duration-300" style="width: ${(state.questionCount/10)*100}%"></div>
-                            </div>
+            challenge: () => `
+                <div class="flex flex-col h-full">
+                    <div class="p-4 flex justify-between items-end border-b border-slate-50">
+                        <div class="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div class="h-full bg-slate-700 transition-all duration-300" style="width: ${(state.questionCount/10)*100}%"></div>
                         </div>
-                        <span class="text-xs font-bold text-white bg-slate-800 px-3 py-1 rounded-full">CHALLENGE</span>
+                        <span class="text-xs font-bold text-slate-400">Q.${state.questionCount}</span>
                     </div>
-
-                    <div class="bg-white rounded-3xl shadow-xl p-10 text-center relative">
-                        <div class="absolute top-4 right-4 text-xs font-bold text-slate-300 uppercase tracking-wide">
-                            ${state.problem.technique.title}
-                        </div>
-
-                        <div class="text-6xl font-mono font-bold text-slate-800 mb-8 tracking-widest">
+                    <div class="flex-grow flex flex-col items-center justify-center p-4 relative">
+                        <div id="feedback" class="hidden absolute inset-0 z-10 flex items-center justify-center bg-white/80"></div>
+                        <div class="text-[10px] text-slate-300 uppercase tracking-widest mb-2">${state.problem.technique.title}</div>
+                        <div class="text-5xl font-mono font-bold text-slate-700 mb-8 tracking-wider">
                             ${state.problem.num1} × ${state.problem.num2}
                         </div>
-                        
-                        <div class="relative max-w-xs mx-auto">
-                            <input type="number" id="ans-input" 
-                                onkeydown="if(event.key === 'Enter') app.submitChallenge()"
-                                class="w-full text-center text-4xl font-mono font-bold border-b-4 border-slate-200 focus:border-brand-500 outline-none py-2 bg-transparent transition-colors placeholder-slate-200 text-slate-700"
-                                placeholder="?" autofocus
-                            >
-                        </div>
-                        
-                        <button onclick="app.submitChallenge()" class="mt-8 w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-3 rounded-xl transition-colors shadow-md">
-                            回答する
-                        </button>
-                    </div>
-                </div>`;
-            },
-
-            Result: () => {
-                const percentage = (state.score / 10) * 100;
-                let message = "もう一歩！";
-                let color = "text-slate-600";
-                
-                if (percentage === 100) { message = "数学マスター！"; color = "text-accent-500"; }
-                else if (percentage >= 80) { message = "素晴らしい！"; color = "text-brand-500"; }
-                else if (percentage >= 50) { message = "いい調子！"; color = "text-warn-500"; }
-
-                return `
-                <div class="fade-in max-w-2xl mx-auto text-center">
-                    <div class="bg-white rounded-3xl shadow-xl p-12 mb-8">
-                        <h2 class="text-2xl font-bold text-slate-400 mb-2">RESULT</h2>
-                        <div class="text-6xl font-black ${color} mb-4">${state.score} <span class="text-3xl text-slate-300">/ 10</span></div>
-                        <p class="text-xl font-bold text-slate-700 mb-8">${message}</p>
-                        
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left max-h-64 overflow-y-auto mb-8 pr-2 custom-scrollbar">
-                            ${state.history.map((h, i) => `
-                                <div class="p-3 rounded-xl ${h.correct ? 'bg-emerald-50 border border-emerald-100' : 'bg-red-50 border border-red-100'} flex justify-between items-center text-sm">
-                                    <div>
-                                        <span class="font-bold text-slate-600 mr-2">Q${i+1}</span>
-                                        <span class="font-mono">${h.num1} × ${h.num2}</span>
-                                    </div>
-                                    <div class="font-bold font-mono">
-                                        ${h.correct 
-                                            ? '<span class="text-emerald-600">正解</span>' 
-                                            : `<span class="text-red-500 line-through mr-2">${h.userAns}</span><span class="text-emerald-600">${h.ans}</span>`}
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-
-                        <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                            <button onclick="app.startChallenge()" class="bg-brand-500 hover:bg-brand-600 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg">
-                                再挑戦する
-                            </button>
-                            <button onclick="app.goHome()" class="bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 px-8 py-3 rounded-xl font-bold transition-all">
-                                ホームに戻る
-                            </button>
+                        <div class="w-40 h-14 bg-white border-2 border-slate-200 rounded-xl flex items-center justify-center shadow-inner">
+                             <div id="input-display" class="text-3xl font-mono font-bold text-slate-800 blink-caret h-8"></div>
                         </div>
                     </div>
-                </div>`;
-            }
+                    ${NumPad('app.submitChallenge()')}
+                </div>`,
+            result: () => `
+                <div class="h-full p-6 flex flex-col justify-center text-center">
+                    <div class="bg-white rounded-3xl p-8 shadow-soft border border-slate-50 mb-6">
+                        <div class="text-xs text-slate-400 uppercase tracking-widest mb-2">RESULT</div>
+                        <div class="text-6xl font-black text-slate-700 mb-1">${state.score}<span class="text-2xl text-slate-300 font-medium">/10</span></div>
+                        <div class="text-lg font-bold text-brand-500 mb-6">${state.score===10?'完璧です！':state.score>=8?'素晴らしい！':'練習あるのみ！'}</div>
+                        <div class="h-32 overflow-y-auto bg-slate-50 rounded-lg p-2 text-left mb-4 text-xs">
+                            ${state.history.map((h,i)=>`<div class="flex justify-between py-1 border-b border-slate-100"><span class="text-slate-500">Q${i+1} ${h.num1}×${h.num2}</span><span class="${h.correct?'text-emerald-500':'text-red-400'} font-mono">${h.correct?'○':h.ans}</span></div>`).join('')}
+                        </div>
+                        <div class="grid gap-3">
+                            <button onclick="app.startChallenge()" class="bg-slate-700 text-white py-3 rounded-xl font-bold text-sm shadow-lg">再挑戦</button>
+                            <button onclick="app.goHome()" class="bg-white border border-slate-200 text-slate-600 py-3 rounded-xl font-bold text-sm">ホーム</button>
+                        </div>
+                    </div>
+                </div>`
         };
 
-        // Initialize
+        // Key support
+        window.addEventListener('keydown', (e) => {
+            if(/^[0-9]$/.test(e.key)) app.handleInput(e.key);
+            else if(e.key==='Backspace') app.handleInput('BS');
+            else if(e.key==='Enter') {
+                if(state.mode==='practice') app.checkPractice();
+                if(state.mode==='challenge') app.submitChallenge();
+            }
+        });
+        document.addEventListener('click', () => Sound.init(), { once: true });
+        
+        // Init
         app.render();
-
     </script>
 </body>
-
 </html>
