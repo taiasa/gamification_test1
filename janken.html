@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>じゃんけんの沼</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Mochiy+Pop+One&family=Zen+Dots&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --bg-color: #050505;
+            --glass-bg: rgba(10, 10, 15, 0.85);
+            --primary: #00f3ff; /* Neon Cyan */
+            --secondary: #ff0055; /* Neon Pink */
+            --accent: #ffee00; /* Neon Yellow */
+            --success: #00ff66;
+            --text-main: #ffffff;
+            --font-body: 'Mochiy Pop One', sans-serif; /* Pop & Catchy */
+            --font-head: 'Zen Dots', sans-serif; /* Digital */
+        }
+
+        * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; user-select: none; }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-body);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Background Canvas */
+        #bg-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 0; pointer-events: none;
+        }
+
+        /* Container */
+        #app {
+            width: 100%; max-width: 650px; height: 100%; max-height: 900px;
+            position: relative; z-index: 10;
+        }
+
+        /* Screens */
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            padding: 2rem;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.4s cubic-bezier(0.22, 1, 0.36, 1), transform 0.4s;
+            transform: scale(0.95);
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+        }
+        .screen.active {
+            opacity: 1; pointer-events: all; transform: scale(1);
+        }
+
+        /* Typography */
+        h1, h2 {
+            font-family: var(--font-head);
+            text-transform: uppercase;
+            text-align: center;
+            margin-bottom: 1.5rem;
+            line-height: 1.2;
+            text-shadow: 0 0 10px var(--primary);
+        }
+        h1 { font-size: 2.2rem; color: var(--primary); }
+        h2 { font-size: 1.5rem; color: var(--secondary); }
+        p { color: #ccc; margin-bottom: 1.5rem; text-align: center; font-size: 0.95rem; line-height: 1.6; }
+
+        /* Buttons */
+        .cyber-btn {
+            background: rgba(0, 243, 255, 0.1);
+            border: 2px solid var(--primary);
+            color: var(--primary);
+            padding: 1rem 3rem;
+            font-size: 1.2rem;
+            font-family: var(--font-head);
+            cursor: pointer;
+            transition: 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+            margin-top: 1rem;
+        }
+        .cyber-btn:hover {
+            background: var(--primary); color: #000;
+            box-shadow: 0 0 30px var(--primary); transform: translateY(-2px);
+        }
+        .cyber-btn:active { transform: translateY(1px); }
+        .cyber-btn:disabled {
+            border-color: #555; color: #555; background: transparent;
+            cursor: not-allowed; box-shadow: none; pointer-events: none;
+        }
+
+        .btn-skip {
+            position: absolute; top: 1rem; right: 1rem;
+            padding: 0.5rem 1rem; font-size: 0.8rem;
+            border-color: var(--accent); color: var(--accent);
+            z-index: 100;
+        }
+        .btn-skip:hover { background: var(--accent); color: #000; box-shadow: 0 0 15px var(--accent); }
+
+        /* Inputs */
+        .input-group { width: 100%; margin-bottom: 1.5rem; text-align: left; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: bold; color: var(--primary); font-size: 0.9rem; }
+        select {
+            width: 100%; padding: 12px;
+            background: rgba(0,0,0,0.6); border: 2px solid #333;
+            color: #fff; font-size: 1rem; font-family: var(--font-body);
+            border-radius: 4px; transition: 0.3s;
+        }
+        select:focus { border-color: var(--primary); }
+
+        /* Strategy Inputs */
+        .strategy-row {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 1rem; background: rgba(255,255,255,0.05);
+            padding: 10px 15px; border-radius: 8px; border-left: 5px solid #555;
+            transition: 0.3s;
+        }
+        .strategy-row:focus-within { background: rgba(255,255,255,0.1); }
+        .strategy-row.guu { border-color: var(--secondary); }
+        .strategy-row.choki { border-color: var(--accent); }
+        .strategy-row.paa { border-color: var(--primary); }
+
+        .strat-label { display: flex; align-items: center; gap: 10px; font-size: 1.2rem; width: 40%; }
+        .strat-input-wrapper { display: flex; align-items: center; gap: 5px; width: 60%; justify-content: flex-end; }
+        
+        input[type="number"] {
+            width: 70px; padding: 8px; text-align: center;
+            background: #000; border: 2px solid #444; color: #fff;
+            font-size: 1.2rem; font-family: var(--font-head); border-radius: 4px;
+        }
+        input[type="number"]:focus { border-color: #fff; }
+
+        .total-display {
+            margin: 1.5rem 0; padding: 1rem; width: 100%;
+            text-align: center; border-radius: 8px;
+            font-size: 1.1rem; border: 2px solid;
+            transition: 0.3s;
+        }
+        .total-ok { border-color: var(--success); color: var(--success); background: rgba(0, 255, 102, 0.1); }
+        .total-err { border-color: var(--secondary); color: var(--secondary); background: rgba(255, 0, 85, 0.1); animation: shake 0.4s; }
+
+        /* Battle Visuals */
+        .battle-area {
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 1.5rem;
+            width: 100%; margin: 2rem 0;
+        }
+        .player-card {
+            background: rgba(0,0,0,0.5); border: 2px solid #333;
+            width: 130px; padding: 1rem 0.5rem; text-align: center;
+            border-radius: 8px; position: relative; transition: 0.3s;
+        }
+        .player-card.winner {
+            border-color: var(--accent); background: rgba(255, 238, 0, 0.1);
+            transform: scale(1.1); box-shadow: 0 0 30px var(--accent); z-index: 10;
+        }
+        .player-card.loser { opacity: 0.4; filter: grayscale(1); transform: scale(0.95); }
+
+        .hand-icon { font-size: 3.5rem; margin: 10px 0; height: 60px; line-height: 60px; display: block; }
+        .status-msg {
+            font-size: 2.5rem; font-family: var(--font-head);
+            height: 4rem; display: flex; align-items: center; justify-content: center;
+            text-shadow: 0 0 20px currentColor; margin-top: 1rem; width: 100%;
+        }
+
+        /* Result Table */
+        .result-container {
+            width: 100%; overflow-x: auto; margin-bottom: 1.5rem;
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 400px; }
+        th { color: var(--primary); padding: 10px; border-bottom: 2px solid #333; font-family: var(--font-head); }
+        td { padding: 10px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .rank-1 { color: var(--accent); font-weight: bold; font-size: 1.1rem; text-shadow: 0 0 10px var(--accent); }
+
+        /* Animations */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        @keyframes pop {
+            0% { transform: scale(0); } 60% { transform: scale(1.2); } 100% { transform: scale(1); }
+        }
+        .pop-anim { animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+
+        /* Colors for hands */
+        .c-guu { color: var(--secondary); text-shadow: 0 0 15px var(--secondary); }
+        .c-choki { color: var(--accent); text-shadow: 0 0 15px var(--accent); }
+        .c-paa { color: var(--primary); text-shadow: 0 0 15px var(--primary); }
+
+        /* Flash Overlay */
+        #flash {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #fff; opacity: 0; pointer-events: none; z-index: 999;
+        }
+
+    </style>
+</head>
+<body>
+
+<!-- Effect Overlay -->
+<canvas id="bg-canvas"></canvas>
+<div id="flash"></div>
+
+<div id="app">
+    <!-- 1. Start Screen -->
+    <div id="screen-start" class="screen active">
+        <i class="fas fa-hand-fist" style="font-size: 3rem; color:var(--primary); margin-bottom:1rem;"></i>
+        <h1>じゃんけんの沼</h1>
+        <p>「確率」を支配する者が、運命を掴む。<br>高度な心理戦シミュレーターへようこそ。</p>
+        
+        <div class="input-group">
+            <label>参加プレイヤー数</label>
+            <select id="select-players">
+                <option value="2">2人 (決闘モード)</option>
+                <option value="3">3人 (三つ巴バトル)</option>
+                <option value="4">4人 (バトルロイヤル)</option>
+                <option value="10">10人 (カオスモード)</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <label>対戦回数</label>
+            <select id="select-rounds">
+                <option value="10">10回勝負 (サクッと)</option>
+                <option value="50">50回勝負 (ガッツリ)</option>
+                <option value="100">100回勝負 (データ重視)</option>
+            </select>
+        </div>
+        <button class="cyber-btn" onclick="game.init()">GAME START</button>
+    </div>
+
+    <!-- 2. Cushion Screen -->
+    <div id="screen-cushion" class="screen">
+        <i class="fas fa-user-secret" style="font-size: 4rem; color:var(--accent); margin-bottom:1rem;"></i>
+        <h2 id="cushion-name">PLAYER X</h2>
+        <p>端末を次のプレイヤーに渡してください。<br>準備ができたら画面をタップして作戦開始！</p>
+        <button class="cyber-btn" onclick="game.gotoInput()">作戦ルームへ</button>
+    </div>
+
+    <!-- 3. Input Screen -->
+    <div id="screen-input" class="screen">
+        <h2 id="input-name">PLAYER 1</h2>
+        <p>それぞれの手を出す「確率(%)」を入力せよ。<br>合計が必ず <span style="color:var(--primary); font-weight:bold">100%</span> になるように調整してくれ！</p>
+        
+        <div style="width:100%;">
+            <div class="strategy-row guu">
+                <div class="strat-label"><i class="fas fa-hand-rock"></i> グー</div>
+                <div class="strat-input-wrapper">
+                    <input type="number" id="in-guu" min="0" max="100" value="0"> <span>%</span>
+                </div>
+            </div>
+            <div class="strategy-row choki">
+                <div class="strat-label"><i class="fas fa-hand-scissors"></i> チョキ</div>
+                <div class="strat-input-wrapper">
+                    <input type="number" id="in-choki" min="0" max="100" value="0"> <span>%</span>
+                </div>
+            </div>
+            <div class="strategy-row paa">
+                <div class="strat-label"><i class="fas fa-hand-paper"></i> パー</div>
+                <div class="strat-input-wrapper">
+                    <input type="number" id="in-paa" min="0" max="100" value="0"> <span>%</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="total-display" class="total-display total-err">
+            合計: <span id="total-val">0</span>% <span id="total-msg">(あと 100% 必要)</span>
+        </div>
+
+        <button id="btn-confirm" class="cyber-btn" disabled onclick="game.submitStrategy()">作戦決定！</button>
+    </div>
+
+    <!-- 4. Battle Screen -->
+    <div id="screen-battle" class="screen">
+        <button class="cyber-btn btn-skip" onclick="game.skipBattle()">結果をすぐ見る <i class="fas fa-forward"></i></button>
+        
+        <h3 id="round-disp" style="color:#aaa; font-family:var(--font-head);">ROUND 1 / 10</h3>
+        
+        <div id="battle-area" class="battle-area">
+            <!-- Cards injected by JS -->
+        </div>
+
+        <div id="battle-status" class="status-msg" style="color:var(--primary)">READY</div>
+    </div>
+
+    <!-- 5. Result Screen -->
+    <div id="screen-result" class="screen">
+        <i class="fas fa-crown" style="font-size: 3rem; color:var(--accent); margin-bottom:1rem;"></i>
+        <h1>BATTLE FINISH!!</h1>
+        <p>激闘の記録を確認せよ！</p>
+        
+        <div class="result-container">
+            <table id="result-table">
+                <thead>
+                    <tr>
+                        <th>順位</th>
+                        <th>名前</th>
+                        <th>勝</th>
+                        <th>負</th>
+                        <th>分</th>
+                        <th>勝率</th>
+                    </tr>
+                </thead>
+                <tbody id="result-tbody"></tbody>
+            </table>
+        </div>
+
+        <button class="cyber-btn" onclick="location.reload()">再挑戦する</button>
+    </div>
+</div>
+
+<script>
+/**
+ * AUDIO SYSTEM (Web Audio API)
+ * Generates sound effects procedurally without external files.
+ */
+const AudioSys = {
+    ctx: null,
+    init() {
+        window.AudioContext = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AudioContext();
+    },
+    playTone(freq, type, duration, vol=0.1) {
+        if(!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+    },
+    sfxBtn() { this.playTone(800, 'square', 0.1, 0.05); },
+    sfxErr() { this.playTone(150, 'sawtooth', 0.3, 0.1); },
+    sfxCount() { this.playTone(400, 'triangle', 0.1, 0.1); },
+    sfxPon() { 
+        if(!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(200, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(800, this.ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.5);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.5);
+    },
+    sfxWin() {
+        if(!this.ctx) return;
+        [440, 554, 659, 880].forEach((f, i) => {
+            setTimeout(() => this.playTone(f, 'square', 0.6, 0.1), i * 100);
+        });
+    }
+};
+
+/**
+ * VISUAL SYSTEM (Canvas Particles)
+ */
+const VisualSys = {
+    canvas: document.getElementById('bg-canvas'),
+    ctx: null,
+    particles: [],
+    init() {
+        this.ctx = this.canvas.getContext('2d');
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        this.animate();
+    },
+    resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+    },
+    createParticles() {
+        for(let i=0; i<50; i++) {
+            this.particles.push({
+                x: Math.random() * this.canvas.width,
+                y: Math.random() * this.canvas.height,
+                size: Math.random() * 2,
+                speedY: Math.random() * 1 - 0.5,
+                speedX: Math.random() * 1 - 0.5,
+                color: Math.random() > 0.5 ? '#00f3ff' : '#ff0055'
+            });
+        }
+    },
+    animate() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        // Draw grid
+        this.ctx.strokeStyle = 'rgba(0, 243, 255, 0.05)';
+        this.ctx.lineWidth = 1;
+        const s = 50;
+        for(let x=0; x<this.canvas.width; x+=s) { this.ctx.beginPath(); this.ctx.moveTo(x,0); this.ctx.lineTo(x,this.canvas.height); this.ctx.stroke(); }
+        for(let y=0; y<this.canvas.height; y+=s) { this.ctx.beginPath(); this.ctx.moveTo(0,y); this.ctx.lineTo(this.canvas.width,y); this.ctx.stroke(); }
+
+        // Particles
+        if(this.particles.length < 50) this.createParticles();
+        this.particles.forEach((p, i) => {
+            p.x += p.speedX; p.y += p.speedY;
+            if(p.x < 0) p.x = this.canvas.width; if(p.x > this.canvas.width) p.x = 0;
+            if(p.y < 0) p.y = this.canvas.height; if(p.y > this.canvas.height) p.y = 0;
+            this.ctx.fillStyle = p.color;
+            this.ctx.beginPath();
+            this.ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+            this.ctx.fill();
+        });
+        requestAnimationFrame(() => this.animate());
+    }
+};
+
+/**
+ * GAME LOGIC
+ */
+const game = {
+    // Config
+    totalPlayers: 0,
+    totalRounds: 0,
+    players: [],
+    currentRound: 0,
+    inputIdx: 0,
+    isSkipping: false,
+    timerId: null,
+
+    // DOM Elements
+    elScreens: document.querySelectorAll('.screen'),
+    inputs: {
+        guu: document.getElementById('in-guu'),
+        choki: document.getElementById('in-choki'),
+        paa: document.getElementById('in-paa'),
+        totalBox: document.getElementById('total-display'),
+        totalVal: document.getElementById('total-val'),
+        totalMsg: document.getElementById('total-msg'),
+        btn: document.getElementById('btn-confirm')
+    },
+
+    // Initialize
+    init() {
+        AudioSys.init();
+        AudioSys.sfxBtn();
+        VisualSys.init();
+
+        this.totalPlayers = parseInt(document.getElementById('select-players').value);
+        this.totalRounds = parseInt(document.getElementById('select-rounds').value);
+        this.players = [];
+        this.inputIdx = 0;
+        this.isSkipping = false;
+
+        for(let i=0; i<this.totalPlayers; i++) {
+            this.players.push({
+                id: i,
+                name: `プレイヤー ${i+1}`,
+                weights: { guu:0, choki:0, paa:0 },
+                stats: { win:0, lose:0, draw:0 }
+            });
+        }
+
+        this.setupInputListener();
+        this.nextInputPhase();
+    },
+
+    switchScreen(id) {
+        this.elScreens.forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    },
+
+    // Input Logic
+    setupInputListener() {
+        ['guu','choki','paa'].forEach(k => {
+            this.inputs[k].addEventListener('input', () => this.validateInput());
+        });
+    },
+
+    validateInput() {
+        let g = parseInt(this.inputs.guu.value) || 0;
+        let c = parseInt(this.inputs.choki.value) || 0;
+        let p = parseInt(this.inputs.paa.value) || 0;
+
+        // Clamp negative
+        if(g<0) g=0; if(c<0) c=0; if(p<0) p=0;
+
+        const total = g + c + p;
+        this.inputs.totalVal.innerText = total;
+
+        const box = this.inputs.totalBox;
+        const msg = this.inputs.totalMsg;
+        const btn = this.inputs.btn;
+
+        if (total === 100) {
+            box.className = 'total-display total-ok';
+            msg.innerText = "(OK! 準備完了)";
+            btn.disabled = false;
+        } else {
+            box.className = 'total-display total-err';
+            const diff = 100 - total;
+            msg.innerText = diff > 0 ? `(あと ${diff}% 必要)` : `(${Math.abs(diff)}% オーバー)`;
+            btn.disabled = true;
+        }
+    },
+
+    nextInputPhase() {
+        if(this.inputIdx >= this.totalPlayers) {
+            this.startBattle();
+            return;
+        }
+        // Cushion Screen
+        document.getElementById('cushion-name').innerText = this.players[this.inputIdx].name;
+        this.switchScreen('screen-cushion');
+    },
+
+    gotoInput() {
+        AudioSys.sfxBtn();
+        const p = this.players[this.inputIdx];
+        document.getElementById('input-name').innerText = p.name;
+        
+        // Reset Inputs
+        this.inputs.guu.value = '';
+        this.inputs.choki.value = '';
+        this.inputs.paa.value = '';
+        this.validateInput(); // reset validation UI
+
+        this.switchScreen('screen-input');
+    },
+
+    submitStrategy() {
+        AudioSys.sfxBtn();
+        const p = this.players[this.inputIdx];
+        p.weights.guu = parseInt(this.inputs.guu.value);
+        p.weights.choki = parseInt(this.inputs.choki.value);
+        p.weights.paa = parseInt(this.inputs.paa.value);
+        
+        this.inputIdx++;
+        this.nextInputPhase();
+    },
+
+    // Battle Logic
+    startBattle() {
+        this.switchScreen('screen-battle');
+        this.currentRound = 0;
+        
+        // Generate Cards
+        const area = document.getElementById('battle-area');
+        area.innerHTML = '';
+        this.players.forEach(p => {
+            const div = document.createElement('div');
+            div.className = 'player-card';
+            div.id = `card-${p.id}`;
+            div.innerHTML = `
+                <div style="font-weight:bold; color:var(--primary); font-size:0.9rem;">${p.name}</div>
+                <div class="hand-icon" id="hand-${p.id}"><i class="fas fa-question" style="opacity:0.3"></i></div>
+                <div id="res-${p.id}" style="font-size:0.8rem; height:1rem;"></div>
+            `;
+            area.appendChild(div);
+        });
+
+        setTimeout(() => this.playRound(), 1000);
+    },
+
+    async playRound() {
+        if(this.isSkipping) return;
+
+        if (this.currentRound >= this.totalRounds) {
+            this.showResult();
+            return;
+        }
+
+        this.currentRound++;
+        document.getElementById('round-disp').innerText = `ROUND ${this.currentRound} / ${this.totalRounds}`;
+        const status = document.getElementById('battle-status');
+        
+        // Reset UI
+        this.players.forEach(p => {
+            const c = document.getElementById(`card-${p.id}`);
+            c.className = 'player-card';
+            document.getElementById(`hand-${p.id}`).innerHTML = '<i class="fas fa-question" style="opacity:0.3"></i>';
+            document.getElementById(`res-${p.id}`).innerText = '';
+        });
+
+        // Anim: Jan-Ken
+        status.style.color = '#fff';
+        status.innerText = "じゃん...";
+        AudioSys.sfxCount();
+        await this.wait(600); if(this.isSkipping) return;
+        
+        status.innerText = "けん...";
+        AudioSys.sfxCount();
+        await this.wait(600); if(this.isSkipping) return;
+
+        // Decide Hands
+        const moves = this.players.map(p => ({ id: p.id, hand: this.getRandomHand(p.weights) }));
+
+        // Anim: Pon
+        this.flash();
+        AudioSys.sfxPon();
+        status.style.color = 'var(--accent)';
+        status.innerText = "ぽん！！";
+        
+        moves.forEach(m => {
+            const icon = this.getHandIcon(m.hand);
+            const el = document.getElementById(`hand-${m.id}`);
+            el.innerHTML = icon;
+            el.classList.add('pop-anim');
+            setTimeout(()=> el.classList.remove('pop-anim'), 500);
+        });
+
+        // Judge
+        this.processJudge(moves);
+
+        await this.wait(800);
+        if(!this.isSkipping) {
+            this.timerId = setTimeout(() => this.playRound(), 1500);
+        }
+    },
+
+    skipBattle() {
+        if(this.isSkipping) return;
+        this.isSkipping = true;
+        AudioSys.sfxBtn();
+        
+        // Clear pending timers
+        if(this.timerId) clearTimeout(this.timerId);
+
+        // Calculate remaining rounds instantly
+        while (this.currentRound < this.totalRounds) {
+            this.currentRound++;
+            const moves = this.players.map(p => ({ id: p.id, hand: this.getRandomHand(p.weights) }));
+            this.processJudge(moves, true); // true = silent mode
+        }
+
+        this.showResult();
+    },
+
+    // Logic Utilities
+    getRandomHand(w) {
+        const r = Math.random() * 100;
+        if(r < w.guu) return 'guu';
+        if(r < w.guu + w.choki) return 'choki';
+        return 'paa';
+    },
+
+    getHandIcon(h) {
+        if(h==='guu') return '<i class="fas fa-hand-rock c-guu"></i>';
+        if(h==='choki') return '<i class="fas fa-hand-scissors c-choki"></i>';
+        return '<i class="fas fa-hand-paper c-paa"></i>';
+    },
+
+    processJudge(moves, silent = false) {
+        const hands = [...new Set(moves.map(m => m.hand))];
+        let winners = [];
+        let statusText = "";
+
+        if(hands.length === 1 || hands.length === 3) {
+            // Draw
+            this.players.forEach(p => p.stats.draw++);
+            statusText = "あいこ！";
+            if(!silent) document.getElementById('battle-status').style.color = '#ccc';
+        } else {
+            // Decision
+            let winHand = '';
+            if(hands.includes('guu') && hands.includes('choki')) winHand = 'guu';
+            else if(hands.includes('choki') && hands.includes('paa')) winHand = 'choki';
+            else if(hands.includes('paa') && hands.includes('guu')) winHand = 'paa';
+
+            winners = moves.filter(m => m.hand === winHand).map(m => m.id);
+            
+            this.players.forEach(p => {
+                if(winners.includes(p.id)) {
+                    p.stats.win++;
+                    if(!silent) {
+                        document.getElementById(`card-${p.id}`).classList.add('winner');
+                        document.getElementById(`res-${p.id}`).innerText = 'WIN';
+                        document.getElementById(`res-${p.id}`).style.color = 'var(--accent)';
+                    }
+                } else {
+                    p.stats.lose++;
+                    if(!silent) {
+                        document.getElementById(`card-${p.id}`).classList.add('loser');
+                        document.getElementById(`res-${p.id}`).innerText = 'LOSE';
+                    }
+                }
+            });
+
+            const winNames = this.players.filter(p => winners.includes(p.id)).map(p => p.name).join(',');
+            statusText = `${winNames} の勝ち！`;
+        }
+
+        if(!silent) document.getElementById('battle-status').innerText = statusText;
+    },
+
+    showResult() {
+        this.switchScreen('screen-result');
+        AudioSys.sfxWin();
+        const tbody = document.getElementById('result-tbody');
+        tbody.innerHTML = '';
+
+        // Sort by win count
+        const sorted = [...this.players].sort((a,b) => b.stats.win - a.stats.win);
+        const total = this.totalRounds;
+
+        sorted.forEach((p, idx) => {
+            const winR = ((p.stats.win/total)*100).toFixed(1);
+            const loseR = ((p.stats.lose/total)*100).toFixed(1);
+            const drawR = ((p.stats.draw/total)*100).toFixed(1);
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="${idx===0 ? 'rank-1' : ''}">${idx===0 ? '<i class="fas fa-crown"></i> 1位' : (idx+1)+'位'}</td>
+                <td style="font-weight:bold">${p.name}</td>
+                <td style="color:var(--accent)">${p.stats.win}</td>
+                <td style="color:var(--secondary)">${p.stats.lose}</td>
+                <td style="color:#aaa">${p.stats.draw}</td>
+                <td>${winR}%</td>
+            `;
+            // Detailed stats in tooltip logic could go here, but simple row is better for mobile
+            const detailRow = document.createElement('tr');
+            detailRow.innerHTML = `
+                <td colspan="6" style="text-align:right; font-size:0.75rem; color:#888; border-bottom:1px solid #444; padding-top:0;">
+                    (勝${winR}% / 負${loseR}% / 分${drawR}%)
+                </td>
+            `;
+            tbody.appendChild(tr);
+            tbody.appendChild(detailRow);
+        });
+    },
+
+    // Helper
+    wait(ms) { return new Promise(r => setTimeout(r, ms)); },
+    flash() {
+        const f = document.getElementById('flash');
+        f.style.transition = 'none'; f.style.opacity = 0.6;
+        setTimeout(() => { f.style.transition = 'opacity 0.4s'; f.style.opacity = 0; }, 50);
+        if(navigator.vibrate) navigator.vibrate(50);
+    }
+};
+</script>
+</body>
+</html>
