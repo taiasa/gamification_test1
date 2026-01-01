@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bingo Party Pop! Ver.2.0</title>
+    <style>
+        /* --- Base & Fonts --- */
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=M+PLUS+Rounded+1c:wght@800&display=swap');
+
+        :root {
+            --primary: #FF4081;
+            --secondary: #00E5FF;
+            --accent: #FFD740;
+            --reach-color: #FF9100;
+            --dark: #212121;
+            --light: #FFFFFF;
+            --bg-gradient: linear-gradient(135deg, #FF9A9E 0%, #FECFEF 99%, #FECFEF 100%); 
+            --bg-host: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --bg-rec: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            background: var(--bg-host);
+            color: var(--dark);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background 0.5s;
+        }
+
+        /* --- Container --- */
+        #app-container {
+            width: 100%;
+            max-width: 550px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 25px;
+            padding: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            min-height: 700px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- Screens --- */
+        .screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            animation: fadeIn 0.4s ease;
+            width: 100%;
+        }
+        .screen.active { display: flex; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- Typography --- */
+        h1 {
+            font-family: 'Fredoka One', cursive;
+            color: var(--primary);
+            font-size: 2.8rem;
+            margin: 10px 0;
+            text-shadow: 3px 3px 0px var(--accent);
+            line-height: 1.2;
+        }
+        h2 { font-size: 1.4rem; color: #333; margin: 10px 0; }
+        p { margin: 5px 0; font-weight: bold; }
+
+        /* --- Inputs & Forms --- */
+        input[type="number"], input[type="text"] {
+            font-size: 1.2rem;
+            padding: 10px;
+            border: 3px solid #ccc;
+            border-radius: 10px;
+            margin: 5px;
+            font-weight: bold;
+            outline: none;
+            width: 80px;
+            text-align: center;
+        }
+        input[type="text"] { width: 200px; text-align: left; }
+        input:focus { border-color: var(--secondary); }
+
+        .rec-input-group {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        /* --- Buttons --- */
+        .btn {
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            font-size: 1.1rem;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            margin: 8px;
+            transition: transform 0.1s, box-shadow 0.1s;
+            font-weight: 800;
+            box-shadow: 0 5px 0 rgba(0,0,0,0.2);
+            color: white;
+            display: inline-block;
+        }
+        .btn:active { transform: translateY(4px); box-shadow: 0 1px 0 rgba(0,0,0,0.2); }
+        .btn:disabled { background: #ccc; cursor: not-allowed; box-shadow: none; transform: none; }
+
+        .btn-host { background-color: var(--primary); width: 80%; }
+        .btn-rec { background-color: #FF9100; width: 80%; }
+        .btn-player { background-color: var(--secondary); color: var(--dark); width: 80%; }
+        .btn-action { background-color: var(--accent); color: var(--dark); font-size: 1.4rem; width: 45%; }
+        .btn-speed { background-color: var(--secondary); color: var(--dark); font-size: 1.2rem; width: 45%; }
+        .btn-danger { background-color: #FF5252; width: auto; font-size: 0.9rem; padding: 8px 15px;}
+        .btn-outline { background: transparent; border: 2px solid #999; color: #666; box-shadow: none; }
+
+        /* --- Host Machine --- */
+        .bingo-machine {
+            width: 180px;
+            height: 180px;
+            background: #222;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 10px auto;
+            border: 10px solid var(--accent);
+            box-shadow: inset 0 0 20px #000;
+        }
+        .current-number {
+            font-family: 'Fredoka One', cursive;
+            font-size: 5.5rem;
+            color: var(--secondary);
+            text-shadow: 0 0 15px var(--secondary);
+        }
+
+        /* --- Player Card --- */
+        .bingo-card {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+            width: 100%;
+            max-width: 380px;
+            margin: 10px auto;
+            background: #333;
+            padding: 8px;
+            border-radius: 15px;
+        }
+        .cell {
+            aspect-ratio: 1;
+            background: white;
+            border-radius: 6px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.3rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .cell.free { background: var(--accent); color: var(--primary); font-size: 2rem; }
+        .cell.hit { background: var(--primary); color: white; animation: rubberBand 0.5s; box-shadow: inset 0 0 5px rgba(0,0,0,0.3); }
+        .cell.hit::after {
+            content: '●'; position: absolute; font-size: 3rem; color: rgba(255,255,255,0.4);
+            top: 50%; left: 50%; transform: translate(-50%, -50%);
+        }
+
+        /* --- Overlays & Animations --- */
+        .overlay-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 100;
+            display: flex; justify-content: center; align-items: center;
+        }
+        
+        .big-text {
+            font-family: 'Fredoka One', cursive;
+            font-size: 5rem;
+            color: var(--accent);
+            text-shadow: 4px 4px 0 #000;
+            transform: scale(0); opacity: 0;
+            transition: 0.3s;
+        }
+        .big-text.show { transform: scale(1) rotate(-5deg); opacity: 1; animation: pulse 0.5s infinite alternate; }
+
+        .reach-text {
+            color: var(--reach-color);
+            text-shadow: 3px 3px 0 #fff, 0 0 20px var(--reach-color);
+        }
+
+        /* Task Modal (Rec Mode) */
+        #task-modal, #result-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 200;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            animation: fadeIn 0.3s;
+        }
+        #task-modal.active, #result-modal.active { display: flex; }
+        
+        .modal-content {
+            background: white; color: #333; padding: 25px;
+            border-radius: 20px; text-align: center; width: 90%; max-width: 450px;
+            border: 5px solid var(--accent);
+            box-shadow: 0 0 30px var(--accent);
+        }
+        .task-number { font-size: 2rem; color: var(--primary); font-weight: bold; }
+        .task-desc { font-size: 2.5rem; font-weight: 800; margin: 20px 0; line-height: 1.2; word-break: break-all;}
+
+        /* Result List */
+        .result-list {
+            display: flex; flex-wrap: wrap; gap: 5px; justify-content: center;
+            max-height: 200px; overflow-y: auto; margin: 15px 0;
+            padding: 10px; background: #f5f5f5; border-radius: 10px;
+        }
+        .result-badge {
+            background: var(--dark); color: white; padding: 5px 10px;
+            border-radius: 20px; font-weight: bold; font-size: 0.9rem;
+        }
+
+        /* Animations */
+        @keyframes rubberBand {
+            0% { transform: scale(1); } 30% { transform: scale(1.25, 0.75); }
+            40% { transform: scale(0.75, 1.25); } 50% { transform: scale(1.15, 0.85); }
+            100% { transform: scale(1); }
+        }
+        @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.1); } }
+
+        /* History */
+        .history-area {
+            width: 100%; background: #eee; padding: 10px; border-radius: 10px; margin-top: 10px;
+        }
+        .history-balls { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; max-height: 80px; overflow-y: auto; }
+        .ball { width: 28px; height: 28px; background: #444; color: #fff; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    
+    <!-- 1. START SCREEN -->
+    <div id="start-screen" class="screen active">
+        <h1>Bingo<br>Party Pop!</h1>
+        <div style="margin: 20px 0;">
+            <p>なんばんまで つかう？</p>
+            <input type="number" id="max-number-input" value="75" min="25" max="99">
+        </div>
+        
+        <div style="display:flex; flex-direction:column; width:100%; align-items:center; gap:10px;">
+            <button class="btn btn-host" onclick="setupHost('classic')">👑 いつものビンゴ（主催）</button>
+            <button class="btn btn-rec" onclick="setupHost('rec')">🎪 レクビンゴ（主催）</button>
+            <button class="btn btn-player" onclick="startGame('player')">🎮 参加者モード</button>
+        </div>
+    </div>
+
+    <!-- 2. REC SETUP SCREEN -->
+    <div id="rec-setup-screen" class="screen">
+        <h2>🎪 レクお題設定</h2>
+        <p style="font-size:0.9rem;">数字とお題を入力してね</p>
+        <div id="rec-inputs-container" style="max-height: 300px; overflow-y: auto; width:100%;">
+            <!-- Dynamic Inputs -->
+        </div>
+        <button class="btn btn-outline" onclick="addRecInput()">＋ お題を追加</button>
+        <br>
+        <button class="btn btn-rec" onclick="startGame('host', 'rec')">これでスタート！</button>
+        <button class="btn btn-outline" onclick="goBackToStart()">戻る</button>
+    </div>
+
+    <!-- 3. HOST SCREEN -->
+    <div id="host-screen" class="screen">
+        <h2 id="host-mode-title">ビンゴマシン</h2>
+        <div class="bingo-machine">
+            <div class="current-number" id="machine-display">?</div>
+        </div>
+        
+        <div style="display:flex; justify-content:center; gap:10px; width:100%;">
+            <button class="btn btn-action" id="draw-btn" onclick="drawNumber(false)">引く！</button>
+            <button class="btn btn-speed" id="draw-fast-btn" onclick="drawNumber(true)">すぐ引く</button>
+        </div>
+
+        <div class="history-area">
+            <p style="font-size:0.8rem; margin:0;">出た数字リスト (<span id="drawn-count">0</span>)</p>
+            <div class="history-balls" id="host-history"></div>
+        </div>
+
+        <button class="btn btn-danger" style="margin-top:20px;" onclick="goBackToStart()">タイトルに戻る</button>
+    </div>
+
+    <!-- 4. PLAYER SCREEN -->
+    <div id="player-screen" class="screen">
+        <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+            <button class="btn btn-danger" onclick="goBackToStart()">終了</button>
+            <h2>あなたのカード</h2>
+            <div style="width:50px;"></div>
+        </div>
+
+        <div class="bingo-card" id="bingo-card"></div>
+
+        <button class="btn btn-player" style="margin-top:20px;" onclick="showResults()">結果を見る</button>
+    </div>
+
+    <!-- OVERLAYS -->
+    <div class="overlay-layer">
+        <div id="msg-overlay" class="big-text">BINGO!</div>
+    </div>
+
+    <!-- TASK MODAL (REC) -->
+    <div id="task-modal">
+        <div class="modal-content">
+            <div class="task-number" id="modal-task-num">No.7</div>
+            <div style="font-size:1rem; color:#666;">お題発動！</div>
+            <div class="task-desc" id="modal-task-desc">変顔をする</div>
+            <button class="btn btn-host" onclick="closeTaskModal()">閉じる</button>
+        </div>
+    </div>
+
+    <!-- RESULT MODAL -->
+    <div id="result-modal">
+        <div class="modal-content">
+            <h2>📊 結果発表</h2>
+            <p>今のビンゴ数</p>
+            <div style="font-size:4rem; color:var(--primary); font-family:'Fredoka One';" id="res-bingo-count">0</div>
+            
+            <p style="text-align:left; font-size:0.9rem; margin-left:10px;">選んだ数字（小さい順）</p>
+            <div class="result-list" id="res-selected-list"></div>
+
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <button class="btn btn-outline" onclick="closeResults()">カードに戻って修正</button>
+                <button class="btn btn-danger" onclick="goBackToStart()">ゲームを終わる</button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    /* ----------------------------------------------------------------
+       SOUND MANAGER (Web Audio API) - No External Files Required
+    ---------------------------------------------------------------- */
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    const Sound = {
+        playTone: (freq, type, duration, vol=0.5) => {
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        },
+        playNoise: (duration) => {
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            const bufferSize = audioCtx.sampleRate * duration;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime); // Low volume
+            noise.connect(gain);
+            gain.connect(audioCtx.destination);
+            noise.start();
+            return { node: noise, gain: gain }; // Return to stop if needed
+        },
+        
+        // Effects
+        playClick: () => Sound.playTone(600, 'sine', 0.1, 0.2),
+        
+        playDrum: () => {
+            // Loop noise for drum roll
+            const noiseObj = Sound.playNoise(20); // Long buffer
+            noiseObj.gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            return noiseObj;
+        },
+        
+        playBang: () => {
+            // Low boom + High crack
+            Sound.playTone(100, 'square', 0.5, 0.5);
+            Sound.playTone(50, 'sawtooth', 0.8, 0.6);
+            // Noise burst
+            const n = Sound.playNoise(0.3);
+            n.gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            n.gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        },
+
+        playFanfare: () => {
+            // Major Chord Arpeggio C-E-G-C
+            const now = audioCtx.currentTime;
+            [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.3, now + i*0.1);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 1.5);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now + i*0.1);
+                osc.stop(now + 2);
+            });
+        },
+
+        playReach: () => {
+            // Tension sound (High pitch pulsing)
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(1200, audioCtx.currentTime + 0.5);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+    };
+
+
+    /* ----------------------------------------------------------------
+       GAME LOGIC
+    ---------------------------------------------------------------- */
+    
+    // Config
+    let maxNumber = 75;
+    let mode = ''; // 'host' or 'player'
+    let hostSubType = 'classic'; // 'classic' or 'rec'
+    let recTasks = {}; // Map number -> string
+
+    // Host State
+    let availableNumbers = [];
+    let drawnNumbers = [];
+    let isRolling = false;
+
+    // Player State
+    let cardNumbers = [];
+    let markedIndices = [];
+    let currentBingoCount = 0;
+    let currentReachCount = 0;
+
+    // --- Navigation & Setup ---
+
+    function goBackToStart() {
+        if(confirm("タイトルに戻りますか？現在のゲーム内容はすべて消えます。")) {
+            // Stop any audio
+            location.reload();
+        }
+    }
+
+    function setupHost(subType) {
+        Sound.playClick();
+        hostSubType = subType;
+        const input = document.getElementById('max-number-input');
+        maxNumber = parseInt(input.value) || 75;
+        if(maxNumber < 25) maxNumber = 25;
+        if(maxNumber > 99) maxNumber = 99;
+
+        document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+
+        if (subType === 'rec') {
+            document.body.style.background = 'var(--bg-rec)';
+            initRecSetup();
+            document.getElementById('rec-setup-screen').classList.add('active');
+        } else {
+            startGame('host', 'classic');
+        }
+    }
+
+    function initRecSetup() {
+        const container = document.getElementById('rec-inputs-container');
+        container.innerHTML = '';
+        // Add 3 default inputs
+        for(let i=0; i<3; i++) addRecInput();
+    }
+
+    function addRecInput() {
+        const container = document.getElementById('rec-inputs-container');
+        const div = document.createElement('div');
+        div.className = 'rec-input-group';
+        div.innerHTML = `
+            <input type="number" placeholder="#" min="1" max="${maxNumber}">
+            <input type="text" placeholder="お題（例：変顔をする）">
+        `;
+        container.appendChild(div);
+    }
+
+    function startGame(selectedMode, subType = 'classic') {
+        Sound.playClick();
+        mode = selectedMode;
+        hostSubType = subType;
+
+        if (mode === 'player') {
+            const input = document.getElementById('max-number-input');
+            maxNumber = parseInt(input.value) || 75;
+        } else if (mode === 'host' && subType === 'rec') {
+            // Collect Rec Tasks
+            recTasks = {};
+            const groups = document.querySelectorAll('.rec-input-group');
+            let hasInput = false;
+            groups.forEach(g => {
+                const num = g.querySelector('input[type="number"]').value;
+                const txt = g.querySelector('input[type="text"]').value;
+                if(num && txt) {
+                    recTasks[parseInt(num)] = txt;
+                    hasInput = true;
+                }
+            });
+            if(!hasInput && !confirm("お題が入力されていませんが、そのまま始めますか？")) return;
+        }
+
+        document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+
+        if (mode === 'host') {
+            initHost();
+            document.getElementById('host-screen').classList.add('active');
+            document.getElementById('host-mode-title').innerText = 
+                subType === 'rec' ? '🎪 レクビンゴマシン' : '👑 ビンゴマシン';
+            document.body.style.background = subType === 'rec' ? 'var(--bg-rec)' : 'var(--bg-host)';
+        } else {
+            initPlayer();
+            document.getElementById('player-screen').classList.add('active');
+            document.body.style.background = 'var(--bg-gradient)';
+        }
+    }
+
+    // --- HOST LOGIC ---
+
+    function initHost() {
+        availableNumbers = [];
+        drawnNumbers = [];
+        for (let i = 1; i <= maxNumber; i++) availableNumbers.push(i);
+        document.getElementById('host-history').innerHTML = '';
+        document.getElementById('machine-display').innerText = '?';
+        document.getElementById('drawn-count').innerText = '0';
+        isRolling = false;
+        toggleButtons(false);
+    }
+
+    function toggleButtons(disabled) {
+        document.getElementById('draw-btn').disabled = disabled;
+        document.getElementById('draw-fast-btn').disabled = disabled;
+    }
+
+    function drawNumber(isInstant) {
+        if (isRolling) return;
+        if (availableNumbers.length === 0) {
+            alert("すべての数字が出ました！");
+            return;
+        }
+
+        isRolling = true;
+        toggleButtons(true);
+        const display = document.getElementById('machine-display');
+        
+        let drumSound = null;
+
+        if (isInstant) {
+            // Immediate result
+            finalizeDraw();
+        } else {
+            // Animation
+            drumSound = Sound.playDrum();
+            let counter = 0;
+            const timer = setInterval(() => {
+                display.innerText = Math.floor(Math.random() * maxNumber) + 1;
+                counter++;
+                if (counter > 25) {
+                    clearInterval(timer);
+                    if(drumSound) { drumSound.node.stop(); drumSound.node.disconnect(); }
+                    finalizeDraw();
+                }
+            }, 60);
+        }
+    }
+
+    function finalizeDraw() {
+        const randIdx = Math.floor(Math.random() * availableNumbers.length);
+        const drawn = availableNumbers[randIdx];
+        availableNumbers.splice(randIdx, 1);
+        drawnNumbers.push(drawn);
+
+        const display = document.getElementById('machine-display');
+        display.innerText = drawn;
+        display.style.transform = "scale(1.5)";
+        setTimeout(() => display.style.transform = "scale(1)", 200);
+
+        Sound.playBang();
+
+        // History
+        const hist = document.getElementById('host-history');
+        const ball = document.createElement('div');
+        ball.className = 'ball';
+        ball.innerText = drawn;
+        if (hostSubType === 'rec' && recTasks[drawn]) {
+            ball.style.background = '#FF9100'; // Highlight special balls
+        }
+        if (hist.firstChild) hist.insertBefore(ball, hist.firstChild);
+        else hist.appendChild(ball);
+
+        document.getElementById('drawn-count').innerText = drawnNumbers.length;
+
+        // Check Rec Task
+        if (hostSubType === 'rec' && recTasks[drawn]) {
+            setTimeout(() => {
+                openTaskModal(drawn, recTasks[drawn]);
+            }, 800);
+        } else {
+            isRolling = false;
+            toggleButtons(false);
+        }
+    }
+
+    function openTaskModal(num, text) {
+        Sound.playFanfare(); // Use fanfare for event
+        document.getElementById('modal-task-num').innerText = `No.${num}`;
+        document.getElementById('modal-task-desc').innerText = text;
+        document.getElementById('task-modal').classList.add('active');
+    }
+
+    function closeTaskModal() {
+        document.getElementById('task-modal').classList.remove('active');
+        isRolling = false;
+        toggleButtons(false);
+    }
+
+
+    // --- PLAYER LOGIC ---
+
+    function initPlayer() {
+        const pool = [];
+        for (let i = 1; i <= maxNumber; i++) pool.push(i);
+        
+        cardNumbers = [];
+        for (let i = 0; i < 25; i++) {
+            if (i === 12) {
+                cardNumbers.push("★");
+                continue;
+            }
+            const r = Math.floor(Math.random() * pool.length);
+            cardNumbers.push(pool[r]);
+            pool.splice(r, 1);
+        }
+        markedIndices = [12];
+        currentBingoCount = 0;
+        currentReachCount = 0;
+        renderCard();
+    }
+
+    function renderCard() {
+        const grid = document.getElementById('bingo-card');
+        grid.innerHTML = '';
+        cardNumbers.forEach((num, idx) => {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            if (idx === 12) cell.classList.add('free', 'hit');
+            else if (markedIndices.includes(idx)) cell.classList.add('hit');
+            
+            cell.innerText = num;
+            cell.onclick = () => toggleCell(idx, cell);
+            grid.appendChild(cell);
+        });
+    }
+
+    function toggleCell(idx, el) {
+        if (idx === 12) return;
+        Sound.playClick();
+        
+        const pos = markedIndices.indexOf(idx);
+        if (pos === -1) {
+            markedIndices.push(idx);
+            el.classList.add('hit');
+        } else {
+            markedIndices.splice(pos, 1);
+            el.classList.remove('hit');
+        }
+        checkGameState();
+    }
+
+    function checkGameState() {
+        const size = 5;
+        const lines = [];
+
+        // Generate lines (indices)
+        // Rows
+        for (let r=0; r<size; r++) lines.push([0,1,2,3,4].map(c => r*size + c));
+        // Cols
+        for (let c=0; c<size; c++) lines.push([0,1,2,3,4].map(r => r*size + c));
+        // Diagonals
+        lines.push([0,6,12,18,24]);
+        lines.push([4,8,12,16,20]);
+
+        let bingos = 0;
+        let reaches = 0;
+
+        lines.forEach(line => {
+            const hits = line.filter(idx => markedIndices.includes(idx)).length;
+            if (hits === 5) bingos++;
+            if (hits === 4) reaches++;
+        });
+
+        // Detect Reach (New)
+        if (reaches > currentReachCount && bingos === currentBingoCount) {
+            showOverlay('リーチ！', 'reach-text');
+            Sound.playReach();
+        }
+
+        // Detect Bingo
+        if (bingos > currentBingoCount) {
+            showOverlay(bingos + ' BINGO!', 'bingo-text');
+            Sound.playFanfare();
+            createConfetti();
+        }
+
+        currentBingoCount = bingos;
+        currentReachCount = reaches;
+    }
+
+    function showOverlay(text, extraClass) {
+        const overlay = document.getElementById('msg-overlay');
+        overlay.className = 'big-text ' + (extraClass || '');
+        overlay.innerText = text;
+        overlay.classList.add('show');
+        setTimeout(() => overlay.classList.remove('show'), 2500);
+    }
+
+    // --- RESULTS ---
+
+    function showResults() {
+        document.getElementById('res-bingo-count').innerText = currentBingoCount;
+        
+        // Selected List Logic
+        const list = document.getElementById('res-selected-list');
+        list.innerHTML = '';
+        
+        // Get marked numbers (exclude Free Space star)
+        const hitNums = markedIndices
+            .map(idx => cardNumbers[idx])
+            .filter(n => typeof n === 'number')
+            .sort((a,b) => a - b);
+        
+        hitNums.forEach(n => {
+            const badge = document.createElement('div');
+            badge.className = 'result-badge';
+            badge.innerText = n;
+            list.appendChild(badge);
+        });
+
+        document.getElementById('result-modal').classList.add('active');
+    }
+
+    function closeResults() {
+        document.getElementById('result-modal').classList.remove('active');
+    }
+
+    // --- UTILS (Confetti) ---
+    function createConfetti() {
+        for(let i=0; i<40; i++) {
+            const p = document.createElement('div');
+            p.style.position = 'fixed';
+            p.style.left = Math.random()*100 + 'vw';
+            p.style.top = '-10px';
+            p.style.width = '10px'; height = '10px';
+            p.style.background = `hsl(${Math.random()*360}, 100%, 50%)`;
+            p.style.zIndex = '9999';
+            p.style.transition = 'top 1.5s ease-in, transform 1.5s linear';
+            document.body.appendChild(p);
+            setTimeout(() => {
+                p.style.top = '110vh';
+                p.style.transform = `rotate(${Math.random()*720}deg)`;
+            }, 50);
+            setTimeout(() => p.remove(), 1600);
+        }
+    }
+
+</script>
+</body>
+</html>
