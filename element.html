@@ -1,0 +1,1650 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ELEMENT QUEST | ULTIMATE</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Noto Sans JP"', 'sans-serif'],
+                        mono: ['"Orbitron"', 'monospace'],
+                        tech: ['"Share Tech Mono"', 'monospace'],
+                    },
+                    colors: {
+                        neon: {
+                            blue: '#00f3ff',
+                            purple: '#bc13fe',
+                            green: '#0aff0a',
+                            red: '#ff003c',
+                            yellow: '#fcee0a',
+                            dark: '#050510',
+                            panel: '#121225'
+                        }
+                    },
+                    animation: {
+                        'pulse-fast': 'pulse 0.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'float': 'float 6s ease-in-out infinite',
+                        'pop': 'pop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                        'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+                        'scanline': 'scanline 8s linear infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        },
+                        pop: {
+                            '0%': { transform: 'scale(0.8)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' },
+                        },
+                        shake: {
+                            '10%, 90%': { transform: 'translate3d(-4px, 0, 0)' },
+                            '20%, 80%': { transform: 'translate3d(6px, 0, 0)' },
+                            '30%, 50%, 70%': { transform: 'translate3d(-8px, 0, 0)' },
+                            '40%, 60%': { transform: 'translate3d(8px, 0, 0)' }
+                        },
+                        scanline: {
+                            '0%': { transform: 'translateY(-100%)' },
+                            '100%': { transform: 'translateY(100%)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Base & Scrollbar */
+        body { touch-action: manipulation; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #050510; }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00f3ff; }
+
+        /* Glassmorphism - 視認性向上のため背景を少し暗く調整 */
+        .glass-panel {
+            background: rgba(18, 18, 37, 0.95);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Periodic Grid Setup */
+        .periodic-grid {
+            display: grid;
+            grid-template-columns: repeat(18, minmax(42px, 1fr));
+            grid-template-rows: repeat(10, minmax(42px, 1fr));
+            gap: 4px;
+            padding: 20px;
+            min-width: 900px;
+        }
+
+        .element-cell {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            position: relative;
+            overflow: hidden;
+            border-width: 1px;
+        }
+        .element-cell:hover {
+            transform: scale(1.15);
+            z-index: 20;
+            box-shadow: 0 0 15px currentColor;
+            border-color: white !important;
+        }
+
+        /* CRT Effect */
+        .crt::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            z-index: 999;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+            opacity: 0.5;
+        }
+        
+        /* Scanline Animation */
+        .scanline-bar {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 20px;
+            background: rgba(0, 243, 255, 0.1);
+            filter: blur(5px);
+            z-index: 998;
+            pointer-events: none;
+            animation: scanline 8s linear infinite;
+        }
+
+        .cyber-input:focus {
+            outline: none;
+            box-shadow: 0 0 25px rgba(0, 243, 255, 0.4);
+            background: rgba(0, 243, 255, 0.15);
+            border-color: #00f3ff;
+        }
+
+        /* Overlay Animations */
+        @keyframes flash-green {
+            0% { background-color: rgba(10, 255, 10, 0); }
+            10% { background-color: rgba(10, 255, 10, 0.3); }
+            100% { background-color: rgba(10, 255, 10, 0); }
+        }
+        @keyframes flash-red {
+            0% { background-color: rgba(255, 0, 60, 0); }
+            10% { background-color: rgba(255, 0, 60, 0.3); }
+            100% { background-color: rgba(255, 0, 60, 0); }
+        }
+        .animate-flash-green { animation: flash-green 0.5s forwards; }
+        .animate-flash-red { animation: flash-red 0.5s forwards; }
+    </style>
+</head>
+<body class="bg-neon-dark text-gray-100 h-screen w-screen overflow-hidden font-sans selection:bg-neon-blue selection:text-black crt">
+
+<div class="scanline-bar"></div>
+<!-- Background Decoration -->
+<div class="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
+    <div class="absolute top-[-20%] left-[-10%] w-[800px] h-[800px] bg-neon-purple rounded-full blur-[150px] opacity-10 animate-pulse"></div>
+    <div class="absolute bottom-[-20%] right-[-10%] w-[800px] h-[800px] bg-neon-blue rounded-full blur-[150px] opacity-10"></div>
+    <!-- Grid BG -->
+    <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full h-full bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImEiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTAgNDBoNDBWMEgwIiBmaWxsPSJub25lIi8+PHBhdGggZD0iTTAgNDBoMXYtMUgwIiBmaWxsPSJyZ2JhKDI1NSwgMjU1LCAyNTUsIDAuMDUpIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2EpIi8+PC9zdmc+')] z-[-1] opacity-20"></div>
+</div>
+
+<!-- App Container -->
+<div id="app" class="h-full flex flex-col relative z-10 max-w-7xl mx-auto px-4 py-2">
+    
+    <!-- Header -->
+    <header class="flex justify-between items-center py-3 border-b border-white/10 shrink-0 bg-neon-dark/50 backdrop-blur-sm">
+        <div class="flex items-center gap-3 cursor-pointer group" onclick="app.goHome()">
+            <div class="relative w-10 h-10 flex items-center justify-center bg-black border border-neon-blue rounded shadow-[0_0_10px_#00f3ff] group-hover:bg-neon-blue transition duration-300">
+                <span class="font-mono text-xl font-bold text-neon-blue group-hover:text-black">E</span>
+            </div>
+            <div>
+                <h1 class="font-mono text-xl tracking-widest font-bold text-white group-hover:text-neon-blue transition">ELEMENT QUEST</h1>
+                <p class="text-[10px] text-gray-400 font-bold">周期表マスターシステム</p>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-4">
+            <div id="game-status" class="hidden md:flex items-center gap-4">
+                <div class="flex flex-col items-end">
+                    <span class="text-[10px] text-neon-green font-bold uppercase tracking-wider">PROGRESS</span>
+                    <span class="font-mono text-white text-lg font-bold" id="progress-display">--/--</span>
+                </div>
+            </div>
+            <button onclick="app.toggleSound()" class="relative p-2 rounded-full border border-gray-600 hover:border-neon-blue hover:bg-neon-blue/10 transition group">
+                <i id="sound-icon" data-lucide="volume-2" class="w-5 h-5 text-gray-300 group-hover:text-neon-blue"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main id="main-view" class="flex-1 overflow-hidden relative flex flex-col">
+        <!-- Content Injected via JS -->
+    </main>
+
+    <!-- Footer -->
+    <footer class="py-2 text-center text-[10px] text-gray-500 font-tech uppercase tracking-widest border-t border-white/5 shrink-0">
+        Secure Connection Established // Latency: 4ms // Ver 2.1.0 JP
+    </footer>
+
+</div>
+
+<!-- Full Screen Overlay for Feedback -->
+<div id="feedback-overlay" class="fixed inset-0 pointer-events-none z-50 flex items-center justify-center opacity-0 transition-opacity duration-200">
+    <div id="feedback-content" class="text-center transform scale-0 transition-transform duration-200">
+        <!-- Dynamic Injection -->
+    </div>
+</div>
+
+<!-- Modal Template -->
+<div id="modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4" onclick="if(event.target === this) app.closeModal()">
+    <div class="glass-panel w-full max-w-xl p-0 rounded-xl overflow-hidden shadow-2xl relative transform transition-all scale-100 border border-gray-600" id="modal-content">
+        <!-- Dynamic Content -->
+    </div>
+</div>
+
+<script>
+    // --- 0. DATA (1-118 ELEMENTS) ---
+    // 構造を維持し、全データを生成します
+    
+    // ベースとなる主要データ（詳細記述あり）
+    const baseData = [
+        
+  {
+    "原子番号": 1,
+    "元素名（日本語名）": "水素",
+    "元素記号": "H",
+    "特性": "宇宙で最も多い元素で、とても軽く、燃えやすい性質をもつ。水の材料にもなる。",
+    "身の回りの活用例": "燃料電池、ロケット燃料、化学実験"
+  },
+  {
+    "原子番号": 2,
+    "元素名（日本語名）": "ヘリウム",
+    "元素記号": "He",
+    "特性": "他の物質とほとんど反応しない安全な気体で、とても軽い。",
+    "身の回りの活用例": "風船、声が変わる実験、医療用MRI"
+  },
+  {
+    "原子番号": 3,
+    "元素名（日本語名）": "リチウム",
+    "元素記号": "Li",
+    "特性": "金属の中でとても軽く、電気をためやすい性質がある。",
+    "身の回りの活用例": "スマートフォンの電池、ノートパソコンの電池、電気自動車"
+  },
+  {
+    "原子番号": 4,
+    "元素名（日本語名）": "ベリリウム",
+    "元素記号": "Be",
+    "特性": "とても軽くて硬いが、体に有害なため扱いに注意が必要。",
+    "身の回りの活用例": "なし"
+  },
+  {
+    "原子番号": 5,
+    "元素名（日本語名）": "ホウ素",
+    "元素記号": "B",
+    "特性": "金属と非金属の中間の性質をもち、熱に強い。",
+    "身の回りの活用例": "耐熱ガラス、洗剤、ガラス繊維"
+  },
+  {
+    "原子番号": 6,
+    "元素名（日本語名）": "炭素",
+    "元素記号": "C",
+    "特性": "ダイヤモンドや黒鉛など、姿を変える性質をもつ重要な元素。",
+    "身の回りの活用例": "鉛筆の芯、ダイヤモンド、プラスチック、食品"
+  },
+  {
+    "原子番号": 7,
+    "元素名（日本語名）": "窒素",
+    "元素記号": "N",
+    "特性": "空気の約8割を占め、物を酸化させにくくする。",
+    "身の回りの活用例": "食品保存、肥料、液体窒素の実験"
+  },
+  {
+    "原子番号": 8,
+    "元素名（日本語名）": "酸素",
+    "元素記号": "O",
+    "特性": "呼吸に必要で、物を燃えやすくする性質がある。",
+    "身の回りの活用例": "呼吸、医療用酸素、溶接"
+  },
+  {
+    "原子番号": 9,
+    "元素名（日本語名）": "フッ素",
+    "元素記号": "F",
+    "特性": "非常に反応しやすく、虫歯を防ぐ働きがある。",
+    "身の回りの活用例": "歯磨き粉、フライパン加工"
+  },
+  {
+    "原子番号": 10,
+    "元素名（日本語名）": "ネオン",
+    "元素記号": "Ne",
+    "特性": "電気を流すと明るく光る気体。",
+    "身の回りの活用例": "ネオンサイン、装飾照明"
+  },
+
+  {
+    "原子番号": 11,
+    "元素名（日本語名）": "ナトリウム",
+    "元素記号": "Na",
+    "特性": "水と激しく反応する金属で、塩の成分。",
+    "身の回りの活用例": "食塩、保存料、街灯"
+  },
+  {
+    "原子番号": 12,
+    "元素名（日本語名）": "マグネシウム",
+    "元素記号": "Mg",
+    "特性": "軽くて燃えると強い光を出す。",
+    "身の回りの活用例": "花火、合金、自転車部品"
+  },
+  {
+    "原子番号": 13,
+    "元素名（日本語名）": "アルミニウム",
+    "元素記号": "Al",
+    "特性": "軽くてさびにくく、加工しやすい金属。",
+    "身の回りの活用例": "アルミ缶、ホイル、鍋"
+  },
+  {
+    "原子番号": 14,
+    "元素名（日本語名）": "ケイ素",
+    "元素記号": "Si",
+    "特性": "電気を通したり止めたりできる性質をもつ。",
+    "身の回りの活用例": "スマホ、パソコン、太陽電池"
+  },
+  {
+    "原子番号": 15,
+    "元素名（日本語名）": "リン",
+    "元素記号": "P",
+    "特性": "燃えやすく、生き物の体にも必要。",
+    "身の回りの活用例": "マッチ、肥料、洗剤"
+  },
+  {
+    "原子番号": 16,
+    "元素名（日本語名）": "硫黄",
+    "元素記号": "S",
+    "特性": "独特のにおいがあり、化学反応に使われる。",
+    "身の回りの活用例": "ゴム、薬品、温泉成分"
+  },
+  {
+    "原子番号": 17,
+    "元素名（日本語名）": "塩素",
+    "元素記号": "Cl",
+    "特性": "強い殺菌力をもつ気体。",
+    "身の回りの活用例": "プールの消毒、水道水、漂白剤"
+  },
+  {
+    "原子番号": 18,
+    "元素名（日本語名）": "アルゴン",
+    "元素記号": "Ar",
+    "特性": "反応しにくく、安全な気体。",
+    "身の回りの活用例": "電球、溶接"
+  },
+
+  {
+    "原子番号": 19,
+    "元素名（日本語名）": "カリウム",
+    "元素記号": "K",
+    "特性": "水と反応しやすく、体に必要な元素。",
+    "身の回りの活用例": "肥料、栄養素"
+  },
+  {
+    "原子番号": 20,
+    "元素名（日本語名）": "カルシウム",
+    "元素記号": "Ca",
+    "特性": "骨や歯をつくる大切な元素。",
+    "身の回りの活用例": "牛乳、サプリメント、セメント"
+  },
+  {
+    "原子番号": 21,
+    "元素名（日本語名）": "スカンジウム",
+    "元素記号": "Sc",
+    "特性": "軽くて強く、合金にすると金属を丈夫にする。",
+    "身の回りの活用例": "スポーツ用品、航空機材料"
+  },
+  {
+    "原子番号": 22,
+    "元素名（日本語名）": "チタン",
+    "元素記号": "Ti",
+    "特性": "とても軽くて強く、さびにくい金属。",
+    "身の回りの活用例": "眼鏡フレーム、人工骨、航空機"
+  },
+  {
+    "原子番号": 23,
+    "元素名（日本語名）": "バナジウム",
+    "元素記号": "V",
+    "特性": "鉄をより強くする性質をもつ。",
+    "身の回りの活用例": "工具、ばね"
+  },
+  {
+    "原子番号": 24,
+    "元素名（日本語名）": "クロム",
+    "元素記号": "Cr",
+    "特性": "さびにくく、金属をピカピカにする。",
+    "身の回りの活用例": "ステンレス、メッキ製品"
+  },
+  {
+    "原子番号": 25,
+    "元素名（日本語名）": "マンガン",
+    "元素記号": "Mn",
+    "特性": "鉄を強くし、電池に使われる。",
+    "身の回りの活用例": "乾電池、鉄鋼材料"
+  },
+  {
+    "原子番号": 26,
+    "元素名（日本語名）": "鉄",
+    "元素記号": "Fe",
+    "特性": "強くて加工しやすい、とても身近な金属。",
+    "身の回りの活用例": "建物、橋、フライパン"
+  },
+  {
+    "原子番号": 27,
+    "元素名（日本語名）": "コバルト",
+    "元素記号": "Co",
+    "特性": "磁石や電池に使われる金属。",
+    "身の回りの活用例": "充電池、磁石、青色顔料"
+  },
+  {
+    "原子番号": 28,
+    "元素名（日本語名）": "ニッケル",
+    "元素記号": "Ni",
+    "特性": "さびにくく、合金として使われる。",
+    "身の回りの活用例": "硬貨、ステンレス"
+  },
+  {
+    "原子番号": 29,
+    "元素名（日本語名）": "銅",
+    "元素記号": "Cu",
+    "特性": "電気をとてもよく通す。",
+    "身の回りの活用例": "電線、10円玉、調理器具"
+  },
+  {
+    "原子番号": 30,
+    "元素名（日本語名）": "亜鉛",
+    "元素記号": "Zn",
+    "特性": "鉄をさびから守る働きがある。",
+    "身の回りの活用例": "トタン屋根、乾電池"
+  },
+
+  {
+    "原子番号": 31,
+    "元素名（日本語名）": "ガリウム",
+    "元素記号": "Ga",
+    "特性": "手のひらの温度で溶ける金属。",
+    "身の回りの活用例": "LED、半導体"
+  },
+  {
+    "原子番号": 32,
+    "元素名（日本語名）": "ゲルマニウム",
+    "元素記号": "Ge",
+    "特性": "電気を調整する性質をもつ。",
+    "身の回りの活用例": "光ファイバー、電子部品"
+  },
+  {
+    "原子番号": 33,
+    "元素名（日本語名）": "ヒ素",
+    "元素記号": "As",
+    "特性": "毒性があり、半導体に使われる。",
+    "身の回りの活用例": "電子材料"
+  },
+  {
+    "原子番号": 34,
+    "元素名（日本語名）": "セレン",
+    "元素記号": "Se",
+    "特性": "光が当たると電気を流しやすくなる。",
+    "身の回りの活用例": "コピー機、太陽電池"
+  },
+  {
+    "原子番号": 35,
+    "元素名（日本語名）": "臭素",
+    "元素記号": "Br",
+    "特性": "液体の非金属で、反応しやすい。",
+    "身の回りの活用例": "難燃剤、写真材料"
+  },
+  {
+    "原子番号": 36,
+    "元素名（日本語名）": "クリプトン",
+    "元素記号": "Kr",
+    "特性": "光を出す性質をもつ気体。",
+    "身の回りの活用例": "照明、レーザー"
+  },
+
+  {
+    "原子番号": 37,
+    "元素名（日本語名）": "ルビジウム",
+    "元素記号": "Rb",
+    "特性": "とても反応しやすい金属。",
+    "身の回りの活用例": "研究用原子時計"
+  },
+  {
+    "原子番号": 38,
+    "元素名（日本語名）": "ストロンチウム",
+    "元素記号": "Sr",
+    "特性": "赤い光を出す。",
+    "身の回りの活用例": "花火、発光材料"
+  },
+  {
+    "原子番号": 39,
+    "元素名（日本語名）": "イットリウム",
+    "元素記号": "Y",
+    "特性": "発光材料に使われる。",
+    "身の回りの活用例": "LED、テレビ画面"
+  },
+  {
+    "原子番号": 40,
+    "元素名（日本語名）": "ジルコニウム",
+    "元素記号": "Zr",
+    "特性": "熱やさびに強い。",
+    "身の回りの活用例": "原子炉材料、人工歯"
+  },
+
+  {
+    "原子番号": 41,
+    "元素名（日本語名）": "ニオブ",
+    "元素記号": "Nb",
+    "特性": "電気をよく流し、さびにくい。",
+    "身の回りの活用例": "超伝導材料"
+  },
+  {
+    "原子番号": 42,
+    "元素名（日本語名）": "モリブデン",
+    "元素記号": "Mo",
+    "特性": "とても熱に強い。",
+    "身の回りの活用例": "工具、合金"
+  },
+  {
+    "原子番号": 43,
+    "元素名（日本語名）": "テクネチウム",
+    "元素記号": "Tc",
+    "特性": "すべて放射性の元素。",
+    "身の回りの活用例": "医療検査"
+  },
+  {
+    "原子番号": 44,
+    "元素名（日本語名）": "ルテニウム",
+    "元素記号": "Ru",
+    "特性": "非常に硬い金属。",
+    "身の回りの活用例": "電子部品"
+  },
+  {
+    "原子番号": 45,
+    "元素名（日本語名）": "ロジウム",
+    "元素記号": "Rh",
+    "特性": "光をよく反射し、さびにくい。",
+    "身の回りの活用例": "アクセサリーのメッキ"
+  },
+  {
+    "原子番号": 46,
+    "元素名（日本語名）": "パラジウム",
+    "元素記号": "Pd",
+    "特性": "化学反応を助ける触媒になる。",
+    "身の回りの活用例": "自動車の排ガス装置"
+  },
+  {
+    "原子番号": 47,
+    "元素名（日本語名）": "銀",
+    "元素記号": "Ag",
+    "特性": "電気を最もよく通す金属。",
+    "身の回りの活用例": "アクセサリー、電気部品"
+  },
+  {
+    "原子番号": 48,
+    "元素名（日本語名）": "カドミウム",
+    "元素記号": "Cd",
+    "特性": "毒性がある金属。",
+    "身の回りの活用例": "充電池（旧型）"
+  },
+  {
+    "原子番号": 49,
+    "元素名（日本語名）": "インジウム",
+    "元素記号": "In",
+    "特性": "やわらかく、電気を流す。",
+    "身の回りの活用例": "スマホ画面、液晶テレビ"
+  },
+  {
+    "原子番号": 50,
+    "元素名（日本語名）": "スズ",
+    "元素記号": "Sn",
+    "特性": "さびにくく、低い温度で溶ける。",
+    "身の回りの活用例": "はんだ、缶詰"
+  },
+
+  {
+    "原子番号": 51,
+    "元素名（日本語名）": "アンチモン",
+    "元素記号": "Sb",
+    "特性": "金属と非金属の中間。",
+    "身の回りの活用例": "難燃剤、電池"
+  },
+  {
+    "原子番号": 52,
+    "元素名（日本語名）": "テルル",
+    "元素記号": "Te",
+    "特性": "電気を調整する性質。",
+    "身の回りの活用例": "太陽電池"
+  },
+  {
+    "原子番号": 53,
+    "元素名（日本語名）": "ヨウ素",
+    "元素記号": "I",
+    "特性": "殺菌作用がある。",
+    "身の回りの活用例": "うがい薬、消毒液"
+  },
+  {
+    "原子番号": 54,
+    "元素名（日本語名）": "キセノン",
+    "元素記号": "Xe",
+    "特性": "強い光を出す気体。",
+    "身の回りの活用例": "カメラのフラッシュ"
+  },
+
+  {
+    "原子番号": 55,
+    "元素名（日本語名）": "セシウム",
+    "元素記号": "Cs",
+    "特性": "時間を正確に測れる。",
+    "身の回りの活用例": "原子時計、GPS"
+  },
+  {
+    "原子番号": 56,
+    "元素名（日本語名）": "バリウム",
+    "元素記号": "Ba",
+    "特性": "X線を止める性質がある。",
+    "身の回りの活用例": "胃の検査薬"
+  },
+
+  {
+    "原子番号": 57,
+    "元素名（日本語名）": "ランタン",
+    "元素記号": "La",
+    "特性": "光を集めやすい。",
+    "身の回りの活用例": "カメラレンズ"
+  },
+  {
+    "原子番号": 58,
+    "元素名（日本語名）": "セリウム",
+    "元素記号": "Ce",
+    "特性": "よく磨ける。",
+    "身の回りの活用例": "ガラス研磨剤"
+  },
+  {
+    "原子番号": 59,
+    "元素名（日本語名）": "プラセオジム",
+    "元素記号": "Pr",
+    "特性": "磁石の材料になる。",
+    "身の回りの活用例": "強力磁石"
+  },
+  {
+    "原子番号": 60,
+    "元素名（日本語名）": "ネオジム",
+    "元素記号": "Nd",
+    "特性": "とても強い磁石を作れる。",
+    "身の回りの活用例": "イヤホン、モーター"
+  },
+
+  {
+    "原子番号": 61,
+    "元素名（日本語名）": "プロメチウム",
+    "元素記号": "Pm",
+    "特性": "自然にはほとんど存在しない。",
+    "身の回りの活用例": "なし"
+  },
+
+  {
+    "原子番号": 62,
+    "元素名（日本語名）": "サマリウム",
+    "元素記号": "Sm",
+    "特性": "熱に強い磁石になる。",
+    "身の回りの活用例": "高性能磁石"
+  },
+  {
+    "原子番号": 63,
+    "元素名（日本語名）": "ユウロピウム",
+    "元素記号": "Eu",
+    "特性": "赤く光る。",
+    "身の回りの活用例": "テレビ、蛍光灯"
+  },
+  {
+    "原子番号": 64,
+    "元素名（日本語名）": "ガドリニウム",
+    "元素記号": "Gd",
+    "特性": "磁気を感じやすい。",
+    "身の回りの活用例": "MRI検査"
+  },
+  {
+    "原子番号": 65,
+    "元素名（日本語名）": "テルビウム",
+    "元素記号": "Tb",
+    "特性": "緑色に光る。",
+    "身の回りの活用例": "ディスプレイ"
+  },
+  {
+    "原子番号": 66,
+    "元素名（日本語名）": "ジスプロシウム",
+    "元素記号": "Dy",
+    "特性": "磁石を強くする。",
+    "身の回りの活用例": "電気自動車モーター"
+  },
+  {
+    "原子番号": 67,
+    "元素名（日本語名）": "ホルミウム",
+    "元素記号": "Ho",
+    "特性": "強い磁性をもつ。",
+    "身の回りの活用例": "医療機器"
+  },
+  {
+    "原子番号": 68,
+    "元素名（日本語名）": "エルビウム",
+    "元素記号": "Er",
+    "特性": "光を増幅する。",
+    "身の回りの活用例": "光通信"
+  },
+  {
+    "原子番号": 69,
+    "元素名（日本語名）": "ツリウム",
+    "元素記号": "Tm",
+    "特性": "とても希少。",
+    "身の回りの活用例": "医療用X線"
+  },
+  {
+    "原子番号": 70,
+    "元素名（日本語名）": "イッテルビウム",
+    "元素記号": "Yb",
+    "特性": "金属として柔らかい。",
+    "身の回りの活用例": "レーザー"
+  },
+  {
+    "原子番号": 71,
+    "元素名（日本語名）": "ルテチウム",
+    "元素記号": "Lu",
+    "特性": "重くて安定。",
+    "身の回りの活用例": "PET検査"
+  },
+
+  {
+    "原子番号": 72,
+    "元素名（日本語名）": "ハフニウム",
+    "元素記号": "Hf",
+    "特性": "高温でも安定。",
+    "身の回りの活用例": "半導体"
+  },
+  {
+    "原子番号": 73,
+    "元素名（日本語名）": "タンタル",
+    "元素記号": "Ta",
+    "特性": "とてもさびにくい。",
+    "身の回りの活用例": "スマホ部品、コンデンサ"
+  },
+  {
+    "原子番号": 74,
+    "元素名（日本語名）": "タングステン",
+    "元素記号": "W",
+    "特性": "非常に高い温度でも溶けない。",
+    "身の回りの活用例": "電球、工具"
+  },
+  {
+    "原子番号": 75,
+    "元素名（日本語名）": "レニウム",
+    "元素記号": "Re",
+    "特性": "とても熱に強い。",
+    "身の回りの活用例": "ジェットエンジン"
+  },
+  {
+    "原子番号": 76,
+    "元素名（日本語名）": "オスミウム",
+    "元素記号": "Os",
+    "特性": "最も重い金属の一つ。",
+    "身の回りの活用例": "万年筆の先"
+  },
+  {
+    "原子番号": 77,
+    "元素名（日本語名）": "イリジウム",
+    "元素記号": "Ir",
+    "特性": "非常にさびにくい。",
+    "身の回りの活用例": "点火プラグ"
+  },
+  {
+    "原子番号": 78,
+    "元素名（日本語名）": "白金",
+    "元素記号": "Pt",
+    "特性": "化学反応を助ける。",
+    "身の回りの活用例": "アクセサリー、触媒"
+  },
+  {
+    "原子番号": 79,
+    "元素名（日本語名）": "金",
+    "元素記号": "Au",
+    "特性": "さびず、電気を通す。",
+    "身の回りの活用例": "装飾品、電子部品"
+  },
+  {
+    "原子番号": 80,
+    "元素名（日本語名）": "水銀",
+    "元素記号": "Hg",
+    "特性": "常温で液体の金属。",
+    "身の回りの活用例": "体温計（昔）"
+  },
+  {
+    "原子番号": 81,
+    "元素名（日本語名）": "タリウム",
+    "元素記号": "Tl",
+    "特性": "強い毒性がある。",
+    "身の回りの活用例": "電子材料"
+  },
+  {
+    "原子番号": 82,
+    "元素名（日本語名）": "鉛",
+    "元素記号": "Pb",
+    "特性": "重く、音や放射線を通しにくい。",
+    "身の回りの活用例": "バッテリー、防音材"
+  },
+  {
+    "原子番号": 83,
+    "元素名（日本語名）": "ビスマス",
+    "元素記号": "Bi",
+    "特性": "比較的安全な重金属。",
+    "身の回りの活用例": "胃薬"
+  },
+
+  {
+    "原子番号": 84,
+    "元素名（日本語名）": "ポロニウム",
+    "元素記号": "Po",
+    "特性": "強い放射性をもつ。",
+    "身の回りの活用例": "なし"
+  },
+  {
+    "原子番号": 85,
+    "元素名（日本語名）": "アスタチン",
+    "元素記号": "At",
+    "特性": "非常に珍しい。",
+    "身の回りの活用例": "研究用"
+  },
+  {
+    "原子番号": 86,
+    "元素名（日本語名）": "ラドン",
+    "元素記号": "Rn",
+    "特性": "放射性の気体。",
+    "身の回りの活用例": "研究用"
+  },
+
+  {
+    "原子番号": 87,
+    "元素名（日本語名）": "フランシウム",
+    "元素記号": "Fr",
+    "特性": "非常に不安定。",
+    "身の回りの活用例": "なし"
+  },
+  {
+    "原子番号": 88,
+    "元素名（日本語名）": "ラジウム",
+    "元素記号": "Ra",
+    "特性": "強い放射性をもつ。",
+    "身の回りの活用例": "研究用"
+  },
+  {
+    "原子番号": 89,
+    "元素名（日本語名）": "アクチニウム",
+    "元素記号": "Ac",
+    "特性": "放射性金属。",
+    "身の回りの活用例": "研究用"
+  },
+  {
+    "原子番号": 90,
+    "元素名（日本語名）": "トリウム",
+    "元素記号": "Th",
+    "特性": "放射性があり、燃料候補。",
+    "身の回りの活用例": "原子力研究"
+  },
+  {
+    "原子番号": 91,
+    "元素名（日本語名）": "プロトアクチニウム",
+    "元素記号": "Pa",
+    "特性": "非常に珍しい放射性元素。",
+    "身の回りの活用例": "なし"
+  },
+  {
+    "原子番号": 92,
+    "元素名（日本語名）": "ウラン",
+    "元素記号": "U",
+    "特性": "核分裂を起こす。",
+    "身の回りの活用例": "原子力発電"
+  },
+  {
+    "原子番号": 93,
+    "元素名（日本語名）": "ネプツニウム",
+    "元素記号": "Np",
+    "特性": "人工的につくられる。",
+    "身の回りの活用例": "研究用"
+  },
+  {
+    "原子番号": 94,
+    "元素名（日本語名）": "プルトニウム",
+    "元素記号": "Pu",
+    "特性": "核エネルギーを出す。",
+    "身の回りの活用例": "宇宙探査機"
+  },
+  {
+    "原子番号": 95,
+    "元素名（日本語名）": "アメリシウム",
+    "元素記号": "Am",
+    "特性": "放射線を出す。",
+    "身の回りの活用例": "煙探知機"
+  },
+  {
+    "原子番号": 96,
+    "元素名（日本語名）": "キュリウム",
+    "元素記号": "Cm",
+    "特性": "人工元素。",
+    "身の回りの活用例": "研究用"
+  },
+  {
+    "原子番号": 97,
+    "元素名（日本語名）": "バークリウム",
+    "元素記号": "Bk",
+    "特性": "人工元素。",
+    "身の回りの活用例": "研究用"
+  },
+  {
+    "原子番号": 98,
+    "元素名（日本語名）": "カリホルニウム",
+    "元素記号": "Cf",
+    "特性": "中性子を出す。",
+    "身の回りの活用例": "がん治療"
+  },
+  {
+    "原子番号": 99,
+    "元素名（日本語名）": "アインスタイニウム",
+    "元素記号": "Es",
+    "特性": "人工的につくられる。",
+    "身の回りの活用例": "研究用"
+  },
+  {
+    "原子番号": 100,
+    "元素名（日本語名）": "フェルミウム",
+    "元素記号": "Fm",
+    "特性": "人工元素。",
+    "身の回りの活用例": "研究用"
+  },
+  {
+    "原子番号": 101,
+    "元素名（日本語名）": "メンデレビウム",
+    "元素記号": "Md",
+    "特性": "人工元素。",
+    "身の回りの活用例": "研究用"
+  },
+  {
+    "原子番号": 102,
+    "元素名（日本語名）": "ノーベリウム",
+    "元素記号": "No",
+    "特性": "人工元素。",
+    "身の回りの活用例": "研究用"
+  },
+  {
+    "原子番号": 103,
+    "元素名（日本語名）": "ローレンシウム",
+    "元素記号": "Lr",
+    "特性": "人工元素。",
+    "身の回りの活用例": "研究用"
+  },
+  {
+    "原子番号": 104,
+    "元素名（日本語名）": "ラザホージウム",
+    "元素記号": "Rf",
+    "特性": "人工元素。",
+    "身の回りの活用例": "なし"
+  },
+  {
+    "原子番号": 105,
+    "元素名（日本語名）": "ドブニウム",
+    "元素記号": "Db",
+    "特性": "人工元素。",
+    "身の回りの活用例": "なし"
+  },
+  {
+    "原子番号": 106,
+    "元素名（日本語名）": "シーボーギウム",
+    "元素記号": "Sg",
+    "特性": "人工元素。",
+    "身の回りの活用例": "なし"
+  },
+  {
+    "原子番号": 107,
+    "元素名（日本語名）": "ボーリウム",
+    "元素記号": "Bh",
+    "特性": "人工元素。",
+    "身の回りの活用例": "なし"
+  },
+  {
+    "原子番号": 108,
+    "元素名（日本語名）": "ハッシウム",
+    "元素記号": "Hs",
+    "特性": "人工元素。",
+    "身の回りの活用例": "なし"
+  },
+  {
+    "原子番号": 109,
+    "元素名（日本語名）": "マイトネリウム",
+    "元素記号": "Mt",
+    "特性": "人工元素。",
+    "身の回りの活用例": "なし"
+  },
+  {
+    "原子番号": 110,
+    "元素名（日本語名）": "ダームスタチウム",
+    "元素記号": "Ds",
+    "特性": "人工元素。",
+    "身の回りの活用例": "なし"
+  },
+  {
+    "原子番号": 111,
+    "元素名（日本語名）": "レントゲニウム",
+    "元素記号": "Rg",
+    "特性": "人工元素。",
+    "身の回りの活用例": "なし"
+  },
+  {
+    "原子番号": 112,
+    "元素名（日本語名）": "コペルニシウム",
+    "元素記号": "Cn",
+    "特性": "人工元素。",
+    "身の回りの活用例": "なし"
+  },
+  {
+    "原子番号": 113,
+    "元素名（日本語名）": "ニホニウム",
+    "元素記号": "Nh",
+    "特性": "日本で発見された人工元素。",
+    "身の回りの活用例": "なし"
+  },
+  {
+    "原子番号": 114,
+    "元素名（日本語名）": "フレロビウム",
+    "元素記号": "Fl",
+    "特性": "人工元素。",
+    "身の回りの活用例": "なし"
+  },
+  {
+    "原子番号": 115,
+    "元素名（日本語名）": "モスコビウム",
+    "元素記号": "Mc",
+    "特性": "人工元素。",
+    "身の回りの活用例": "なし"
+  },
+  {
+    "原子番号": 116,
+    "元素名（日本語名）": "リバモリウム",
+    "元素記号": "Lv",
+    "特性": "人工元素。",
+    "身の回りの活用例": "なし"
+  },
+  {
+    "原子番号": 117,
+    "元素名（日本語名）": "テネシン",
+    "元素記号": "Ts",
+    "特性": "非常に不安定。",
+    "身の回りの活用例": "なし"
+  },
+  {
+    "原子番号": 118,
+    "元素名（日本語名）": "オガネソン",
+    "元素記号": "Og",
+    "特性": "現在知られている中で最も重い元素。",
+    "身の回りの活用例": "なし"
+  }
+    ];
+
+    // 全118元素の記号と名前リスト（不足分補完用）
+    const allSyms = "H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu Hf Ta W Re Os Ir Pt Au Hg Tl Pb Bi Po At Rn Fr Ra Ac Th Pa U Np Pu Am Cm Bk Cf Es Fm Md No Lr Rf Db Sg Bh Hs Mt Ds Rg Cn Nh Fl Mc Lv Ts Og".split(" ");
+    const allNames = "水素 ヘリウム リチウム ベリリウム ホウ素 炭素 窒素 酸素 フッ素 ネオン ナトリウム マグネシウム アルミニウム ケイ素 リン 硫黄 塩素 アルゴン カリウム カルシウム スカンジウム チタン バナジウム クロム マンガン 鉄 コバルト ニッケル 銅 亜鉛 ガリウム ゲルマニウム ヒ素 セレン 臭素 クリプトン ルビジウム ストロンチウム イットリウム ジルコニウム ニオブ モリブデン テクネチウム ルテニウム ロジウム パラジウム 銀 カドミウム インジウム スズ アンチモン テルル ヨウ素 キセノン セシウム バリウム ランタン セリウム プラセオジム ネオジム プロメチウム サマリウム ユウロピウム ガドリニウム テルビウム ジスプロシウム ホルミウム エルビウム ツリウム イッテルビウム ルテチウム ハフニウム タンタル タングステン レニウム オスミウム イリジウム 白金 金 水銀 タリウム 鉛 ビスマス ポロニウム アスタチン ラドン フランシウム ラジウム アクチニウム トリウム プロトアクチニウム ウラン ネプツニウム プルトニウム アメリシウム キュリウム バークリウム カリホルニウム アインスタイニウム フェルミウム メンデレビウム ノーベリウム ローレンシウム ラザホージウム ドブニウム シーボーギウム ボーリウム ハッシウム マイトネリウム ダームスタチウム レントゲニウム コペルニシウム ニホニウム フレロビウム モスコビウム リバモリウム テネシン オガネソン".split(" ");
+
+    // データ結合処理
+    const fullData = allSyms.map((sym, i) => {
+        const num = i + 1;
+        const exists = baseData.find(e => e.原子番号 === num);
+        if (exists) return exists;
+        return {
+            "原子番号": num,
+            "元素名（日本語名）": allNames[i],
+            "元素記号": sym,
+            "特性": "専門的な研究で使われる、または非常に希少な元素。",
+            "身の回りの活用例": "研究用・なし"
+        };
+    });
+
+    // 周期表の座標計算ロジック
+    const getPeriodicPosition = (n) => {
+        if (n === 1) return { c: 1, r: 1 };
+        if (n === 2) return { c: 18, r: 1 };
+        if (n >= 3 && n <= 4) return { c: (n - 2), r: 2 };
+        if (n >= 5 && n <= 10) return { c: (n + 8), r: 2 };
+        if (n >= 11 && n <= 12) return { c: (n - 10), r: 3 };
+        if (n >= 13 && n <= 18) return { c: (n), r: 3 };
+        if (n >= 19 && n <= 36) return { c: ((n - 19) % 18) + 1, r: 4 };
+        if (n >= 37 && n <= 54) return { c: ((n - 37) % 18) + 1, r: 5 };
+        
+        // ランタノイド・アクチノイドの分離
+        if (n >= 55 && n <= 56) return { c: n - 54, r: 6 };
+        if (n >= 57 && n <= 71) return { c: n - 53, r: 8 }; // ランタノイド
+        if (n >= 72 && n <= 86) return { c: (n - 72) + 4, r: 6 };
+        
+        if (n >= 87 && n <= 88) return { c: n - 86, r: 7 };
+        if (n >= 89 && n <= 103) return { c: n - 85, r: 9 }; // アクチノイド
+        if (n >= 104 && n <= 118) return { c: (n - 104) + 4, r: 7 };
+        
+        return { c: 1, r: 1 };
+    };
+
+    // データをアプリ用に整形
+    const elements = fullData.map(e => {
+        let color = 'border-gray-600 text-gray-500 bg-gray-900/40'; 
+        const n = e.原子番号;
+        
+        // グループごとの色分け（視認性を高めるため明るめに）
+        if(n===1) color = 'border-neon-blue text-neon-blue shadow-[0_0_5px_rgba(0,243,255,0.5)]'; // H
+        else if(n>=2 && [2,10,18,36,54,86,118].includes(n)) color = 'border-neon-purple text-neon-purple'; // 希ガス
+        else if([3,11,19,37,55,87].includes(n)) color = 'border-rose-400 text-rose-400'; // アルカリ金属
+        else if([4,12,20,38,56,88].includes(n)) color = 'border-orange-400 text-orange-400'; // アルカリ土類
+        else if((n>=57 && n<=71) || (n>=89 && n<=103)) color = 'border-pink-500 text-pink-500'; // ランタノ・アクチノ
+        else if(n>20 && n<113) color = 'border-neon-yellow text-neon-yellow'; // 遷移金属など
+        else color = 'border-neon-green text-neon-green'; // その他
+
+        return { ...e, colorClass: color, pos: getPeriodicPosition(n) };
+    });
+
+    // --- 1. SOUND ENGINE ---
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const SoundEngine = {
+        playTone(freq, type, duration, vol = 0.1) {
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        },
+        playKeyType() {
+            // カチャッという音
+            this.playTone(800 + Math.random()*200, 'square', 0.05, 0.05);
+        },
+        playSuccess() {
+            const now = audioCtx.currentTime;
+            [523, 659, 784, 1046].forEach((freq, i) => { // C Major Chord
+                setTimeout(() => this.playTone(freq, 'sine', 0.4, 0.15), i * 60);
+            });
+        },
+        playError() {
+            this.playTone(150, 'sawtooth', 0.3, 0.2);
+            setTimeout(() => this.playTone(100, 'sawtooth', 0.3, 0.2), 100);
+        },
+        playHover() {
+            this.playTone(1200, 'sine', 0.03, 0.02);
+        },
+        playStart() {
+            this.playTone(440, 'triangle', 0.1, 0.1);
+            setTimeout(() => this.playTone(880, 'triangle', 0.4, 0.1), 100);
+        }
+    };
+
+    // --- 2. APP LOGIC ---
+    const app = {
+        state: {
+            mode: null,
+            score: 0,
+            currentQIndex: 0,
+            maxQ: 5, // クイズは5問に短縮（テンポアップ）
+            currentTarget: null
+        },
+        soundEnabled: true,
+        
+        init() {
+            this.renderStartScreen();
+            lucide.createIcons();
+        },
+
+        goHome() {
+            this.state.mode = null;
+            this.renderStartScreen();
+        },
+
+        toggleSound() {
+            this.soundEnabled = !this.soundEnabled;
+            document.getElementById('sound-icon').style.opacity = this.soundEnabled ? '1' : '0.3';
+            if(this.soundEnabled && audioCtx.state === 'suspended') audioCtx.resume();
+        },
+
+        // START SCREEN
+        renderStartScreen() {
+            const main = document.getElementById('main-view');
+            document.getElementById('game-status').classList.add('hidden');
+            
+            main.innerHTML = `
+                <div class="h-full flex flex-col items-center justify-center animate-pop relative">
+                    <div class="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
+                        <div class="w-[600px] h-[600px] border border-neon-blue rounded-full animate-[spin_10s_linear_infinite]"></div>
+                        <div class="w-[400px] h-[400px] border border-dashed border-neon-purple rounded-full absolute animate-[spin_15s_linear_infinite_reverse]"></div>
+                    </div>
+
+                    <h2 class="text-5xl md:text-8xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400 mb-2 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] tracking-tighter">
+                        ELEMENT<br><span class="text-neon-blue">QUEST</span>
+                    </h2>
+                    <p class="text-neon-blue font-bold text-sm md:text-lg tracking-[0.5em] mb-12 animate-pulse-fast">PRESS START</p>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl px-6 relative z-10">
+                        <button onclick="app.renderGameMenu(); SoundEngine.playStart()" class="group relative overflow-hidden bg-neon-blue/10 border border-neon-blue text-neon-blue p-6 rounded hover:bg-neon-blue hover:text-black transition-all duration-200 flex flex-col items-center gap-2">
+                            <i data-lucide="gamepad-2" class="w-8 h-8"></i>
+                            <span class="font-bold text-xl">ゲームスタート</span>
+                            <div class="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-200"></div>
+                        </button>
+                        
+                        <button onclick="app.renderArchive(); SoundEngine.playStart()" class="group relative overflow-hidden bg-neon-purple/10 border border-neon-purple text-neon-purple p-6 rounded hover:bg-neon-purple hover:text-white transition-all duration-200 flex flex-col items-center gap-2">
+                            <i data-lucide="database" class="w-8 h-8"></i>
+                            <span class="font-bold text-xl">元素図鑑 (1-118)</span>
+                            <div class="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-200"></div>
+                        </button>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        },
+
+        // GAME MENU
+        renderGameMenu() {
+            const main = document.getElementById('main-view');
+            main.innerHTML = `
+                <div class="h-full flex flex-col items-center pt-10 px-4 animate-pop overflow-y-auto">
+                    <div class="w-full max-w-4xl">
+                        <h2 class="text-2xl font-bold text-white mb-8 border-b border-gray-600 pb-2 flex items-center gap-2">
+                            <i data-lucide="crosshair" class="text-neon-blue"></i> モード選択
+                        </h2>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Typing -->
+                            <div onclick="app.startGame('typing')" class="glass-panel p-6 rounded border-l-4 border-l-neon-blue cursor-pointer hover:bg-white/10 transition group relative">
+                                <div class="absolute top-4 right-4"><i data-lucide="keyboard" class="w-10 h-10 text-gray-500 group-hover:text-neon-blue transition"></i></div>
+                                <h3 class="font-bold text-xl text-white mb-1 group-hover:text-neon-blue transition">記号タイピング</h3>
+                                <p class="text-sm text-gray-400">表示された記号を入力して覚えるモード</p>
+                                <span class="inline-block mt-2 text-[10px] bg-neon-blue/20 text-neon-blue px-2 py-1 rounded">初心者向け</span>
+                            </div>
+
+                            <!-- Matching -->
+                            <div onclick="app.startGame('matching')" class="glass-panel p-6 rounded border-l-4 border-l-neon-red cursor-pointer hover:bg-white/10 transition group relative">
+                                <div class="absolute top-4 right-4"><i data-lucide="zap" class="w-10 h-10 text-gray-500 group-hover:text-neon-red transition"></i></div>
+                                <h3 class="font-bold text-xl text-white mb-1 group-hover:text-neon-red transition">活用例クイズ</h3>
+                                <p class="text-sm text-gray-400">「用途」から元素名を当てるクイズ</p>
+                            </div>
+
+                            <!-- Position -->
+                            <div onclick="app.startGame('position')" class="glass-panel p-6 rounded border-l-4 border-l-neon-green cursor-pointer hover:bg-white/10 transition group relative">
+                                <div class="absolute top-4 right-4"><i data-lucide="grid-3x3" class="w-10 h-10 text-gray-500 group-hover:text-neon-green transition"></i></div>
+                                <h3 class="font-bold text-xl text-white mb-1 group-hover:text-neon-green transition">場所当てクイズ</h3>
+                                <p class="text-sm text-gray-400">周期表の空欄に入る元素はどれ？</p>
+                            </div>
+                        </div>
+
+                        <button onclick="app.goHome()" class="mt-12 text-gray-400 hover:text-white flex items-center gap-2 text-sm font-bold">
+                            <i data-lucide="chevron-left"></i> 戻る
+                        </button>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        },
+
+        // GAME LOOP
+        startGame(mode) {
+            this.state.mode = mode;
+            this.state.score = 0;
+            this.state.currentQIndex = 0;
+            document.getElementById('game-status').classList.remove('hidden');
+            this.nextQuestion();
+        },
+
+        nextQuestion() {
+            if (this.state.currentQIndex >= this.state.maxQ) {
+                this.endGame();
+                return;
+            }
+
+            this.state.currentQIndex++;
+            document.getElementById('progress-display').innerText = `${this.state.currentQIndex}/${this.state.maxQ}`;
+            
+            // 出題プールの調整
+            let pool = elements;
+            // MATCHINGは「なし」「研究用」を除外
+            if(this.state.mode === 'matching') {
+                pool = elements.filter(e => 
+                    e['身の回りの活用例'] && 
+                    !e['身の回りの活用例'].includes('なし') && 
+                    !e['身の回りの活用例'].includes('研究')
+                );
+            }
+            
+            const target = pool[Math.floor(Math.random() * pool.length)];
+            this.state.currentTarget = target;
+
+            if (this.state.mode === 'typing') this.renderTypingGame(target);
+            else if (this.state.mode === 'matching') this.renderMatchingGame(target);
+            else if (this.state.mode === 'position') this.renderPositionGame(target);
+        },
+
+        // --- GAME 1: TYPING (改良: 記号を表示、模写させる) ---
+        renderTypingGame(target) {
+            const main = document.getElementById('main-view');
+            main.innerHTML = `
+                <div class="h-full flex flex-col items-center justify-center animate-pop">
+                    <div class="text-center mb-8">
+                        <p class="text-gray-400 text-sm mb-2">元素名</p>
+                        <h2 class="text-4xl md:text-5xl font-bold text-white mb-6">
+                            ${target['元素名（日本語名）']}
+                        </h2>
+                        
+                        <div class="mb-6 p-4 border-2 border-neon-blue/30 bg-neon-blue/5 rounded-xl inline-block min-w-[150px]">
+                            <p class="text-neon-blue text-xs font-bold mb-1">TYPE THIS SYMBOL</p>
+                            <div class="text-6xl md:text-8xl font-mono font-black text-neon-blue drop-shadow-[0_0_10px_rgba(0,243,255,0.8)]">
+                                ${target['元素記号']}
+                            </div>
+                        </div>
+
+                        <div class="relative group mt-4">
+                            <input type="text" id="type-input" autocomplete="off" 
+                                class="cyber-input bg-gray-900 border-2 border-gray-500 text-center text-4xl font-mono text-white w-64 py-3 rounded transition-all placeholder-gray-700"
+                                placeholder="ここに入力" maxlength="3" autofocus>
+                        </div>
+                        <p class="mt-4 text-gray-500 text-xs">大文字・小文字は自動変換されます</p>
+                    </div>
+                </div>
+            `;
+            
+            const input = document.getElementById('type-input');
+            input.focus();
+            
+            // 入力監視と自動修正
+            input.addEventListener('input', (e) => {
+                let val = input.value;
+                if(val.length > 0) {
+                    // 1文字目大文字、以降小文字に強制変換
+                    val = val.charAt(0).toUpperCase() + val.slice(1).toLowerCase();
+                    input.value = val;
+                }
+            });
+
+            input.addEventListener('keydown', (e) => {
+                SoundEngine.playKeyType();
+                if (e.key === 'Enter') {
+                    const val = input.value;
+                    if(val) this.checkAnswer(val === target['元素記号'], target);
+                }
+            });
+        },
+
+        // --- GAME 2: MATCHING (改良: 有効なデータのみ出題、見やすいUI) ---
+        renderMatchingGame(target) {
+            // 不正解の選択肢を作成（同じく有効な活用例を持つものから選ぶ）
+            let options = [target];
+            const validPool = elements.filter(e => e['身の回りの活用例'] && !e['身の回りの活用例'].includes('なし') && !e['身の回りの活用例'].includes('研究'));
+            
+            while(options.length < 4) {
+                let r = validPool[Math.floor(Math.random() * validPool.length)];
+                if(!options.includes(r)) options.push(r);
+            }
+            options.sort(() => Math.random() - 0.5);
+
+            const main = document.getElementById('main-view');
+            main.innerHTML = `
+                <div class="h-full flex flex-col items-center justify-center animate-pop max-w-4xl mx-auto w-full px-4">
+                    <div class="glass-panel p-8 rounded-xl w-full text-center mb-8 border border-neon-red/30 relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-2 h-full bg-neon-red"></div>
+                        <p class="text-neon-red font-bold text-xs mb-4 tracking-widest">これに使われているのは？</p>
+                        <h3 class="text-2xl md:text-4xl font-bold leading-relaxed text-white drop-shadow-md">
+                            ${target['身の回りの活用例']}
+                        </h3>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                        ${options.map(opt => `
+                            <button onclick="SoundEngine.playHover(); app.checkAnswer(${opt.原子番号 === target.原子番号}, app.state.currentTarget)" 
+                                class="h-20 bg-gray-800 border border-gray-600 hover:border-neon-red hover:bg-neon-red/20 hover:text-white text-gray-200 rounded-lg font-bold text-xl transition-all active:scale-95 flex items-center justify-center relative overflow-hidden group shadow-lg">
+                                <span class="relative z-10 flex items-center gap-3">
+                                    <span class="font-mono text-gray-500 group-hover:text-neon-red/70 text-sm">${opt.元素記号}</span>
+                                    ${opt['元素名（日本語名）']}
+                                </span>
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        },
+
+        // --- GAME 3: POSITION (改良: 周囲を見せる) ---
+        renderPositionGame(target) {
+            // 簡易グリッドの生成（周りの元素記号は表示する）
+            let gridHTML = '';
+            for(let r=1; r<=10; r++) {
+                for(let c=1; c<=18; c++) {
+                    const el = elements.find(e => e.pos.r === r && e.pos.c === c);
+                    const isTarget = el && el.原子番号 === target.原子番号;
+                    
+                    let cellClass = "";
+                    let content = "";
+                    
+                    if (isTarget) {
+                        // ターゲット: 疑問符で強調
+                        cellClass = "bg-neon-green text-black font-bold animate-pulse shadow-[0_0_15px_#0aff0a] z-10 border-2 border-white";
+                        content = "?";
+                    } else if (el) {
+                        // その他: 記号を表示（コンテキストを与える）
+                        cellClass = "bg-gray-800 border-gray-700 text-gray-500 opacity-60";
+                        content = el.元素記号;
+                    } else {
+                        // 存在しないマス
+                        cellClass = "invisible";
+                    }
+                    
+                    // スマホで見やすいよう文字サイズ調整
+                    gridHTML += `<div class="w-full h-full min-h-[18px] md:min-h-[25px] rounded-[2px] flex items-center justify-center text-[7px] md:text-[10px] font-mono border ${cellClass}">${content}</div>`;
+                }
+            }
+
+            // 選択肢作成
+            let options = [target];
+            while(options.length < 4) {
+                let r = elements[Math.floor(Math.random() * elements.length)];
+                if(!options.includes(r)) options.push(r);
+            }
+            options.sort(() => Math.random() - 0.5);
+
+            const main = document.getElementById('main-view');
+            main.innerHTML = `
+                <div class="h-full flex flex-col items-center pt-2 animate-pop w-full">
+                    <!-- グリッドエリア -->
+                    <div class="flex-1 w-full overflow-hidden flex items-center justify-center bg-gray-900/50 mb-4 border-y border-white/10 relative">
+                         <!-- スマホでスクロールできるようにする -->
+                        <div class="overflow-auto w-full h-full flex items-center justify-center p-4">
+                            <div class="grid grid-cols-[repeat(18,minmax(18px,1fr))] md:grid-cols-[repeat(18,minmax(30px,1fr))] gap-[2px] w-full max-w-5xl">
+                                ${gridHTML}
+                            </div>
+                        </div>
+                        <div class="absolute bottom-2 right-2 text-[10px] text-gray-400 bg-black/50 px-2 rounded pointer-events-none">場所を特定せよ</div>
+                    </div>
+                    
+                    <div class="w-full max-w-3xl px-4 pb-6">
+                        <p class="text-neon-green font-bold text-sm mb-3 text-center">「？」に入る元素は？</p>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            ${options.map(opt => `
+                                <button onclick="SoundEngine.playHover(); app.checkAnswer(${opt.原子番号 === target.原子番号}, app.state.currentTarget)" 
+                                    class="py-4 bg-gray-800 border border-gray-600 hover:border-neon-green hover:bg-neon-green hover:text-black text-white rounded font-bold transition-all active:scale-95 shadow-lg">
+                                    <div class="text-xs opacity-50 font-mono mb-1">${opt.元素記号}</div>
+                                    <div>${opt['元素名（日本語名）']}</div>
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        },
+
+        // CHECK ANSWER
+        checkAnswer(isCorrect, target) {
+            const overlay = document.getElementById('feedback-overlay');
+            const content = document.getElementById('feedback-content');
+            
+            overlay.className = "fixed inset-0 z-50 flex items-center justify-center transition-opacity duration-100 opacity-100 bg-black/60 backdrop-blur-sm";
+            content.className = "text-center transform scale-100 transition-transform duration-100";
+
+            if(isCorrect) {
+                this.state.score++;
+                SoundEngine.playSuccess();
+                overlay.classList.add('animate-flash-green');
+                content.innerHTML = `
+                    <div class="w-40 h-40 md:w-64 md:h-64 rounded-full border-[8px] border-neon-green flex items-center justify-center bg-neon-green/10 shadow-[0_0_50px_rgba(10,255,10,0.4)] mx-auto">
+                        <span class="text-neon-green text-8xl md:text-9xl font-black italic">〇</span>
+                    </div>
+                    <div class="text-neon-green font-mono font-bold text-3xl md:text-5xl mt-6 tracking-widest drop-shadow-[0_0_10px_#0aff0a]">PERFECT</div>
+                `;
+            } else {
+                SoundEngine.playError();
+                document.body.classList.add('animate-shake');
+                setTimeout(()=>document.body.classList.remove('animate-shake'), 500);
+                
+                overlay.classList.add('animate-flash-red');
+                content.innerHTML = `
+                    <div class="relative w-40 h-40 md:w-64 md:h-64 flex items-center justify-center mx-auto">
+                        <span class="text-neon-red text-9xl font-black">×</span>
+                    </div>
+                    <div class="text-neon-red font-bold text-2xl md:text-4xl mt-2 tracking-widest drop-shadow-[0_0_10px_#ff003c]">正解: ${target['元素名（日本語名）']}</div>
+                    <div class="text-white mt-2 font-mono text-xl">(${target.元素記号})</div>
+                `;
+            }
+
+            setTimeout(() => {
+                overlay.className = "fixed inset-0 pointer-events-none z-50 flex items-center justify-center opacity-0 transition-opacity duration-200";
+                overlay.classList.remove('animate-flash-green', 'animate-flash-red');
+                this.nextQuestion();
+            }, 1800);
+        },
+
+        // GAME OVER
+        endGame() {
+            const main = document.getElementById('main-view');
+            document.getElementById('game-status').classList.add('hidden');
+            
+            const rate = this.state.score / this.state.maxQ;
+            let rank = "C";
+            let color = "text-gray-400";
+            if(rate === 1) { rank = "SSS"; color = "text-neon-yellow"; }
+            else if(rate >= 0.8) { rank = "S"; color = "text-neon-green"; }
+            else if(rate >= 0.6) { rank = "A"; color = "text-neon-blue"; }
+            else if(rate >= 0.4) { rank = "B"; color = "text-neon-purple"; }
+
+            main.innerHTML = `
+                <div class="h-full flex flex-col items-center justify-center animate-pop">
+                    <div class="glass-panel p-8 md:p-12 rounded-2xl max-w-lg w-full text-center border-t-4 border-t-white">
+                        <h2 class="text-xl font-bold text-gray-400 mb-2">ミッション完了</h2>
+                        
+                        <div class="my-8">
+                            <div class="text-7xl font-black ${color} mb-2 drop-shadow-[0_0_20px_currentColor]">${rank}</div>
+                            <div class="text-xs text-gray-500 font-tech tracking-[1em]">RANKING</div>
+                        </div>
+                        
+                        <div class="flex justify-center items-end gap-2 mb-10 text-white">
+                            <span class="text-5xl font-mono font-bold">${this.state.score}</span>
+                            <span class="text-2xl text-gray-500">/</span>
+                            <span class="text-2xl text-gray-500">${this.state.maxQ}</span>
+                            <span class="text-sm ml-2 mb-2">問正解</span>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <button onclick="app.startGame('${this.state.mode}')" class="bg-gray-200 text-black font-bold py-3 rounded hover:bg-white transition shadow-lg">
+                                もう一度
+                            </button>
+                            <button onclick="app.goHome()" class="border border-gray-500 text-gray-300 font-bold py-3 rounded hover:bg-white/10 transition">
+                                メニューへ
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        },
+
+        // ARCHIVE (FULL 118)
+        renderArchive() {
+            const main = document.getElementById('main-view');
+            
+            let gridItems = elements.map(e => `
+                <div onclick="SoundEngine.playHover(); app.showDetail(${e.原子番号})" 
+                     style="grid-column: ${e.pos.c}; grid-row: ${e.pos.r};"
+                     class="element-cell ${e.colorClass} rounded-sm text-white group bg-gray-900 border-opacity-70">
+                    <span class="absolute top-0.5 left-0.5 text-[6px] md:text-[8px] opacity-70 leading-none">${e.原子番号}</span>
+                    <span class="font-bold text-xs md:text-sm font-mono z-10">${e.元素記号}</span>
+                    <div class="hidden md:block text-[8px] opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-0.5 w-full text-center truncate px-0.5 pointer-events-none">${e['元素名（日本語名）']}</div>
+                </div>
+            `).join('');
+
+            main.innerHTML = `
+                <div class="h-full flex flex-col pt-4 overflow-hidden">
+                    <div class="flex justify-between items-center px-6 mb-2 shrink-0">
+                        <h2 class="text-lg font-bold text-neon-purple flex items-center gap-2">
+                            <i data-lucide="database"></i> 元素図鑑 (1-118)
+                        </h2>
+                        <button onclick="app.goHome()" class="text-xs text-gray-300 border border-gray-600 px-3 py-1 rounded hover:bg-white hover:text-black transition">閉じる</button>
+                    </div>
+
+                    <div class="flex-1 overflow-auto bg-black/40 shadow-inner">
+                        <div class="periodic-grid mx-auto">
+                            ${gridItems}
+                        </div>
+                        <div class="h-20"></div>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        },
+
+        // MODAL DETAIL
+        showDetail(id) {
+            const e = elements.find(el => el.原子番号 === id);
+            if(!e) return;
+            SoundEngine.playSuccess();
+
+            const modal = document.getElementById('modal-overlay');
+            const content = document.getElementById('modal-content');
+            
+            // 色クラスからborder色などを抽出
+            const colorClass = e.colorClass.split(' ')[0].replace('border-', 'text-');
+
+            content.innerHTML = `
+                <div class="relative bg-gradient-to-br from-[#121225] to-[#0a0a16] p-6 text-white">
+                    <button onclick="app.closeModal()" class="absolute top-4 right-4 p-2 bg-white/10 rounded-full hover:bg-white hover:text-black transition z-10"><i data-lucide="x" class="w-5 h-5"></i></button>
+                    
+                    <div class="flex flex-col md:flex-row gap-6 mb-6 items-center md:items-start">
+                        <!-- Hero Icon -->
+                        <div class="shrink-0 w-28 h-28 flex flex-col items-center justify-center border-4 ${e.colorClass.split(' ')[0]} bg-black/50 shadow-2xl rounded-2xl relative overflow-hidden">
+                            <span class="text-sm text-gray-500 absolute top-2 left-3 font-mono">No.${e.原子番号}</span>
+                            <span class="text-5xl font-mono font-black tracking-tighter z-10 text-white">${e.元素記号}</span>
+                        </div>
+                        
+                        <div class="flex flex-col justify-center text-center md:text-left w-full">
+                            <h2 class="text-3xl font-bold mb-1">${e['元素名（日本語名）']}</h2>
+                            <p class="text-gray-400 text-xs font-mono mb-3">ATOMIC DATA</p>
+                            <div class="flex flex-wrap gap-2 justify-center md:justify-start">
+                                <span class="px-2 py-1 bg-white/5 rounded text-[10px] uppercase tracking-wider border border-white/10 text-gray-300">Standard</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 gap-4 text-left">
+                        <div class="bg-gray-900/50 p-4 rounded border-l-2 border-neon-blue">
+                            <h4 class="text-neon-blue text-xs font-bold mb-2 flex items-center gap-2"><i data-lucide="info" class="w-3 h-3"></i> 特徴</h4>
+                            <p class="text-sm text-gray-200 leading-relaxed">${e.特性}</p>
+                        </div>
+                        
+                        <div class="bg-gray-900/50 p-4 rounded border-l-2 border-neon-purple">
+                            <h4 class="text-neon-purple text-xs font-bold mb-2 flex items-center gap-2"><i data-lucide="cpu" class="w-3 h-3"></i> 主な用途</h4>
+                            <div class="flex flex-wrap gap-2">
+                                ${(!e['身の回りの活用例'] || e['身の回りの活用例'].includes('なし') || e['身の回りの活用例'].includes('研究'))
+                                    ? '<span class="text-xs text-gray-500">特殊・研究用途</span>' 
+                                    : e['身の回りの活用例'].split('、').map(u => `<span class="text-xs bg-neon-purple/10 border border-neon-purple/30 px-2 py-1 rounded text-gray-200">${u}</span>`).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        },
+
+        closeModal() {
+            document.getElementById('modal-overlay').classList.add('hidden');
+        }
+    };
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        app.init();
+    });
+
+</script>
+</body>
+</html>
