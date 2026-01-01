@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FairShift | 掃除当番表作成アプリ</title>
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdfa', 100: '#ccfbf1', 400: '#2dd4bf', 500: '#14b8a6', 600: '#0d9488',
+                        },
+                    },
+                    fontFamily: {
+                        sans: ['"Noto Sans JP"', 'sans-serif'],
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-out forwards',
+                        'slide-up': 'slideUp 0.4s ease-out forwards',
+                    },
+                    keyframes: {
+                        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+                        slideUp: { '0%': { opacity: '0', transform: 'translateY(10px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .step-container { display: none; }
+        .step-container.active { display: block; animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+        /* 数値入力のスピンボタンを消す */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-700 min-h-screen flex flex-col font-sans">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-50 bg-opacity-95 backdrop-blur">
+        <div class="max-w-5xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-2 cursor-pointer" onclick="app.reset()">
+                <div class="w-8 h-8 bg-brand-100 rounded-lg flex items-center justify-center text-brand-600">
+                    <i class="fa-solid fa-broom"></i>
+                </div>
+                <h1 class="text-lg font-bold text-slate-800 tracking-tight">FairShift</h1>
+            </div>
+            <button onclick="app.showGuide()" class="text-slate-400 hover:text-brand-500 transition-colors text-sm font-medium">
+                <i class="fa-regular fa-circle-question mr-1"></i>ヘルプ
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-grow container max-w-4xl mx-auto px-4 py-6">
+        
+        <!-- STEP 1: Setting -->
+        <section id="step-1" class="step-container active">
+            <div class="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
+                <!-- Hero Section -->
+                <div class="bg-brand-50 p-8 text-center border-b border-brand-100">
+                    <h2 class="text-2xl md:text-3xl font-bold text-slate-800 mb-3">
+                        掃除当番表作成アプリ
+                    </h2>
+                    <p class="text-slate-600 max-w-lg mx-auto leading-relaxed text-sm md:text-base">
+                        <strong>全員が納得できる最適なシフト表</strong>を自動作成します。
+                    </p>
+                </div>
+
+                <div class="p-8 md:p-10 flex flex-col items-center">
+                    <label class="block text-sm font-bold text-slate-500 mb-4 uppercase tracking-wider">参加人数を入力</label>
+                    
+                    <!-- Number Input UI -->
+                    <div class="flex items-center gap-4 mb-8">
+                        <button onclick="app.adjustCount(-1)" class="w-12 h-12 rounded-full border-2 border-slate-200 text-slate-400 hover:border-brand-400 hover:text-brand-500 hover:bg-brand-50 transition-all text-xl focus:outline-none focus:ring-2 focus:ring-brand-200">
+                            <i class="fa-solid fa-minus"></i>
+                        </button>
+                        
+                        <div class="relative">
+                            <input type="number" id="user-count" min="2" max="20" value="4" 
+                                class="w-24 text-center text-4xl font-bold text-slate-800 border-b-2 border-slate-200 focus:border-brand-500 focus:outline-none bg-transparent transition-colors py-2"
+                                onchange="app.validateCount()">
+                            <span class="absolute right-0 bottom-4 text-slate-400 font-bold text-sm pointer-events-none">人</span>
+                        </div>
+
+                        <button onclick="app.adjustCount(1)" class="w-12 h-12 rounded-full border-2 border-slate-200 text-slate-400 hover:border-brand-400 hover:text-brand-500 hover:bg-brand-50 transition-all text-xl focus:outline-none focus:ring-2 focus:ring-brand-200">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+                    </div>
+
+                    <button onclick="app.goToStep2()" class="w-full max-w-xs py-4 bg-slate-800 text-white rounded-xl font-bold text-lg shadow-lg hover:bg-slate-700 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2">
+                        <span>次へ進む</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                    <p class="mt-4 text-xs text-slate-400">※ 2名〜20名まで対応しています</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- STEP 2: Inputs -->
+        <section id="step-2" class="step-container">
+            <div class="bg-white rounded-2xl shadow-lg p-6 md:p-8 border border-slate-100">
+                <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-100">
+                    <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        <span class="bg-brand-100 text-brand-600 px-2 py-0.5 rounded text-xs">STEP 2</span>
+                        名前と役割の入力
+                    </h2>
+                    <button onclick="app.backToStep1()" class="text-sm text-slate-400 hover:text-slate-600">
+                        <i class="fa-solid fa-chevron-left mr-1"></i>戻る
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Member Inputs -->
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-500 mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-user text-brand-400"></i> メンバー名
+                        </h3>
+                        <div id="members-container" class="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                            <!-- JS Generated -->
+                        </div>
+                    </div>
+
+                    <!-- Role Inputs -->
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-500 mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-bucket text-brand-400"></i> 役割名
+                        </h3>
+                        <div id="roles-container" class="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                            <!-- JS Generated -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-8 pt-6 border-t border-slate-100 text-center">
+                    <button onclick="app.generateAndShow()" class="w-full md:w-2/3 py-4 bg-gradient-to-r from-brand-500 to-brand-400 text-white rounded-full font-bold text-lg shadow-lg shadow-brand-200 hover:shadow-xl hover:scale-[1.02] transition-all duration-200">
+                        <i class="fa-solid fa-wand-magic-sparkles mr-2"></i>
+                        シフトを作成する
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- STEP 3: Result -->
+        <section id="step-3" class="step-container">
+            <!-- Controls -->
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-slate-800">決定した当番表</h2>
+                <div class="flex gap-2">
+                    <button onclick="app.regenerate()" class="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-sm hover:bg-slate-50 hover:text-brand-600 transition-colors shadow-sm font-medium">
+                        <i class="fa-solid fa-rotate-right mr-1"></i> 再生成
+                    </button>
+                    <button onclick="app.reset()" class="px-4 py-2 bg-slate-800 text-white rounded-lg text-sm hover:bg-slate-700 transition-colors shadow-sm font-medium">
+                        最初から
+                    </button>
+                </div>
+            </div>
+
+            <!-- Schedule Table (Compact) -->
+            <div class="bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden mb-6">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left whitespace-nowrap">
+                        <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs uppercase">
+                            <tr>
+                                <th class="px-3 py-3 w-16 text-center font-bold bg-slate-50 sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">曜日</th>
+                                <!-- JS will inject headers -->
+                            </tr>
+                        </thead>
+                        <tbody id="schedule-body" class="divide-y divide-slate-100">
+                            <!-- JS will inject rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Fairness Matrix (Improved) -->
+            <div class="bg-white rounded-xl shadow-md border border-slate-200 p-5">
+                <div class="mb-4">
+                    <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-scale-balanced text-brand-500"></i> 公平性の可視化
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-1">誰がどの役割を何回担当するかをチェックできます。</p>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs md:text-sm">
+                        <thead>
+                            <tr id="stats-header-row" class="border-b border-slate-200">
+                                <th class="text-left py-2 px-2 text-slate-400 font-medium min-w-[80px]">名前 \ 役割</th>
+                                <!-- JS Injected Role Headers -->
+                            </tr>
+                        </thead>
+                        <tbody id="stats-body" class="divide-y divide-slate-50">
+                            <!-- JS Injected Matrix Rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Guide Modal -->
+    <div id="guide-modal" class="fixed inset-0 bg-slate-900/60 z-[100] hidden flex items-center justify-center p-4 backdrop-blur-sm transition-opacity opacity-0">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 relative transform scale-95 transition-transform">
+            <button onclick="app.closeGuide()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="text-center mb-4">
+                <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-brand-100 text-brand-500 mb-3">
+                    <i class="fa-solid fa-lightbulb text-xl"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800">使い方ヒント</h3>
+            </div>
+            <div class="space-y-3 text-sm text-slate-600">
+                <p>1. <strong>人数を決める</strong>: 掃除に参加する人数を入力します。</p>
+                <p>2. <strong>名前と役割を入力</strong>: 人数分の役割名（例: ゴミ捨て、机拭き）を用意します。</p>
+                <p>3. <strong>自動生成</strong>: 「シフトを作成」ボタンを押すと、特定の人に負荷が偏らないよう計算された表が表示されます。</p>
+            </div>
+            <button onclick="app.closeGuide()" class="mt-6 w-full py-2.5 bg-slate-800 text-white rounded-lg font-bold hover:bg-slate-700">OK</button>
+        </div>
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        const CONFIG = {
+            days: ['月', '火', '水', '木', '金'],
+            defaultRoles: [
+                'からぶき', 'ほうき', '水ぶき', '黒板', 'からぶき', 
+                '机運び', '整理整頓', '換気', '備品補充', '',
+                '', '', '', '', ''
+            ],
+            simulationCount: 5000 // 試行回数を増やして精度向上
+        };
+
+        class FairShiftApp {
+            constructor() {
+                this.state = {
+                    count: 4,
+                    members: [],
+                    roles: [],
+                    schedule: {},
+                    stats: {}
+                };
+                
+                this.dom = {
+                    steps: [document.getElementById('step-1'), document.getElementById('step-2'), document.getElementById('step-3')],
+                    countInput: document.getElementById('user-count'),
+                    membersContainer: document.getElementById('members-container'),
+                    rolesContainer: document.getElementById('roles-container'),
+                    scheduleBody: document.getElementById('schedule-body'),
+                    scheduleHeadRow: document.querySelector('#step-3 thead tr'),
+                    statsHeaderRow: document.getElementById('stats-header-row'),
+                    statsBody: document.getElementById('stats-body'),
+                    guideModal: document.getElementById('guide-modal')
+                };
+            }
+
+            // --- Count Input Logic ---
+            adjustCount(delta) {
+                let newVal = parseInt(this.dom.countInput.value) + delta;
+                if (newVal >= 2 && newVal <= 20) {
+                    this.dom.countInput.value = newVal;
+                    this.state.count = newVal;
+                }
+            }
+
+            validateCount() {
+                let val = parseInt(this.dom.countInput.value);
+                if (isNaN(val) || val < 2) val = 2;
+                if (val > 20) val = 20;
+                this.dom.countInput.value = val;
+                this.state.count = val;
+            }
+
+            // --- Navigation ---
+            goToStep2() {
+                this.validateCount();
+                this.generateInputForms();
+                this.switchStep(0, 1);
+            }
+
+            backToStep1() {
+                this.switchStep(1, 0);
+            }
+
+            reset() {
+                this.state.schedule = {};
+                this.switchStep(2, 0); // Back to Step 1 from anywhere
+                // If on Step 2, also go back
+                if(this.dom.steps[1].classList.contains('active')) this.switchStep(1,0);
+            }
+
+            switchStep(fromIdx, toIdx) {
+                this.dom.steps.forEach(el => el.classList.remove('active'));
+                // Simple fade/slide effect handled by CSS animation on .active
+                setTimeout(() => {
+                    this.dom.steps[toIdx].classList.add('active');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }, 50);
+            }
+
+            // --- Form Generation ---
+            generateInputForms() {
+                // Generate Member Inputs
+                this.dom.membersContainer.innerHTML = '';
+                for (let i = 0; i < this.state.count; i++) {
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center';
+                    div.innerHTML = `
+                        <span class="w-6 text-slate-400 text-xs font-bold text-center mr-2">${i + 1}</span>
+                        <input type="text" value="メンバー ${String.fromCharCode(65 + i)}" class="member-input flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-400 transition-all" placeholder="名前">
+                    `;
+                    this.dom.membersContainer.appendChild(div);
+                }
+
+                // Generate Role Inputs
+                this.dom.rolesContainer.innerHTML = '';
+                for (let i = 0; i < this.state.count; i++) {
+                    const defaultRole = CONFIG.defaultRoles[i] || `役割 ${i+1}`;
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center';
+                    div.innerHTML = `
+                        <span class="w-6 text-brand-400 text-xs text-center mr-2"><i class="fa-solid fa-star"></i></span>
+                        <input type="text" value="${defaultRole}" class="role-input flex-1 bg-brand-50 border border-brand-100 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-400 transition-all" placeholder="役割名">
+                    `;
+                    this.dom.rolesContainer.appendChild(div);
+                }
+            }
+
+            collectData() {
+                const mInputs = document.querySelectorAll('.member-input');
+                const rInputs = document.querySelectorAll('.role-input');
+                this.state.members = Array.from(mInputs).map(i => i.value.trim() || '名無し');
+                this.state.roles = Array.from(rInputs).map(i => i.value.trim() || '役割');
+            }
+
+            // --- Logic: Fairness Algorithm ---
+            generateAndShow() {
+                this.collectData();
+                this.generateSchedule();
+                this.renderSchedule();
+                this.renderStatsMatrix(); // Changed to Matrix
+                this.switchStep(1, 2);
+            }
+
+            regenerate() {
+                const btn = document.querySelector('.fa-rotate-right');
+                btn.classList.add('animate-spin');
+                setTimeout(() => btn.classList.remove('animate-spin'), 500);
+
+                this.generateSchedule();
+                this.renderSchedule();
+                this.renderStatsMatrix();
+            }
+
+            generateSchedule() {
+                let bestSchedule = null;
+                let minVariance = Infinity;
+
+                for (let i = 0; i < CONFIG.simulationCount; i++) {
+                    const tempSchedule = this.createRandomSchedule();
+                    const variance = this.calculateVariance(tempSchedule);
+                    if (variance < minVariance) {
+                        minVariance = variance;
+                        bestSchedule = tempSchedule;
+                    }
+                    if (variance === 0) break;
+                }
+                this.state.schedule = bestSchedule;
+            }
+
+            createRandomSchedule() {
+                const schedule = {};
+                const members = [...this.state.members];
+                const roles = [...this.state.roles];
+
+                CONFIG.days.forEach(day => {
+                    // Fisher-Yates Shuffle
+                    const shuffled = [...members];
+                    for (let i = shuffled.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                    }
+                    
+                    schedule[day] = {};
+                    roles.forEach((role, idx) => {
+                        schedule[day][role] = shuffled[idx]; // Role[i] assigned to ShuffledMember[i]
+                    });
+                });
+                return schedule;
+            }
+
+            calculateVariance(schedule) {
+                const counts = {};
+                this.state.members.forEach(m => {
+                    counts[m] = {};
+                    this.state.roles.forEach(r => counts[m][r] = 0);
+                });
+
+                // Count assignments
+                Object.values(schedule).forEach(dayRoles => {
+                    Object.entries(dayRoles).forEach(([role, member]) => {
+                        if(counts[member] && counts[member][role] !== undefined) {
+                            counts[member][role]++;
+                        }
+                    });
+                });
+
+                // Calculate penalty (Sum of squares of repetitions > 1)
+                let penalty = 0;
+                Object.values(counts).forEach(memberRoles => {
+                    Object.values(memberRoles).forEach(c => {
+                        if (c > 1) penalty += (c * c);
+                    });
+                });
+                return penalty;
+            }
+
+            // --- Rendering ---
+            renderSchedule() {
+                // 1. Build Header
+                const headRow = this.dom.scheduleHeadRow;
+                // Keep first th (曜日), remove others
+                while(headRow.children.length > 1) { headRow.removeChild(headRow.lastChild); }
+                
+                this.state.roles.forEach(role => {
+                    const th = document.createElement('th');
+                    th.className = "px-2 py-3 bg-slate-50 font-semibold text-slate-600 border-b border-slate-200 min-w-[80px]";
+                    th.textContent = role;
+                    headRow.appendChild(th);
+                });
+
+                // 2. Build Body
+                this.dom.scheduleBody.innerHTML = '';
+                CONFIG.days.forEach(day => {
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-brand-50/50 transition-colors";
+                    
+                    // Sticky Day Column
+                    let html = `<td class="px-3 py-2 font-bold text-slate-700 bg-white sticky left-0 z-10 border-r border-slate-100 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">${day}</td>`;
+                    
+                    this.state.roles.forEach(role => {
+                        const member = this.state.schedule[day][role];
+                        html += `<td class="px-2 py-2 text-slate-600 border-r border-slate-50 last:border-0">
+                            <span class="inline-block w-full text-center py-1 px-1 rounded hover:bg-white hover:shadow-sm transition-all cursor-default select-none">
+                                ${member}
+                            </span>
+                        </td>`;
+                    });
+                    tr.innerHTML = html;
+                    this.dom.scheduleBody.appendChild(tr);
+                });
+            }
+
+            renderStatsMatrix() {
+                // Build Matrix Data
+                const matrix = {}; // { Member: { Role: count } }
+                this.state.members.forEach(m => {
+                    matrix[m] = {};
+                    this.state.roles.forEach(r => matrix[m][r] = 0);
+                });
+
+                Object.values(this.state.schedule).forEach(dayAssign => {
+                    Object.entries(dayAssign).forEach(([role, member]) => {
+                        if(matrix[member]) matrix[member][role]++;
+                    });
+                });
+
+                // 1. Render Header
+                this.dom.statsHeaderRow.innerHTML = `<th class="text-left py-2 px-2 text-slate-400 font-medium text-xs border-r border-slate-100 min-w-[100px] sticky left-0 bg-white z-10">名前 \\ 役割</th>`;
+                this.state.roles.forEach(role => {
+                    const th = document.createElement('th');
+                    th.className = "py-2 px-1 text-center text-slate-500 font-medium text-xs min-w-[60px]";
+                    th.textContent = role;
+                    this.dom.statsHeaderRow.appendChild(th);
+                });
+
+                // 2. Render Body Rows
+                this.dom.statsBody.innerHTML = '';
+                this.state.members.forEach(member => {
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-50";
+                    
+                    // Member Name Cell
+                    let html = `<td class="py-2 px-2 font-bold text-slate-700 text-xs border-r border-slate-100 sticky left-0 bg-white z-10">${member}</td>`;
+                    
+                    // Counts Cells
+                    this.state.roles.forEach(role => {
+                        const count = matrix[member][role];
+                        // Heatmap coloring
+                        let bgClass = 'bg-transparent text-slate-300'; // 0
+                        if (count === 1) bgClass = 'bg-brand-50 text-brand-600 font-medium';
+                        if (count >= 2) bgClass = 'bg-orange-100 text-orange-600 font-bold'; // Warning
+                        
+                        html += `<td class="py-1 px-1 text-center border-r border-slate-50 last:border-0">
+                            <div class="mx-auto w-6 h-6 flex items-center justify-center rounded ${bgClass}">
+                                ${count > 0 ? count : '-'}
+                            </div>
+                        </td>`;
+                    });
+                    
+                    tr.innerHTML = html;
+                    this.dom.statsBody.appendChild(tr);
+                });
+            }
+
+            // --- Guide Modal ---
+            showGuide() {
+                const el = this.dom.guideModal;
+                el.classList.remove('hidden');
+                setTimeout(() => {
+                    el.classList.remove('opacity-0');
+                    el.children[0].classList.remove('scale-95');
+                    el.children[0].classList.add('scale-100');
+                }, 10);
+            }
+            closeGuide() {
+                const el = this.dom.guideModal;
+                el.classList.add('opacity-0');
+                el.children[0].classList.remove('scale-100');
+                el.children[0].classList.add('scale-95');
+                setTimeout(() => el.classList.add('hidden'), 300);
+            }
+        }
+
+        const app = new FairShiftApp();
+    </script>
+</body>
+</html>
