@@ -3,21 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bingo Party Pop! Ver.2.0</title>
+    <title>レッツ・ビンゴ！</title>
     <style>
         /* --- Base & Fonts --- */
-        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=M+PLUS+Rounded+1c:wght@800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;900&family=Yusei+Magic&display=swap');
 
         :root {
-            --primary: #FF4081;
-            --secondary: #00E5FF;
-            --accent: #FFD740;
-            --reach-color: #FF9100;
-            --dark: #212121;
-            --light: #FFFFFF;
-            --bg-gradient: linear-gradient(135deg, #FF9A9E 0%, #FECFEF 99%, #FECFEF 100%); 
-            --bg-host: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --bg-rec: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+            /* 見やすさ重視のカラーパレット (Material Like) */
+            --primary: #E91E63;       /* 落ち着いたピンク */
+            --primary-dark: #C2185B;
+            --secondary: #00ACC1;     /* 落ち着いたシアン/ティール */
+            --accent: #FFCA28;        /* 読みやすい黄色 */
+            --reach: #F57C00;         /* オレンジ */
+            
+            --text-main: #333333;     /* 基本の文字色（濃いグレー） */
+            --text-sub: #555555;
+            --bg-body: #F0F4F8;       /* 目に優しいオフホワイト */
+            --card-bg: #FFFFFF;
+            
+            /* モード別の背景色（淡いパステル調に変更） */
+            --bg-host: linear-gradient(135deg, #E3F2FD 0%, #F3E5F5 100%);
+            --bg-rec:  linear-gradient(135deg, #E0F2F1 0%, #F1F8E9 100%);
+            --bg-player: linear-gradient(135deg, #FFF3E0 0%, #FFEBEE 100%);
         }
 
         * {
@@ -29,29 +36,31 @@
         body {
             margin: 0;
             font-family: 'M PLUS Rounded 1c', sans-serif;
-            background: var(--bg-host);
-            color: var(--dark);
+            background: var(--bg-body); 
+            color: var(--text-main);
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
             transition: background 0.5s;
+            overflow-x: hidden;
         }
 
         /* --- Container --- */
         #app-container {
             width: 100%;
-            max-width: 550px;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 25px;
-            padding: 20px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+            max-width: 600px;
+            background: #FFFFFF;
+            border-radius: 24px;
+            padding: 24px;
+            /* 影を柔らかくして浮遊感を出す */
+            box-shadow: 0 10px 25px rgba(0,0,0,0.08);
             text-align: center;
             position: relative;
-            overflow: hidden;
             min-height: 700px;
             display: flex;
             flex-direction: column;
+            border: 1px solid #E0E0E0;
         }
 
         /* --- Screens --- */
@@ -59,10 +68,9 @@
             display: none;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
             flex: 1;
-            animation: fadeIn 0.4s ease;
             width: 100%;
+            animation: fadeIn 0.4s ease-out;
         }
         .screen.active { display: flex; }
 
@@ -71,188 +79,246 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* --- Typography --- */
-        h1 {
-            font-family: 'Fredoka One', cursive;
+        /* --- Title & Typography --- */
+        h1.game-title {
+            font-family: 'Yusei Magic', sans-serif;
+            font-size: 3rem;
             color: var(--primary);
-            font-size: 2.8rem;
             margin: 10px 0;
-            text-shadow: 3px 3px 0px var(--accent);
+            /* 縁取りをなくし、視認性の高いドロップシャドウに変更 */
+            text-shadow: 2px 2px 0px rgba(0,0,0,0.1);
             line-height: 1.2;
+            transform: rotate(-2deg);
         }
-        h2 { font-size: 1.4rem; color: #333; margin: 10px 0; }
-        p { margin: 5px 0; font-weight: bold; }
 
-        /* --- Inputs & Forms --- */
-        input[type="number"], input[type="text"] {
+        h2 { 
+            font-size: 1.5rem; 
+            color: var(--text-main); 
+            margin: 15px 0; 
+            font-weight: 900;
+        }
+
+        /* --- Info Box --- */
+        .info-box {
+            background: #FAFAFA;
+            border: 2px solid #E0E0E0;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 10px 0 25px 0;
+            width: 100%;
+            text-align: left;
+        }
+        .info-title { 
+            font-weight: 900; 
+            color: var(--secondary); 
+            margin-bottom: 8px; 
+            font-size: 1.1rem; 
+            display: flex; align-items: center; gap:5px;
+        }
+        .info-item { 
+            display: flex; align-items: flex-start; 
+            margin-bottom: 8px; 
+            font-size: 0.95rem; 
+            line-height: 1.5; 
+            color: var(--text-sub); 
+        }
+        .info-icon { 
+            margin-right: 10px; 
             font-size: 1.2rem;
-            padding: 10px;
-            border: 3px solid #ccc;
-            border-radius: 10px;
-            margin: 5px;
-            font-weight: bold;
-            outline: none;
-            width: 80px;
+            min-width: 25px;
             text-align: center;
         }
-        input[type="text"] { width: 200px; text-align: left; }
-        input:focus { border-color: var(--secondary); }
 
-        .rec-input-group {
-            display: flex;
-            justify-content: center;
+        /* --- Inputs --- */
+        .num-input-group {
+            background: #F5F5F5;
+            padding: 10px 25px;
+            border-radius: 50px;
+            display: inline-flex;
             align-items: center;
-            margin-bottom: 8px;
+            margin-bottom: 25px;
+            border: 1px solid #ddd;
         }
+        input[type="number"] {
+            font-size: 1.4rem;
+            padding: 5px;
+            border: none;
+            background: transparent;
+            width: 70px;
+            text-align: center;
+            font-weight: 800;
+            color: var(--primary-dark);
+            outline: none;
+            border-bottom: 2px solid var(--primary);
+        }
+        /* Rec Mode Inputs */
+        input.rec-num {
+            background: #fff; border: 1px solid #ccc; border-radius: 6px; 
+            width: 60px; padding: 5px; text-align: center;
+        }
+        input.rec-text {
+            width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc;
+            font-size: 1rem; margin: 2px 0; background: #fff;
+        }
+        input:focus { border-color: var(--secondary); background: #fff; }
 
         /* --- Buttons --- */
         .btn {
             font-family: 'M PLUS Rounded 1c', sans-serif;
             font-size: 1.1rem;
-            padding: 12px 25px;
+            padding: 14px 24px;
             border: none;
-            border-radius: 50px;
+            border-radius: 12px;
             cursor: pointer;
-            margin: 8px;
-            transition: transform 0.1s, box-shadow 0.1s;
+            margin: 8px 0;
             font-weight: 800;
-            box-shadow: 0 5px 0 rgba(0,0,0,0.2);
             color: white;
-            display: inline-block;
+            width: 100%;
+            transition: transform 0.1s, box-shadow 0.1s;
+            /* 影を抑えめにしてフラット寄りに */
+            box-shadow: 0 4px 0 rgba(0,0,0,0.15);
+            display: flex; justify-content: center; align-items: center; gap: 10px;
         }
-        .btn:active { transform: translateY(4px); box-shadow: 0 1px 0 rgba(0,0,0,0.2); }
-        .btn:disabled { background: #ccc; cursor: not-allowed; box-shadow: none; transform: none; }
-
-        .btn-host { background-color: var(--primary); width: 80%; }
-        .btn-rec { background-color: #FF9100; width: 80%; }
-        .btn-player { background-color: var(--secondary); color: var(--dark); width: 80%; }
-        .btn-action { background-color: var(--accent); color: var(--dark); font-size: 1.4rem; width: 45%; }
-        .btn-speed { background-color: var(--secondary); color: var(--dark); font-size: 1.2rem; width: 45%; }
-        .btn-danger { background-color: #FF5252; width: auto; font-size: 0.9rem; padding: 8px 15px;}
-        .btn-outline { background: transparent; border: 2px solid #999; color: #666; box-shadow: none; }
-
-        /* --- Host Machine --- */
-        .bingo-machine {
-            width: 180px;
-            height: 180px;
-            background: #222;
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+        .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0,0,0,0.15); }
+        .btn:disabled { background: #BDBDBD; color: #fff; cursor: not-allowed; box-shadow: none; transform: none;}
+        
+        /* Button Colors - Readable Contrast */
+        .btn-host { background: var(--primary); }
+        .btn-rec { background: #FF9800; } /* オレンジ */
+        .btn-player { background: #4CAF50; } /* グリーン */
+        
+        .btn-action { background: #fff; border: 2px solid var(--primary); color: var(--primary); font-size: 1.4rem; width: 48%; box-shadow: 0 4px 0 #f0f0f0; }
+        .btn-action:active { background: #FFF0F5; box-shadow: 0 1px 0 #f0f0f0; }
+        
+        .btn-speed { background: var(--secondary); color: #fff; width: 48%; }
+        
+        .btn-back { background: #78909C; font-size: 0.95rem; padding: 10px; width: auto; }
+        .btn-outline { background: transparent; border: 2px solid #90A4AE; color: #546E7A; box-shadow: none; }
+        .btn-outline:active { background: #ECEFF1; transform:translateY(0); }
+        
+        /* --- Bingo Machine --- */
+        .machine-container {
+            position: relative;
             margin: 10px auto;
-            border: 10px solid var(--accent);
-            box-shadow: inset 0 0 20px #000;
+        }
+        .bingo-machine {
+            width: 200px; height: 200px;
+            background: #263238; /* ダークグレー */
+            border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            border: 8px solid #ECEFF1;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
         }
         .current-number {
-            font-family: 'Fredoka One', cursive;
-            font-size: 5.5rem;
-            color: var(--secondary);
-            text-shadow: 0 0 15px var(--secondary);
+            font-family: 'Yusei Magic', sans-serif;
+            font-size: 6.5rem;
+            color: #fff;
+            /* 光彩効果を削除し、くっきり表示 */
+            line-height: 1;
         }
-
+        
         /* --- Player Card --- */
+        .card-container {
+            background: #ECEFF1;
+            padding: 12px;
+            border-radius: 16px;
+        }
         .bingo-card {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
             gap: 6px;
-            width: 100%;
-            max-width: 380px;
-            margin: 10px auto;
-            background: #333;
-            padding: 8px;
-            border-radius: 15px;
+            width: 100%; max-width: 380px; margin: 0 auto;
         }
         .cell {
             aspect-ratio: 1;
-            background: white;
-            border-radius: 6px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 1.3rem;
-            font-weight: 800;
+            background: #fff;
+            border-radius: 8px;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 1.3rem; font-weight: 800;
+            color: #333;
             cursor: pointer;
-            transition: all 0.2s;
+            border: 2px solid #CFD8DC; /* 枠線ではっきりさせる */
+            transition: 0.1s;
             position: relative;
         }
-        .cell.free { background: var(--accent); color: var(--primary); font-size: 2rem; }
-        .cell.hit { background: var(--primary); color: white; animation: rubberBand 0.5s; box-shadow: inset 0 0 5px rgba(0,0,0,0.3); }
-        .cell.hit::after {
-            content: '●'; position: absolute; font-size: 3rem; color: rgba(255,255,255,0.4);
+        .cell:active { transform: scale(0.95); }
+        
+        /* Free Space (Star) */
+        .cell.free { 
+            background: #FFF8E1; 
+            border-color: var(--accent);
+            color: #FF8F00; 
+            font-size: 2rem; 
+        }
+        
+        /* Hit State - 明確な変化だが目は痛くない */
+        .cell.hit {
+            background: var(--primary); 
+            color: white;
+            border-color: var(--primary-dark);
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .cell.hit.free {
+             background: var(--accent);
+             border-color: #F57F17;
+             color: #fff;
+        }
+
+        .cell.hit::before {
+            content: '●'; position: absolute; font-size: 3rem; opacity: 0.2; color: #000;
             top: 50%; left: 50%; transform: translate(-50%, -50%);
         }
 
-        /* --- Overlays & Animations --- */
-        .overlay-layer {
+        @keyframes popIn { 0% {transform: scale(0.8);} 100% {transform: scale(1);} }
+
+        /* --- Overlays --- */
+        .overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 100;
             display: flex; justify-content: center; align-items: center;
         }
-        
-        .big-text {
-            font-family: 'Fredoka One', cursive;
-            font-size: 5rem;
+        .msg-text {
+            font-family: 'Yusei Magic'; font-size: 5rem;
             color: var(--accent);
-            text-shadow: 4px 4px 0 #000;
+            /* 白フチをつけて読みやすく */
+            -webkit-text-stroke: 4px #fff;
+            paint-order: stroke fill;
+            filter: drop-shadow(0 4px 10px rgba(0,0,0,0.3));
             transform: scale(0); opacity: 0;
             transition: 0.3s;
         }
-        .big-text.show { transform: scale(1) rotate(-5deg); opacity: 1; animation: pulse 0.5s infinite alternate; }
+        .msg-text.show { transform: scale(1) rotate(-5deg); opacity: 1; animation: throb 0.6s infinite alternate; }
+        @keyframes throb { to { transform: scale(1.05) rotate(-5deg); } }
 
-        .reach-text {
-            color: var(--reach-color);
-            text-shadow: 3px 3px 0 #fff, 0 0 20px var(--reach-color);
-        }
-
-        /* Task Modal (Rec Mode) */
-        #task-modal, #result-modal {
+        /* Modals */
+        .modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85);
+            background: rgba(0,0,0,0.6); /* 背景を暗くして文字を目立たせる */
             z-index: 200;
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            animation: fadeIn 0.3s;
+            display: none; justify-content: center; align-items: center;
+            padding: 20px;
+            backdrop-filter: blur(2px);
         }
-        #task-modal.active, #result-modal.active { display: flex; }
-        
-        .modal-content {
-            background: white; color: #333; padding: 25px;
-            border-radius: 20px; text-align: center; width: 90%; max-width: 450px;
-            border: 5px solid var(--accent);
-            box-shadow: 0 0 30px var(--accent);
-        }
-        .task-number { font-size: 2rem; color: var(--primary); font-weight: bold; }
-        .task-desc { font-size: 2.5rem; font-weight: 800; margin: 20px 0; line-height: 1.2; word-break: break-all;}
-
-        /* Result List */
-        .result-list {
-            display: flex; flex-wrap: wrap; gap: 5px; justify-content: center;
-            max-height: 200px; overflow-y: auto; margin: 15px 0;
-            padding: 10px; background: #f5f5f5; border-radius: 10px;
-        }
-        .result-badge {
-            background: var(--dark); color: white; padding: 5px 10px;
-            border-radius: 20px; font-weight: bold; font-size: 0.9rem;
+        .modal.active { display: flex; animation: fadeIn 0.3s; }
+        .modal-box {
+            background: #fff; padding: 30px; border-radius: 20px;
+            width: 100%; max-width: 500px; text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
         }
 
-        /* Animations */
-        @keyframes rubberBand {
-            0% { transform: scale(1); } 30% { transform: scale(1.25, 0.75); }
-            40% { transform: scale(0.75, 1.25); } 50% { transform: scale(1.15, 0.85); }
-            100% { transform: scale(1); }
+        /* History Balls */
+        .history-list {
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 6px;
+            max-height: 100px; overflow-y: auto; padding: 12px; 
+            background: #F5F5F5; border-radius: 12px; border: 1px solid #ddd;
         }
-        @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.1); } }
+        .ball {
+            width: 32px; height: 32px; border-radius: 50%; 
+            background: #fff; color: #333; border: 1px solid #999;
+            display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 0.9rem;
+        }
+        .ball.special { background: var(--accent); color: #333; border: 1px solid #FBC02D; }
 
-        /* History */
-        .history-area {
-            width: 100%; background: #eee; padding: 10px; border-radius: 10px; margin-top: 10px;
-        }
-        .history-balls { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; max-height: 80px; overflow-y: auto; }
-        .ball { width: 28px; height: 28px; background: #444; color: #fff; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 0.8rem; }
     </style>
 </head>
 <body>
@@ -261,93 +327,120 @@
     
     <!-- 1. START SCREEN -->
     <div id="start-screen" class="screen active">
-        <h1>Bingo<br>Party Pop!</h1>
-        <div style="margin: 20px 0;">
-            <p>なんばんまで つかう？</p>
+        <h1 class="game-title">レッツ・ビンゴ！</h1>
+        <p style="color:#666; font-size:0.9rem; margin-top:-5px;">Clear Version</p>
+        
+        <div class="info-box">
+            <div class="info-title"><span>🔰</span> あそびかた</div>
+            <div class="info-item">
+                <span class="info-icon">👑</span>
+                <div>
+                    <strong>主催者（しゅさいしゃ）モード</strong><br>
+                    ビンゴマシンです。「スタート」で数字を抽選します。
+                </div>
+            </div>
+            <div class="info-item">
+                <span class="info-icon">🎮</span>
+                <div>
+                    <strong>参加者（さんかしゃ）モード</strong><br>
+                    ビンゴカードです。出た数字をタッチして穴をあけよう！
+                </div>
+            </div>
+        </div>
+
+        <div class="num-input-group">
+            <label style="font-weight:bold; margin-right:10px; color:#555;">数字はいくつまで？</label>
             <input type="number" id="max-number-input" value="75" min="25" max="99">
         </div>
-        
-        <div style="display:flex; flex-direction:column; width:100%; align-items:center; gap:10px;">
-            <button class="btn btn-host" onclick="setupHost('classic')">👑 いつものビンゴ（主催）</button>
-            <button class="btn btn-rec" onclick="setupHost('rec')">🎪 レクビンゴ（主催）</button>
-            <button class="btn btn-player" onclick="startGame('player')">🎮 参加者モード</button>
-        </div>
+
+        <button class="btn btn-host" onclick="setupHost('classic')">👑 主催者モード：ふつうのビンゴ</button>
+        <button class="btn btn-rec" onclick="setupHost('rec')">🎪 主催者モード：レクビンゴ（お題あり）</button>
+        <button class="btn btn-player" onclick="startGame('player')">🎮 参加者モード</button>
     </div>
 
-    <!-- 2. REC SETUP SCREEN -->
+    <!-- 2. REC SETUP -->
     <div id="rec-setup-screen" class="screen">
-        <h2>🎪 レクお題設定</h2>
-        <p style="font-size:0.9rem;">数字とお題を入力してね</p>
-        <div id="rec-inputs-container" style="max-height: 300px; overflow-y: auto; width:100%;">
-            <!-- Dynamic Inputs -->
+        <h2 style="color:var(--reach)">🎪 お題をつくろう</h2>
+        <p style="color:#666;">指定した数字が出ると「お題」が発表されます。</p>
+        <div id="rec-inputs-container" style="width:100%; max-height:300px; overflow-y:auto; margin-bottom:15px; padding:5px;"></div>
+        <button class="btn btn-outline" onclick="addRecInput()" style="width:auto; padding:8px 20px;">＋ 追加する</button>
+        <div style="margin-top:20px; width:100%;">
+            <button class="btn btn-rec" onclick="startGame('host', 'rec')">これで決定！</button>
+            <button class="btn btn-back" onclick="location.reload()" style="background:#90A4AE;">戻る</button>
         </div>
-        <button class="btn btn-outline" onclick="addRecInput()">＋ お題を追加</button>
-        <br>
-        <button class="btn btn-rec" onclick="startGame('host', 'rec')">これでスタート！</button>
-        <button class="btn btn-outline" onclick="goBackToStart()">戻る</button>
     </div>
 
     <!-- 3. HOST SCREEN -->
     <div id="host-screen" class="screen">
-        <h2 id="host-mode-title">ビンゴマシン</h2>
-        <div class="bingo-machine">
-            <div class="current-number" id="machine-display">?</div>
+        <h2 id="host-title">BINGO MACHINE</h2>
+        <div class="machine-container">
+            <div class="bingo-machine">
+                <div class="current-number" id="machine-display">?</div>
+            </div>
         </div>
-        
-        <div style="display:flex; justify-content:center; gap:10px; width:100%;">
+
+        <div style="display:flex; justify-content:center; gap:10px; width:100%; margin:20px 0;">
             <button class="btn btn-action" id="draw-btn" onclick="drawNumber(false)">引く！</button>
-            <button class="btn btn-speed" id="draw-fast-btn" onclick="drawNumber(true)">すぐ引く</button>
+            <button class="btn btn-speed" id="draw-fast-btn" onclick="drawNumber(true)">⚡すぐ出す</button>
         </div>
 
-        <div class="history-area">
-            <p style="font-size:0.8rem; margin:0;">出た数字リスト (<span id="drawn-count">0</span>)</p>
-            <div class="history-balls" id="host-history"></div>
+        <div style="width:100%;">
+            <p style="color:var(--text-sub); margin:0 0 5px 0;">出た数字リスト (<span id="drawn-count">0</span>)</p>
+            <div class="history-list" id="host-history"></div>
         </div>
 
-        <button class="btn btn-danger" style="margin-top:20px;" onclick="goBackToStart()">タイトルに戻る</button>
+        <button class="btn btn-back" style="margin-top:20px;" onclick="resetGame()">タイトルへ</button>
     </div>
 
     <!-- 4. PLAYER SCREEN -->
     <div id="player-screen" class="screen">
-        <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-            <button class="btn btn-danger" onclick="goBackToStart()">終了</button>
-            <h2>あなたのカード</h2>
+        <div style="display:flex; justify-content:space-between; align-items:center; width:100%; margin-bottom:15px;">
+            <button class="btn btn-back" onclick="resetGame()">終了</button>
+            <div style="font-weight:900; font-size:1.2rem; color:var(--text-main);">あなたのカード</div>
             <div style="width:50px;"></div>
         </div>
 
-        <div class="bingo-card" id="bingo-card"></div>
+        <div class="card-container">
+            <div class="bingo-card" id="bingo-card"></div>
+        </div>
 
-        <button class="btn btn-player" style="margin-top:20px;" onclick="showResults()">結果を見る</button>
+        <button class="btn btn-player" style="margin-top:20px;" onclick="showResults()">🏆 結果を見る</button>
     </div>
 
-    <!-- OVERLAYS -->
-    <div class="overlay-layer">
-        <div id="msg-overlay" class="big-text">BINGO!</div>
+    <!-- OVERLAY -->
+    <div class="overlay">
+        <div id="msg-overlay" class="msg-text">BINGO!</div>
     </div>
 
-    <!-- TASK MODAL (REC) -->
-    <div id="task-modal">
-        <div class="modal-content">
-            <div class="task-number" id="modal-task-num">No.7</div>
-            <div style="font-size:1rem; color:#666;">お題発動！</div>
-            <div class="task-desc" id="modal-task-desc">変顔をする</div>
-            <button class="btn btn-host" onclick="closeTaskModal()">閉じる</button>
+    <!-- MODALS -->
+    <!-- Task Modal -->
+    <div id="task-modal" class="modal">
+        <div class="modal-box">
+            <h2 style="color:#333;">💥 お題発生！💥</h2>
+            <div style="font-size:3rem; color:var(--primary); font-family:'Yusei Magic'; margin:10px 0;" id="task-num-disp">7</div>
+            <div style="background:#FFFDE7; padding:15px; border-radius:10px; border:2px dashed #FBC02D;">
+                <div style="font-size:1.8rem; font-weight:bold; line-height:1.3; color:#333;" id="task-desc-disp">モノマネをする</div>
+            </div>
+            <br>
+            <button class="btn btn-host" onclick="closeModal('task-modal')">OK!</button>
         </div>
     </div>
 
-    <!-- RESULT MODAL -->
-    <div id="result-modal">
-        <div class="modal-content">
-            <h2>📊 結果発表</h2>
-            <p>今のビンゴ数</p>
-            <div style="font-size:4rem; color:var(--primary); font-family:'Fredoka One';" id="res-bingo-count">0</div>
+    <!-- Result Modal -->
+    <div id="result-modal" class="modal">
+        <div class="modal-box">
+            <h2 style="color:#333;">🎉 結果発表 🎉</h2>
+            <p style="color:#666;">あなたのビンゴ数は...</p>
+            <div style="font-size:5rem; color:var(--primary); font-family:'Yusei Magic'; line-height:1; margin-bottom:10px;" id="res-bingo-count">0</div>
             
-            <p style="text-align:left; font-size:0.9rem; margin-left:10px;">選んだ数字（小さい順）</p>
-            <div class="result-list" id="res-selected-list"></div>
-
-            <div style="display:flex; flex-direction:column; gap:10px;">
-                <button class="btn btn-outline" onclick="closeResults()">カードに戻って修正</button>
-                <button class="btn btn-danger" onclick="goBackToStart()">ゲームを終わる</button>
+            <div style="text-align:left; background:#F5F5F5; padding:10px; border-radius:10px;">
+                <small style="color:#666;">選んだ数字:</small>
+                <div id="res-list" style="display:flex; flex-wrap:wrap; gap:5px; margin-top:5px;"></div>
+            </div>
+            
+            <div style="margin-top:20px; display:flex; flex-direction:column; gap:10px;">
+                <button class="btn btn-outline" onclick="closeModal('result-modal')">カードに戻る</button>
+                <button class="btn btn-back" style="width:100%; background:#EF5350;" onclick="resetGame()">ゲーム終了</button>
             </div>
         </div>
     </div>
@@ -356,92 +449,102 @@
 
 <script>
     /* ----------------------------------------------------------------
-       SOUND MANAGER (Web Audio API) - No External Files Required
+       SOUND FX (Pleasant & Clear)
     ---------------------------------------------------------------- */
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    
-    const Sound = {
-        playTone: (freq, type, duration, vol=0.5) => {
-            if(audioCtx.state === 'suspended') audioCtx.resume();
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = type;
-            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + duration);
-        },
-        playNoise: (duration) => {
-            if(audioCtx.state === 'suspended') audioCtx.resume();
-            const bufferSize = audioCtx.sampleRate * duration;
-            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-            const data = buffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AudioContext();
 
-            const noise = audioCtx.createBufferSource();
-            noise.buffer = buffer;
-            const gain = audioCtx.createGain();
-            gain.gain.setValueAtTime(0.1, audioCtx.currentTime); // Low volume
-            noise.connect(gain);
-            gain.connect(audioCtx.destination);
-            noise.start();
-            return { node: noise, gain: gain }; // Return to stop if needed
+    const Sound = {
+        playTone: (freq, type, duration, vol=0.2) => {
+            if(ctx.state === 'suspended') ctx.resume();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, ctx.currentTime);
+            gain.gain.setValueAtTime(vol, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + duration);
         },
         
-        // Effects
-        playClick: () => Sound.playTone(600, 'sine', 0.1, 0.2),
+        playDecide: () => {
+            // 明るい和音 C5 E5 G5
+            [523.25, 659.25, 783.99].forEach((f,i) => { 
+                setTimeout(() => Sound.playTone(f, 'sine', 0.3, 0.15), i*40);
+            });
+        },
         
-        playDrum: () => {
-            // Loop noise for drum roll
-            const noiseObj = Sound.playNoise(20); // Long buffer
-            noiseObj.gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-            return noiseObj;
+        playClick: () => Sound.playTone(600, 'sine', 0.1, 0.1),
+        
+        playRoll: () => {
+            // 控えめなロール音
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle'; // 丸い音
+            osc.frequency.setValueAtTime(300, ctx.currentTime);
+            osc.frequency.linearRampToValueAtTime(400, ctx.currentTime + 0.1);
+            gain.gain.value = 0.05;
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.08);
         },
         
         playBang: () => {
-            // Low boom + High crack
-            Sound.playTone(100, 'square', 0.5, 0.5);
-            Sound.playTone(50, 'sawtooth', 0.8, 0.6);
-            // Noise burst
-            const n = Sound.playNoise(0.3);
-            n.gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
-            n.gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            // 決定音
+            Sound.playTone(440, 'triangle', 0.4, 0.2); 
+            setTimeout(() => Sound.playTone(880, 'sine', 0.5, 0.1), 50); 
         },
 
         playFanfare: () => {
-            // Major Chord Arpeggio C-E-G-C
-            const now = audioCtx.currentTime;
-            [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
+            // ビンゴ！
+            const now = ctx.currentTime;
+            [523, 659, 783, 1046, 1318].forEach((f, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
                 osc.type = 'triangle';
-                osc.frequency.value = freq;
+                osc.frequency.value = f;
                 gain.gain.setValueAtTime(0, now);
-                gain.gain.linearRampToValueAtTime(0.3, now + i*0.1);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 1.5);
+                gain.gain.linearRampToValueAtTime(0.15, now + i*0.1);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
                 osc.connect(gain);
-                gain.connect(audioCtx.destination);
+                gain.connect(ctx.destination);
                 osc.start(now + i*0.1);
-                osc.stop(now + 2);
+                osc.stop(now + 2.0);
             });
         },
 
         playReach: () => {
-            // Tension sound (High pitch pulsing)
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
-            osc.frequency.linearRampToValueAtTime(1200, audioCtx.currentTime + 0.5);
-            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+            // リーチ！
+            const now = ctx.currentTime;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(600, now);
+            osc.frequency.linearRampToValueAtTime(800, now + 0.2);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.3);
             osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.5);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.3);
+            
+            // double beep
+            setTimeout(() => {
+                const osc2 = ctx.createOscillator();
+                const gain2 = ctx.createGain();
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(600, ctx.currentTime);
+                osc2.frequency.linearRampToValueAtTime(800, ctx.currentTime + 0.2);
+                gain2.gain.setValueAtTime(0.1, ctx.currentTime);
+                gain2.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.3);
+                osc2.connect(gain2);
+                gain2.connect(ctx.destination);
+                osc2.start();
+                osc2.stop(ctx.currentTime + 0.3);
+            }, 250);
         }
     };
 
@@ -449,223 +552,192 @@
     /* ----------------------------------------------------------------
        GAME LOGIC
     ---------------------------------------------------------------- */
-    
-    // Config
     let maxNumber = 75;
-    let mode = ''; // 'host' or 'player'
-    let hostSubType = 'classic'; // 'classic' or 'rec'
-    let recTasks = {}; // Map number -> string
-
-    // Host State
+    let mode = ''; 
+    let recTasks = {}; 
     let availableNumbers = [];
     let drawnNumbers = [];
     let isRolling = false;
-
-    // Player State
     let cardNumbers = [];
     let markedIndices = [];
     let currentBingoCount = 0;
     let currentReachCount = 0;
 
-    // --- Navigation & Setup ---
-
-    function goBackToStart() {
-        if(confirm("タイトルに戻りますか？現在のゲーム内容はすべて消えます。")) {
-            // Stop any audio
-            location.reload();
+    // --- Screen Control ---
+    function resetGame() {
+        if(confirm('最初の画面に戻りますか？現在のゲームは消えてしまいます。')) {
+            window.location.reload();
         }
     }
 
-    function setupHost(subType) {
+    function closeModal(id) {
+        document.getElementById(id).classList.remove('active');
         Sound.playClick();
-        hostSubType = subType;
-        const input = document.getElementById('max-number-input');
-        maxNumber = parseInt(input.value) || 75;
-        if(maxNumber < 25) maxNumber = 25;
-        if(maxNumber > 99) maxNumber = 99;
+    }
 
-        document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+    // --- REC Setup ---
+    function addRecInput() {
+        const c = document.getElementById('rec-inputs-container');
+        const div = document.createElement('div');
+        div.style.cssText = "display:flex; gap:8px; margin-bottom:8px; align-items:center;";
+        div.innerHTML = `
+            <span style="font-weight:bold; color:#999;">No.</span>
+            <input type="number" class="rec-num" placeholder="#" min="1">
+            <input type="text" class="rec-text" placeholder="お題を入力">
+        `;
+        c.appendChild(div);
+    }
 
-        if (subType === 'rec') {
-            document.body.style.background = 'var(--bg-rec)';
-            initRecSetup();
+    // --- Initialization ---
+    function setupHost(subType) {
+        Sound.playDecide();
+        const inp = document.getElementById('max-number-input');
+        maxNumber = parseInt(inp.value);
+        if(isNaN(maxNumber) || maxNumber<25) maxNumber=25; 
+        if(maxNumber>99) maxNumber=99;
+
+        if(subType === 'rec') {
+            document.querySelectorAll('.screen').forEach(e=>e.classList.remove('active'));
             document.getElementById('rec-setup-screen').classList.add('active');
+            // Init inputs
+            const c = document.getElementById('rec-inputs-container');
+            c.innerHTML = '';
+            for(let i=0; i<3; i++) addRecInput();
         } else {
             startGame('host', 'classic');
         }
     }
 
-    function initRecSetup() {
-        const container = document.getElementById('rec-inputs-container');
-        container.innerHTML = '';
-        // Add 3 default inputs
-        for(let i=0; i<3; i++) addRecInput();
-    }
-
-    function addRecInput() {
-        const container = document.getElementById('rec-inputs-container');
-        const div = document.createElement('div');
-        div.className = 'rec-input-group';
-        div.innerHTML = `
-            <input type="number" placeholder="#" min="1" max="${maxNumber}">
-            <input type="text" placeholder="お題（例：変顔をする）">
-        `;
-        container.appendChild(div);
-    }
-
-    function startGame(selectedMode, subType = 'classic') {
-        Sound.playClick();
+    function startGame(selectedMode, subType) {
+        if(ctx.state === 'suspended') ctx.resume();
+        Sound.playDecide();
+        
         mode = selectedMode;
-        hostSubType = subType;
+        if(mode === 'player') {
+             const inp = document.getElementById('max-number-input');
+             maxNumber = parseInt(inp.value);
+             if(isNaN(maxNumber) || maxNumber<25) maxNumber=25; 
+             if(maxNumber>99) maxNumber=99;
+        }
 
-        if (mode === 'player') {
-            const input = document.getElementById('max-number-input');
-            maxNumber = parseInt(input.value) || 75;
-        } else if (mode === 'host' && subType === 'rec') {
-            // Collect Rec Tasks
+        // Parse Rec Tasks
+        if(mode === 'host' && subType === 'rec') {
             recTasks = {};
-            const groups = document.querySelectorAll('.rec-input-group');
-            let hasInput = false;
-            groups.forEach(g => {
-                const num = g.querySelector('input[type="number"]').value;
-                const txt = g.querySelector('input[type="text"]').value;
-                if(num && txt) {
-                    recTasks[parseInt(num)] = txt;
-                    hasInput = true;
+            const nums = document.querySelectorAll('.rec-num');
+            const txts = document.querySelectorAll('.rec-text');
+            let has = false;
+            nums.forEach((n, i) => {
+                const val = parseInt(n.value);
+                if(val && txts[i].value) {
+                    recTasks[val] = txts[i].value;
+                    has = true;
                 }
             });
-            if(!hasInput && !confirm("お題が入力されていませんが、そのまま始めますか？")) return;
+            if(!has && !confirm('お題がひとつも入力されていませんが、スタートしますか？')) return;
         }
 
-        document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
-
-        if (mode === 'host') {
-            initHost();
-            document.getElementById('host-screen').classList.add('active');
-            document.getElementById('host-mode-title').innerText = 
-                subType === 'rec' ? '🎪 レクビンゴマシン' : '👑 ビンゴマシン';
+        // Switch Screen
+        document.querySelectorAll('.screen').forEach(e=>e.classList.remove('active'));
+        
+        if(mode === 'host') {
             document.body.style.background = subType === 'rec' ? 'var(--bg-rec)' : 'var(--bg-host)';
+            document.getElementById('host-screen').classList.add('active');
+            document.getElementById('host-title').innerText = subType==='rec' ? '🎪 レク・ビンゴ' : '👑 ビンゴマシン';
+            initHost();
         } else {
-            initPlayer();
+            document.body.style.background = 'var(--bg-player)';
             document.getElementById('player-screen').classList.add('active');
-            document.body.style.background = 'var(--bg-gradient)';
+            initPlayer();
         }
     }
 
-    // --- HOST LOGIC ---
-
+    // --- HOST ---
     function initHost() {
         availableNumbers = [];
+        for(let i=1; i<=maxNumber; i++) availableNumbers.push(i);
         drawnNumbers = [];
-        for (let i = 1; i <= maxNumber; i++) availableNumbers.push(i);
         document.getElementById('host-history').innerHTML = '';
-        document.getElementById('machine-display').innerText = '?';
         document.getElementById('drawn-count').innerText = '0';
+        document.getElementById('machine-display').innerText = '?';
         isRolling = false;
-        toggleButtons(false);
     }
 
-    function toggleButtons(disabled) {
-        document.getElementById('draw-btn').disabled = disabled;
-        document.getElementById('draw-fast-btn').disabled = disabled;
-    }
-
-    function drawNumber(isInstant) {
-        if (isRolling) return;
-        if (availableNumbers.length === 0) {
-            alert("すべての数字が出ました！");
-            return;
-        }
+    function drawNumber(instant) {
+        if(isRolling) return;
+        if(availableNumbers.length === 0) { alert('すべての数字が出ました！'); return; }
 
         isRolling = true;
-        toggleButtons(true);
-        const display = document.getElementById('machine-display');
-        
-        let drumSound = null;
+        const disp = document.getElementById('machine-display');
+        const btn1 = document.getElementById('draw-btn');
+        const btn2 = document.getElementById('draw-fast-btn');
+        btn1.disabled = true; btn2.disabled = true;
 
-        if (isInstant) {
-            // Immediate result
+        if(instant) {
             finalizeDraw();
         } else {
-            // Animation
-            drumSound = Sound.playDrum();
-            let counter = 0;
+            // Roll Animation
+            let count = 0;
             const timer = setInterval(() => {
-                display.innerText = Math.floor(Math.random() * maxNumber) + 1;
-                counter++;
-                if (counter > 25) {
+                disp.innerText = Math.floor(Math.random()*maxNumber)+1;
+                Sound.playRoll();
+                count++;
+                if(count > 15) {
                     clearInterval(timer);
-                    if(drumSound) { drumSound.node.stop(); drumSound.node.disconnect(); }
                     finalizeDraw();
                 }
-            }, 60);
+            }, 80);
         }
     }
 
     function finalizeDraw() {
-        const randIdx = Math.floor(Math.random() * availableNumbers.length);
-        const drawn = availableNumbers[randIdx];
-        availableNumbers.splice(randIdx, 1);
-        drawnNumbers.push(drawn);
+        const idx = Math.floor(Math.random() * availableNumbers.length);
+        const num = availableNumbers[idx];
+        availableNumbers.splice(idx, 1);
+        drawnNumbers.push(num);
 
-        const display = document.getElementById('machine-display');
-        display.innerText = drawn;
-        display.style.transform = "scale(1.5)";
-        setTimeout(() => display.style.transform = "scale(1)", 200);
-
+        const disp = document.getElementById('machine-display');
+        disp.innerText = num;
+        
         Sound.playBang();
 
         // History
-        const hist = document.getElementById('host-history');
+        const list = document.getElementById('host-history');
         const ball = document.createElement('div');
         ball.className = 'ball';
-        ball.innerText = drawn;
-        if (hostSubType === 'rec' && recTasks[drawn]) {
-            ball.style.background = '#FF9100'; // Highlight special balls
-        }
-        if (hist.firstChild) hist.insertBefore(ball, hist.firstChild);
-        else hist.appendChild(ball);
-
+        ball.innerText = num;
+        if(recTasks[num]) ball.classList.add('special');
+        
+        if(list.firstChild) list.insertBefore(ball, list.firstChild);
+        else list.appendChild(ball);
+        
         document.getElementById('drawn-count').innerText = drawnNumbers.length;
 
-        // Check Rec Task
-        if (hostSubType === 'rec' && recTasks[drawn]) {
+        // Rec Event
+        if(recTasks[num]) {
             setTimeout(() => {
-                openTaskModal(drawn, recTasks[drawn]);
-            }, 800);
+                Sound.playFanfare();
+                document.getElementById('task-num-disp').innerText = num;
+                document.getElementById('task-desc-disp').innerText = recTasks[num];
+                document.getElementById('task-modal').classList.add('active');
+                // Rolling lock is released by modal close
+                document.getElementById('draw-btn').disabled = false;
+                document.getElementById('draw-fast-btn').disabled = false;
+            }, 600);
         } else {
             isRolling = false;
-            toggleButtons(false);
+            document.getElementById('draw-btn').disabled = false;
+            document.getElementById('draw-fast-btn').disabled = false;
         }
     }
 
-    function openTaskModal(num, text) {
-        Sound.playFanfare(); // Use fanfare for event
-        document.getElementById('modal-task-num').innerText = `No.${num}`;
-        document.getElementById('modal-task-desc').innerText = text;
-        document.getElementById('task-modal').classList.add('active');
-    }
-
-    function closeTaskModal() {
-        document.getElementById('task-modal').classList.remove('active');
-        isRolling = false;
-        toggleButtons(false);
-    }
-
-
-    // --- PLAYER LOGIC ---
-
+    // --- PLAYER ---
     function initPlayer() {
         const pool = [];
-        for (let i = 1; i <= maxNumber; i++) pool.push(i);
-        
+        for(let i=1; i<=maxNumber; i++) pool.push(i);
         cardNumbers = [];
-        for (let i = 0; i < 25; i++) {
-            if (i === 12) {
-                cardNumbers.push("★");
-                continue;
-            }
-            const r = Math.floor(Math.random() * pool.length);
+        for(let i=0; i<25; i++) {
+            if(i===12) { cardNumbers.push('★'); continue; }
+            const r = Math.floor(Math.random()*pool.length);
             cardNumbers.push(pool[r]);
             pool.splice(r, 1);
         }
@@ -678,129 +750,123 @@
     function renderCard() {
         const grid = document.getElementById('bingo-card');
         grid.innerHTML = '';
-        cardNumbers.forEach((num, idx) => {
-            const cell = document.createElement('div');
-            cell.className = 'cell';
-            if (idx === 12) cell.classList.add('free', 'hit');
-            else if (markedIndices.includes(idx)) cell.classList.add('hit');
+        cardNumbers.forEach((n, i) => {
+            const el = document.createElement('div');
+            el.className = 'cell';
+            if(i===12) el.classList.add('free', 'hit');
+            else if(markedIndices.includes(i)) el.classList.add('hit');
             
-            cell.innerText = num;
-            cell.onclick = () => toggleCell(idx, cell);
-            grid.appendChild(cell);
+            el.innerText = n;
+            el.onclick = () => tapCell(i, el);
+            grid.appendChild(el);
         });
     }
 
-    function toggleCell(idx, el) {
-        if (idx === 12) return;
+    function tapCell(i, el) {
+        if(i===12) return;
         Sound.playClick();
         
-        const pos = markedIndices.indexOf(idx);
-        if (pos === -1) {
-            markedIndices.push(idx);
+        const idx = markedIndices.indexOf(i);
+        if(idx === -1) {
+            markedIndices.push(i);
             el.classList.add('hit');
         } else {
-            markedIndices.splice(pos, 1);
+            markedIndices.splice(idx, 1);
             el.classList.remove('hit');
         }
-        checkGameState();
+        checkBingo();
     }
 
-    function checkGameState() {
+    function checkBingo() {
         const size = 5;
         const lines = [];
-
-        // Generate lines (indices)
         // Rows
-        for (let r=0; r<size; r++) lines.push([0,1,2,3,4].map(c => r*size + c));
+        for(let r=0; r<size; r++) lines.push([0,1,2,3,4].map(c=>r*size+c));
         // Cols
-        for (let c=0; c<size; c++) lines.push([0,1,2,3,4].map(r => r*size + c));
-        // Diagonals
+        for(let c=0; c<size; c++) lines.push([0,1,2,3,4].map(r=>r*size+c));
+        // Diag
         lines.push([0,6,12,18,24]);
         lines.push([4,8,12,16,20]);
 
         let bingos = 0;
         let reaches = 0;
 
-        lines.forEach(line => {
-            const hits = line.filter(idx => markedIndices.includes(idx)).length;
-            if (hits === 5) bingos++;
-            if (hits === 4) reaches++;
+        lines.forEach(l => {
+            const hits = l.filter(x => markedIndices.includes(x)).length;
+            if(hits === 5) bingos++;
+            if(hits === 4) reaches++;
         });
 
-        // Detect Reach (New)
-        if (reaches > currentReachCount && bingos === currentBingoCount) {
-            showOverlay('リーチ！', 'reach-text');
+        if(reaches > currentReachCount && bingos === currentBingoCount) {
             Sound.playReach();
+            showMsg('リーチ！', '#F57C00');
         }
 
-        // Detect Bingo
-        if (bingos > currentBingoCount) {
-            showOverlay(bingos + ' BINGO!', 'bingo-text');
+        if(bingos > currentBingoCount) {
             Sound.playFanfare();
-            createConfetti();
+            showMsg(bingos + ' BINGO!!', '#FFCA28');
+            fireConfetti();
         }
-
+        
         currentBingoCount = bingos;
         currentReachCount = reaches;
     }
 
-    function showOverlay(text, extraClass) {
-        const overlay = document.getElementById('msg-overlay');
-        overlay.className = 'big-text ' + (extraClass || '');
-        overlay.innerText = text;
-        overlay.classList.add('show');
-        setTimeout(() => overlay.classList.remove('show'), 2500);
+    function showMsg(txt, col) {
+        const el = document.getElementById('msg-overlay');
+        el.innerText = txt;
+        el.style.color = col;
+        el.classList.add('show');
+        setTimeout(() => el.classList.remove('show'), 2500);
     }
 
-    // --- RESULTS ---
-
     function showResults() {
+        Sound.playDecide();
         document.getElementById('res-bingo-count').innerText = currentBingoCount;
         
-        // Selected List Logic
-        const list = document.getElementById('res-selected-list');
+        const list = document.getElementById('res-list');
         list.innerHTML = '';
-        
-        // Get marked numbers (exclude Free Space star)
-        const hitNums = markedIndices
-            .map(idx => cardNumbers[idx])
+        // sort selected
+        const sels = markedIndices
+            .map(i => cardNumbers[i])
             .filter(n => typeof n === 'number')
-            .sort((a,b) => a - b);
+            .sort((a,b)=>a-b);
         
-        hitNums.forEach(n => {
-            const badge = document.createElement('div');
-            badge.className = 'result-badge';
-            badge.innerText = n;
-            list.appendChild(badge);
+        sels.forEach(n => {
+            const sp = document.createElement('span');
+            sp.innerText = n;
+            sp.style.cssText = "background:#333; color:#fff; padding:4px 10px; border-radius:6px; font-weight:bold; font-size:1.1rem;";
+            list.appendChild(sp);
         });
-
+        
         document.getElementById('result-modal').classList.add('active');
     }
 
-    function closeResults() {
-        document.getElementById('result-modal').classList.remove('active');
-    }
-
-    // --- UTILS (Confetti) ---
-    function createConfetti() {
-        for(let i=0; i<40; i++) {
+    // --- Confetti (Corrected) ---
+    function fireConfetti() {
+        for(let i=0; i<50; i++) {
             const p = document.createElement('div');
             p.style.position = 'fixed';
             p.style.left = Math.random()*100 + 'vw';
-            p.style.top = '-10px';
-            p.style.width = '10px'; height = '10px';
+            p.style.top = '-20px';
+            p.style.width = '12px'; 
+            p.style.height = '12px'; // Fixed Syntax
             p.style.background = `hsl(${Math.random()*360}, 100%, 50%)`;
+            p.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
             p.style.zIndex = '9999';
-            p.style.transition = 'top 1.5s ease-in, transform 1.5s linear';
+            // Random fall duration and horizontal drift
+            p.style.transition = `top ${1.5+Math.random()}s ease-in, transform 2s linear`;
             document.body.appendChild(p);
+
+            // Trigger Animation
             setTimeout(() => {
                 p.style.top = '110vh';
-                p.style.transform = `rotate(${Math.random()*720}deg)`;
+                p.style.transform = `rotate(${Math.random()*720}deg) translateX(${Math.random()*100-50}px)`;
             }, 50);
-            setTimeout(() => p.remove(), 1600);
+            
+            setTimeout(() => p.remove(), 2500);
         }
     }
-
 </script>
 </body>
 </html>
