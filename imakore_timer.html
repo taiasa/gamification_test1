@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>イマコレタイマー PC</title>
+    <style>
+        /* 見やすい丸ゴシック */
+        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;800&display=swap');
+
+        :root {
+            --bg-setup: #f4f7f6;
+            --card-bg: #ffffff;
+            --primary: #5c6bc0;
+            --text-main: #333;
+        }
+
+        body {
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-setup);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            transition: background-color 0.8s ease; /* 背景色の変化を滑らかに */
+        }
+
+        /* --- 設定画面エリア --- */
+        #setup-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            overflow-y: auto; /* 縦スクロール許可 */
+            padding: 40px 0;
+            box-sizing: border-box;
+        }
+
+        .setup-card {
+            background: var(--card-bg);
+            width: 800px; /* PC向けに広め */
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary);
+            margin-bottom: 30px;
+            font-size: 2rem;
+        }
+
+        .control-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .phase-list {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .phase-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: #f9f9f9;
+            padding: 15px 20px;
+            border-radius: 8px;
+            border-left: 6px solid #ccc;
+        }
+
+        .phase-num {
+            font-weight: bold;
+            font-size: 1.2rem;
+            width: 30px;
+            color: #888;
+        }
+
+        /* フォーム要素 */
+        label { font-size: 0.9rem; font-weight: bold; color: #666; display: block; margin-bottom: 5px;}
+        
+        input[type="number"], input[type="text"], select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-family: inherit;
+        }
+
+        input[type="number"] { width: 80px; }
+        input[type="text"] { flex: 1; } /* 文字入力は伸ばす */
+        select { width: 140px; cursor: pointer; }
+
+        /* カラープレビュー用のボーダー色変更 */
+        .phase-item.color-blue { border-left-color: #2196F3; }
+        .phase-item.color-green { border-left-color: #4CAF50; }
+        .phase-item.color-yellow { border-left-color: #FFEB3B; }
+        .phase-item.color-red { border-left-color: #F44336; }
+
+        .end-settings {
+            margin-top: 30px;
+            padding: 20px;
+            background: #333;
+            color: white;
+            border-radius: 8px;
+        }
+        .end-settings h3 { margin: 0 0 15px 0; font-size: 1.1rem; border-bottom: 1px solid #555; padding-bottom: 10px; }
+        .end-settings label { color: #ccc; }
+        .end-settings input, .end-settings select { background: #555; color: white; border-color: #666; }
+
+        .btn-start {
+            display: block;
+            width: 100%;
+            padding: 20px;
+            margin-top: 30px;
+            background: var(--primary);
+            color: white;
+            font-size: 1.5rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn-start:hover { opacity: 0.9; }
+
+        /* --- 実行画面エリア --- */
+        #timer-container {
+            display: none; /* 初期は非表示 */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        #current-message {
+            /* 文字サイズを5vwから4vwに少し調整（改行対策） */
+            font-size: 4vw;
+            font-weight: 800;
+            margin-bottom: 2vh;
+            text-shadow: 2px 2px 10px rgba(0,0,0,0.2);
+            text-align: center;
+            width: 90%;
+            line-height: 1.2;
+            word-wrap: break-word;
+            
+            /* 長文がきても画面の30%以上は占領しないように制限 */
+            max-height: 30vh;
+            overflow: hidden; /* それでもはみ出る場合は隠す */
+            
+            /* タイマーに場所を譲る設定 */
+            flex-shrink: 1; 
+        }
+
+        #current-timer {
+            /* タイマーは絶対に縮ませない！ */
+            flex-shrink: 0;
+            
+            /* 元の12vwより少し大きくして強調 */
+            font-size: 14vw; 
+            font-weight: 800;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+            text-shadow: 4px 4px 20px rgba(0,0,0,0.2);
+        }
+
+        #total-timer-wrapper {
+            position: absolute;
+            bottom: 30px;
+            right: 40px;
+            font-size: 2rem;
+            font-weight: bold;
+            opacity: 0.8;
+            text-align: right;
+        }
+        #total-label { font-size: 1rem; display: block; opacity: 0.7; }
+
+        /* リスタートボタン */
+        #restart-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            padding: 10px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: inherit; /* 親の色を引き継ぐ */
+            transition: background 0.2s;
+        }
+        #restart-btn:hover { background: rgba(255, 255, 255, 0.6); }
+
+        /* 終了時のリトライボタン */
+        #retry-area {
+            display: none;
+            margin-top: 50px;
+        }
+        #retry-btn {
+            font-size: 1.5rem;
+            padding: 15px 40px;
+            border-radius: 50px;
+            border: none;
+            background: white;
+            color: #333;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255,255,255,0.3);
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- 設定画面 -->
+    <div id="setup-container">
+        <div class="setup-card">
+            <h1>イマコレタイマー</h1>
+            <h3>今何をすべきかが一目でわかるタイマー</h3>
+
+            <div class="control-row">
+                <label style="font-size:1.1rem;">区切りの数（フェーズ数）:</label>
+                <input type="number" id="phase-count" value="3" min="1" max="10" style="width:100px;">
+                <button onclick="renderForms()" style="padding:10px 20px; cursor:pointer;">更新</button>
+            </div>
+
+            <div id="forms-area" class="phase-list">
+                <!-- JSでここにフォームが生成されます -->
+            </div>
+
+            <!-- 終了設定 -->
+            <div class="end-settings">
+                <h3>終了時の設定</h3>
+                <div style="display:flex; gap:20px; align-items:center;">
+                    <div>
+                        <label>背景色</label>
+                        <select id="end-color">
+                            <option value="#000000" selected>黒（おしまい）</option>
+                            <option value="#FFFFFF">白（クリア）</option>
+                            <option value="#E91E63">ピンク（達成）</option>
+                            <option value="#2196F3">青（クール）</option>
+                        </select>
+                    </div>
+                    <div style="flex:1;">
+                        <label>表示する文字</label>
+                        <input type="text" id="end-text" value="おしまい">
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn-start" onclick="startApp()">タイマー スタート</button>
+        </div>
+    </div>
+
+    <!-- 実行画面 -->
+    <div id="timer-container">
+        <button id="restart-btn" onclick="resetToSetup()">← 設定に戻る</button>
+
+        <div id="current-message">集中タイム</div>
+        <div id="current-timer">10:00</div>
+
+        <div id="total-timer-wrapper">
+            <span id="total-label">全体の残り</span>
+            <span id="total-timer">15:00</span>
+        </div>
+
+        <div id="retry-area">
+            <button id="retry-btn" onclick="resetToSetup()">もう一度？</button>
+        </div>
+    </div>
+
+    <script>
+        // --- 設定データ定義 ---
+        const colorPresets = [
+            { name: "青（集中）", val: "#1565C0", dark: true }, // 濃い青
+            { name: "水色（軽め）", val: "#42A5F5", dark: false },
+            { name: "緑（安定）", val: "#43A047", dark: true },
+            { name: "黄（注意）", val: "#FDD835", dark: false }, // 文字は黒
+            { name: "オレンジ（警告）", val: "#FB8C00", dark: false },
+            { name: "赤（ラスト）", val: "#D32F2F", dark: true },
+            { name: "紫（冷静）", val: "#8E24AA", dark: true },
+            { name: "ピンク（休憩）", val: "#EC407A", dark: true },
+            { name: "白（空白）", val: "#FFFFFF", dark: false },
+            { name: "黒（暗闇）", val: "#212121", dark: true }
+        ];
+
+        // --- DOM要素 ---
+        const setupContainer = document.getElementById('setup-container');
+        const timerContainer = document.getElementById('timer-container');
+        const phaseCountInput = document.getElementById('phase-count');
+        const formsArea = document.getElementById('forms-area');
+
+        // --- 変数 ---
+        let timerInterval = null;
+        let schedule = [];      // 実行用スケジュール
+        let totalEndTime = 0;   // 全体の終了予定時刻(timestamp)
+        let totalDurationSec = 0;
+
+        // --- 初期化 ---
+        window.addEventListener('DOMContentLoaded', () => {
+            loadSettings(); // LocalStorageから復元
+            renderForms();  // フォーム描画
+        });
+
+        // --- フォーム生成 ---
+        function renderForms() {
+            // 現在の入力値を一時保存（数が変わっても維持するため）
+            const currentData = getFormData();
+            
+            const count = parseInt(phaseCountInput.value) || 3;
+            formsArea.innerHTML = '';
+
+            for (let i = 0; i < count; i++) {
+                // 保存データがあればそれを使う、なければデフォルト
+                const saved = currentData[i] || {};
+                // デフォルト値ロジック
+                const defMin = saved.min !== undefined ? saved.min : (i === 0 ? 10 : 5);
+                const defSec = saved.sec !== undefined ? saved.sec : 0;
+                const defColor = saved.color || colorPresets[i % colorPresets.length].val;
+                const defText = saved.text || (i === count - 1 ? "ラストスパート" : `フェーズ ${i+1}`);
+
+                const div = document.createElement('div');
+                div.className = 'phase-item';
+                // 色識別のための左ボーダー色を設定
+                div.style.borderLeftColor = defColor;
+                
+                div.innerHTML = `
+                    <div class="phase-num">${i + 1}</div>
+                    <div>
+                        <label>分</label>
+                        <input type="number" class="p-min" min="0" value="${defMin}">
+                    </div>
+                    <div>
+                        <label>秒</label>
+                        <input type="number" class="p-sec" min="0" max="59" value="${defSec}">
+                    </div>
+                    <div>
+                        <label>色</label>
+                        <select class="p-color" onchange="this.closest('.phase-item').style.borderLeftColor=this.value">
+                            ${colorPresets.map(c => `<option value="${c.val}" ${c.val === defColor ? 'selected' : ''}>${c.name}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div style="flex:1;">
+                        <label>表示文字</label>
+                        <input type="text" class="p-text" value="${defText}">
+                    </div>
+                `;
+                formsArea.appendChild(div);
+            }
+        }
+
+        // --- データ取得 & LocalStorage保存 ---
+        function getFormData() {
+            const items = document.querySelectorAll('.phase-item');
+            const data = [];
+            items.forEach(item => {
+                data.push({
+                    min: parseInt(item.querySelector('.p-min').value) || 0,
+                    sec: parseInt(item.querySelector('.p-sec').value) || 0,
+                    color: item.querySelector('.p-color').value,
+                    text: item.querySelector('.p-text').value
+                });
+            });
+            return data;
+        }
+
+        function saveSettings() {
+            const data = getFormData();
+            const endSettings = {
+                color: document.getElementById('end-color').value,
+                text: document.getElementById('end-text').value
+            };
+            const settings = {
+                count: phaseCountInput.value,
+                phases: data,
+                end: endSettings
+            };
+            localStorage.setItem('visualTimerSettings', JSON.stringify(settings));
+        }
+
+        function loadSettings() {
+            const json = localStorage.getItem('visualTimerSettings');
+            if (!json) return;
+            try {
+                const settings = JSON.parse(json);
+                if (settings.count) phaseCountInput.value = settings.count;
+                if (settings.end) {
+                    document.getElementById('end-color').value = settings.end.color;
+                    document.getElementById('end-text').value = settings.end.text;
+                }
+                // フェーズデータはrenderForms内でcurrentDataとして使われるために
+                // 一時的に復元ロジックが必要だが、
+                // 今回はrenderFormsが呼ばれる前にDOMがないので、
+                // renderFormsを改造して「保存されたphases」を渡す形にするか、
+                // 単純にrenderForms内で「もし初回なら」判定をする。
+                // 簡略化のため、renderFormsが呼ばれたときにDOMから拾う前に
+                // settings.phases を見て補完するように工夫する。
+                
+                // ここでは簡易的に、グローバルに保存データを置いておく
+                window.savedPhases = settings.phases; 
+
+            } catch (e) {
+                console.error("設定の読み込みに失敗しました", e);
+            }
+        }
+        
+        // renderFormsの改良：保存データの読み込み優先
+        const originalGetFormData = getFormData;
+        // オーバーライドせずに、renderForms内で window.savedPhases をチェックするように変更
+        // 上の renderForms 内の `const saved = currentData[i] || {};` を以下のように書き換えるため
+        // ここで再定義はせず、renderFormsロジックを微修正します。
+        
+        // renderForms関数の修正版
+        function renderForms() {
+            // 既存の入力がある場合はそれを優先、なければロードデータ(window.savedPhases)を使う
+            let currentData = originalGetFormData();
+            if (currentData.length === 0 && window.savedPhases) {
+                currentData = window.savedPhases;
+            }
+
+            const count = parseInt(phaseCountInput.value) || 3;
+            formsArea.innerHTML = '';
+
+            for (let i = 0; i < count; i++) {
+                const saved = currentData[i] || {};
+                const defMin = saved.min !== undefined ? saved.min : (i === 0 ? 10 : 5);
+                const defSec = saved.sec !== undefined ? saved.sec : 0;
+                const defColor = saved.color || colorPresets[i % colorPresets.length].val;
+                const defText = saved.text || (i === count - 1 ? "ラストスパート" : `フェーズ ${i+1}`);
+
+                const div = document.createElement('div');
+                div.className = 'phase-item';
+                div.style.borderLeftColor = defColor;
+                
+                div.innerHTML = `
+                    <div class="phase-num">${i + 1}</div>
+                    <div>
+                        <label>分</label>
+                        <input type="number" class="p-min" min="0" value="${defMin}">
+                    </div>
+                    <div>
+                        <label>秒</label>
+                        <input type="number" class="p-sec" min="0" max="59" value="${defSec}">
+                    </div>
+                    <div>
+                        <label>色</label>
+                        <select class="p-color" onchange="this.closest('.phase-item').style.borderLeftColor=this.value">
+                            ${colorPresets.map(c => `<option value="${c.val}" ${c.val === defColor ? 'selected' : ''}>${c.name}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div style="flex:1;">
+                        <label>表示文字</label>
+                        <input type="text" class="p-text" value="${defText}">
+                    </div>
+                `;
+                formsArea.appendChild(div);
+            }
+            // 一度読み込んだらクリア（リサイズ時などに既存入力を優先するため）
+            window.savedPhases = null; 
+        }
+
+        // --- タイマー開始ロジック ---
+        function startApp() {
+            // データの収集と計算
+            const formData = getFormData();
+            schedule = [];
+            let cumulativeSec = 0;
+
+            // フェーズ構築
+            formData.forEach(d => {
+                const duration = (d.min * 60) + d.sec;
+                if (duration > 0) {
+                    cumulativeSec += duration;
+                    schedule.push({
+                        endTimePoint: cumulativeSec, // 開始0秒からの累積終了点
+                        duration: duration,
+                        color: d.color,
+                        text: d.text
+                    });
+                }
+            });
+
+            if (schedule.length === 0) {
+                alert("時間を設定してください（最低1つは1秒以上）");
+                return;
+            }
+
+            // 保存
+            saveSettings();
+
+            // 画面切り替え
+            setupContainer.style.display = 'none';
+            timerContainer.style.display = 'flex';
+            document.getElementById('retry-area').style.display = 'none';
+            document.getElementById('current-timer').style.display = 'block';
+            document.getElementById('total-timer-wrapper').style.display = 'block';
+
+            // タイマー初期化
+            totalDurationSec = cumulativeSec;
+            const startTime = Date.now();
+            totalEndTime = startTime + (totalDurationSec * 1000);
+
+            // ループ開始
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                const now = Date.now();
+                const totalRemainMs = totalEndTime - now;
+                const totalRemainSec = Math.ceil(totalRemainMs / 1000);
+
+                if (totalRemainSec <= 0) {
+                    finishApp();
+                    return;
+                }
+
+                // 現在の経過秒数
+                const elapsedSec = totalDurationSec - totalRemainSec; // 切り上げの影響で若干ズレるが、表示上はremainingベースが良い
+                // 正確には: duration - (remainMs/1000) だが、
+                // フェーズ判定のために「消化した秒数」を計算する
+                const exactElapsedSec = (now - startTime) / 1000;
+
+                updateView(exactElapsedSec, totalRemainSec);
+
+            }, 100); // 0.1秒ごとに更新でスムーズに
+
+            // 初回即時実行
+            updateView(0, totalDurationSec);
+        }
+
+        function updateView(elapsedSec, totalRemainSec) {
+            // 現在のフェーズを探す
+            let currentPhase = null;
+            let phaseStartTime = 0;
+
+            for (let i = 0; i < schedule.length; i++) {
+                if (elapsedSec < schedule[i].endTimePoint) {
+                    currentPhase = schedule[i];
+                    break;
+                }
+                phaseStartTime = schedule[i].endTimePoint;
+            }
+            
+            // 誤差で最後が見つからない場合のフォールバック
+            if (!currentPhase) currentPhase = schedule[schedule.length - 1];
+
+            // フェーズ内の残り時間
+            // フェーズ終了点(累積) - 現在の経過時間
+            let phaseRemain = Math.ceil(currentPhase.endTimePoint - elapsedSec);
+            if (phaseRemain < 0) phaseRemain = 0;
+
+            // DOM更新
+            document.body.style.backgroundColor = currentPhase.color;
+            document.getElementById('current-message').innerText = currentPhase.text;
+            document.getElementById('current-timer').innerText = formatTime(phaseRemain);
+            document.getElementById('total-timer').innerText = formatTime(totalRemainSec);
+
+            // 文字色の調整（背景が明るいか暗いか）
+            adjustTextColor(currentPhase.color);
+        }
+
+        function finishApp() {
+            clearInterval(timerInterval);
+            
+            // 終了設定の適用
+            const endColor = document.getElementById('end-color').value;
+            const endText = document.getElementById('end-text').value;
+
+            document.body.style.backgroundColor = endColor;
+            adjustTextColor(endColor);
+
+            document.getElementById('current-message').innerText = endText;
+            document.getElementById('current-timer').style.display = 'none'; // タイマー消す
+            document.getElementById('total-timer-wrapper').style.display = 'none';
+            
+            // もう一度ボタン表示
+            document.getElementById('retry-area').style.display = 'block';
+        }
+
+        function resetToSetup() {
+            clearInterval(timerInterval);
+            document.body.style.backgroundColor = "var(--bg-setup)";
+            document.body.style.color = "var(--text-main)"; // 文字色戻す
+            
+            timerContainer.style.display = 'none';
+            setupContainer.style.display = 'flex';
+        }
+
+        // --- ユーティリティ ---
+        function formatTime(sec) {
+            const m = Math.floor(sec / 60);
+            const s = Math.floor(sec % 60);
+            return `${m}:${String(s).padStart(2, '0')}`;
+        }
+
+        function adjustTextColor(hexColor) {
+            // 背景色の輝度を計算して文字色を白か黒にする
+            // hexColorは #RRGGBB 形式
+            const r = parseInt(hexColor.substr(1, 2), 16);
+            const g = parseInt(hexColor.substr(3, 2), 16);
+            const b = parseInt(hexColor.substr(5, 2), 16);
+            
+            // 輝度計算式
+            const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+            
+            const mainText = document.getElementById('timer-container');
+            const restartBtn = document.getElementById('restart-btn');
+
+            if (luminance > 0.6) {
+                // 明るい背景 -> 黒文字
+                mainText.style.color = '#333333';
+                restartBtn.style.borderColor = 'rgba(0,0,0,0.3)';
+                restartBtn.style.background = 'rgba(0,0,0,0.1)';
+            } else {
+                // 暗い背景 -> 白文字
+                mainText.style.color = '#FFFFFF';
+                restartBtn.style.borderColor = 'rgba(255,255,255,0.5)';
+                restartBtn.style.background = 'rgba(255,255,255,0.2)';
+            }
+        }
+
+    </script>
+</body>
+</html>
