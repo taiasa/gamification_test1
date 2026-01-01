@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CYBER CASTLE 100 - 日本100名城攻略 -</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Noto+Sans+JP:wght@400;700&family=Zen+Antique+Soft&display=swap" rel="stylesheet">
+    <style>
+        /* カスタム設定 */
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-gold: #ffd700;
+            --neon-red: #ff3366;
+            --bg-dark: #0a0a12;
+        }
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: var(--bg-dark);
+            color: white;
+            overflow-x: hidden;
+            user-select: none;
+        }
+        .font-cyber { font-family: 'DotGothic16', sans-serif; }
+        .font-jp-art { font-family: 'Zen Antique Soft', serif; }
+
+        /* サイバーエフェクト */
+        .cyber-border {
+            border: 1px solid var(--neon-blue);
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.3), inset 0 0 20px rgba(0, 243, 255, 0.1);
+        }
+        .gold-border {
+            border: 1px solid var(--neon-gold);
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+        .scanline {
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
+            background-size: 100% 4px;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0.3;
+        }
+        
+        /* タイピング打刻アニメーション */
+        @keyframes key-hit {
+            0% { transform: scale(1.2); color: white; }
+            100% { transform: scale(1); }
+        }
+        .char-hit {
+            animation: key-hit 0.1s ease-out;
+            color: var(--neon-blue);
+        }
+        .char-untyped {
+            color: #444;
+        }
+
+        /* クイズ正誤演出 */
+        #quiz-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .mark-circle {
+            width: 300px; height: 300px;
+            border: 20px solid var(--neon-blue);
+            border-radius: 50%;
+            box-shadow: 0 0 50px var(--neon-blue), inset 0 0 50px var(--neon-blue);
+            animation: pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .mark-cross {
+            position: relative;
+            width: 300px; height: 300px;
+        }
+        .mark-cross::before, .mark-cross::after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 300px; height: 30px;
+            background: var(--neon-red);
+            box-shadow: 0 0 30px var(--neon-red);
+            border-radius: 10px;
+        }
+        .mark-cross::before { transform: translate(-50%, -50%) rotate(45deg); }
+        .mark-cross::after { transform: translate(-50%, -50%) rotate(-45deg); }
+        .mark-cross { animation: shake-mark 0.4s ease-in-out; }
+
+        @keyframes pop-in {
+            0% { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes shake-mark {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        .shake { animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+        }
+        
+        /* スクロールバー */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #111; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--neon-blue); }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center">
+
+    <div class="scanline"></div>
+    <div id="quiz-overlay"></div>
+
+    <!-- HEADER -->
+    <header class="fixed top-0 w-full p-4 flex justify-between items-center z-40 bg-black/80 backdrop-blur-sm border-b border-gray-800">
+        <h1 class="text-xl md:text-2xl font-cyber text-cyan-400 tracking-wider cursor-pointer" onclick="App.returnHome()">
+            <span class="text-white">JAPAN</span> 100 CASTLES
+        </h1>
+        <div id="status-bar" class="hidden flex gap-4 text-sm font-cyber items-center">
+            <!-- Dynamic Content based on mode -->
+        </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main id="app-container" class="w-full max-w-4xl p-4 mt-16 relative z-10 flex flex-col items-center">
+        
+        <!-- HOME SCREEN -->
+        <section id="screen-home" class="w-full text-center py-10 space-y-8 animate-fade-in">
+            <div class="mb-8 relative inline-block">
+                <div class="absolute -inset-1 bg-gradient-to-r from-cyan-400 to-yellow-400 rounded-lg blur opacity-25"></div>
+                <h2 class="relative text-5xl md:text-7xl font-jp-art font-bold text-white tracking-widest drop-shadow-lg">
+                    日本百名城<br><span class="text-2xl md:text-3xl mt-2 block font-cyber text-cyan-300">MASTER PROGRAM</span>
+                </h2>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-3xl mx-auto">
+                <button onclick="App.startTypingMode()" class="group relative p-6 cyber-border bg-gray-900/80 hover:bg-cyan-900/30 transition-all duration-300">
+                    <div class="text-4xl mb-2">⌨️</div>
+                    <h3 class="text-xl font-bold text-cyan-400 group-hover:text-white">TYPING</h3>
+                    <p class="text-xs text-gray-400 mt-2">打鍵鍛錬：城名入力</p>
+                </button>
+                <button onclick="App.startQuizMode()" class="group relative p-6 cyber-border bg-gray-900/80 hover:bg-yellow-900/30 transition-all duration-300">
+                    <div class="text-4xl mb-2">⚔️</div>
+                    <h3 class="text-xl font-bold text-yellow-400 group-hover:text-white">QUIZ</h3>
+                    <p class="text-xs text-gray-400 mt-2">知識試験：四択問題</p>
+                </button>
+                <button onclick="App.showKnowledgeMode()" class="group relative p-6 border border-gray-600 bg-gray-900/80 hover:bg-gray-800 transition-all duration-300">
+                    <div class="text-4xl mb-2">📜</div>
+                    <h3 class="text-xl font-bold text-gray-300 group-hover:text-white">DATABASE</h3>
+                    <p class="text-xs text-gray-400 mt-2">城郭図鑑：全リスト</p>
+                </button>
+            </div>
+        </section>
+
+        <!-- TYPING MODE SCREEN -->
+        <section id="screen-typing" class="hidden w-full max-w-2xl flex flex-col items-center space-y-8">
+            <div class="w-full flex justify-between items-end border-b border-cyan-500/50 pb-2">
+                <div class="text-cyan-400 font-cyber">TARGET ACQUISITION</div>
+                <div class="text-2xl font-bold font-cyber text-yellow-400" id="typing-timer">60.00</div>
+            </div>
+
+            <div class="w-full bg-gray-900/90 cyber-border p-10 text-center rounded-lg relative overflow-hidden">
+                <div id="typing-question-info" class="mb-4">
+                    <span class="bg-cyan-900 text-cyan-100 text-xs px-2 py-1 rounded" id="typing-pref">都道府県</span>
+                </div>
+                <!-- 漢字表示 -->
+                <div id="typing-kanji" class="text-5xl md:text-6xl font-jp-art font-bold mb-6 tracking-wider text-white">城名</div>
+                
+                <!-- ひらがな / ローマ字入力表示 -->
+                <div class="text-2xl md:text-3xl font-mono tracking-widest h-12 flex justify-center items-center gap-1">
+                    <div id="typing-hiragana-display" class="flex">
+                        <!-- JSで動的に文字スパンを生成 -->
+                    </div>
+                </div>
+                
+                <p class="text-xs text-gray-500 mt-8">
+                    ※「ん」は <span class="text-cyan-400 font-bold">nn</span> 固定。ヘボン/訓令どちらも可。
+                </p>
+            </div>
+            
+            <button onclick="App.finishGame()" class="text-gray-500 hover:text-red-400 text-sm mt-4 border border-gray-700 px-4 py-1 rounded hover:border-red-400 transition-colors">[ RETIRE ]</button>
+        </section>
+
+        <!-- QUIZ MODE SCREEN -->
+        <section id="screen-quiz" class="hidden w-full max-w-3xl flex flex-col items-center space-y-6">
+            <div class="w-full flex justify-between border-b border-yellow-500/50 pb-2 items-center">
+                <div class="text-yellow-400 font-cyber">TACTICAL QUIZ <span id="quiz-progress">1/20</span></div>
+                <button onclick="App.finishGame()" class="text-xs text-gray-500 hover:text-red-400 border border-gray-700 px-2 py-1 rounded hover:border-red-400 transition-colors">リタイア</button>
+            </div>
+
+            <div class="w-full bg-gray-900/90 gold-border p-8 rounded-lg min-h-[160px] flex flex-col justify-center">
+                <p class="text-sm text-gray-400 mb-2" id="quiz-category">特徴・歴史から城を特定せよ</p>
+                <p id="quiz-question" class="text-xl md:text-2xl font-jp-art leading-relaxed">
+                    ここに問題文が表示されます。
+                </p>
+            </div>
+
+            <div id="quiz-options" class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+                <!-- Buttons injected by JS -->
+            </div>
+        </section>
+
+        <!-- RESULT SCREEN -->
+        <section id="screen-result" class="hidden w-full max-w-2xl text-center space-y-8 animate-fade-in">
+            <h2 class="text-4xl font-cyber text-white">MISSION REPORT</h2>
+            
+            <div class="p-8 bg-gray-900 cyber-border rounded-lg">
+                <div class="grid grid-cols-1 gap-4 text-center mb-6" id="result-stats-container">
+                    <!-- Dynamic stats injected here -->
+                </div>
+            </div>
+
+            <div id="review-section" class="w-full text-left hidden">
+                <h3 class="text-yellow-400 font-cyber mb-2 border-b border-gray-700 pb-1">▼ 復習リスト (Review List)</h3>
+                <ul id="review-list" class="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scroll mt-2">
+                    <!-- Failed items -->
+                </ul>
+            </div>
+
+            <button onclick="App.returnHome()" class="px-8 py-3 bg-cyan-700 hover:bg-cyan-600 text-white font-bold rounded shadow-[0_0_15px_rgba(6,182,212,0.5)] transition-all">
+                RETURN TO BASE
+            </button>
+        </section>
+
+        <!-- KNOWLEDGE MODE SCREEN -->
+        <section id="screen-knowledge" class="hidden w-full max-w-5xl">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-cyber text-gray-300">CASTLE DATABASE</h2>
+                <button onclick="App.returnHome()" class="text-sm border border-gray-600 px-3 py-1 hover:bg-gray-800">BACK</button>
+            </div>
+            <div id="knowledge-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 h-[70vh] overflow-y-auto pr-2">
+                <!-- Cards injected by JS -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- LOGIC SCRIPT -->
+    <script>
+        /**
+         * 0. AUDIO SYSTEM (Web Audio API)
+         * 遅延なく打刻音や効果音を鳴らすためのシンセサイザー
+         */
+        const Sound = {
+            ctx: null,
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            playTone(freq, type, duration, vol = 0.1) {
+                if (!this.ctx) this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            },
+            playType() {
+                // 小気味良いクリック音（短形波+ノイズ的）
+                this.playTone(800, 'square', 0.05, 0.05);
+            },
+            playOK() {
+                // キラキラ音（アルペジオ）
+                if (!this.ctx) this.init();
+                const now = this.ctx.currentTime;
+                [523.25, 659.25, 783.99, 1046.50].forEach((f, i) => { // C E G C
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = f;
+                    gain.gain.setValueAtTime(0.1, now + i * 0.05);
+                    gain.gain.linearRampToValueAtTime(0, now + i * 0.05 + 0.3);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + i * 0.05);
+                    osc.stop(now + i * 0.05 + 0.3);
+                });
+            },
+            playNG() {
+                // ブザー音
+                this.playTone(150, 'sawtooth', 0.3, 0.2);
+            }
+        };
+
+        /**
+         * 1. DATA DEFINITION
+         */
+        const CASTLE_DATA = [
+          {"name":"根室半島チャシ跡群","yomi":"ねむろはんとうちゃしあとぐん","prefecture":"北海道","overview":"アイヌ民族によって築かれた防御施設（チャシ）の遺跡群。日本の城郭文化の原点の一つ。"},
+          {"name":"五稜郭","yomi":"ごりょうかく","prefecture":"北海道","overview":"江戸時代末期に築かれた星形要塞。日本初の西洋式城郭。"},
+          {"name":"松前城","yomi":"まつまえじょう","prefecture":"北海道","overview":"北海道唯一の日本式城郭。松前藩の居城。"},
+          {"name":"弘前城","yomi":"ひろさきじょう","prefecture":"青森県","overview":"津軽氏の居城。現存天守を持つ東北唯一の城。"},
+          {"name":"根城","yomi":"ねじょう","prefecture":"青森県","overview":"南部氏の本拠地。中世の平山城跡。"},
+          {"name":"盛岡城","yomi":"もりおかじょう","prefecture":"岩手県","overview":"南部氏の居城。美しい石垣が特徴。"},
+          {"name":"多賀城","yomi":"たがじょう","prefecture":"宮城県","overview":"奈良・平安時代の東北地方の政治・軍事拠点。"},
+          {"name":"仙台城","yomi":"せんだいじょう","prefecture":"宮城県","overview":"伊達政宗が築いた城。青葉城とも呼ばれる。"},
+          {"name":"久保田城","yomi":"くぼたじょう","prefecture":"秋田県","overview":"佐竹氏の居城。土造りの城として知られる。"},
+          {"name":"山形城","yomi":"やまがたじょう","prefecture":"山形県","overview":"最上義光の居城。大規模な平城。"},
+          {"name":"会津若松城","yomi":"あいづわかまつじょう","prefecture":"福島県","overview":"別名鶴ヶ城。戊辰戦争で知られる名城。"},
+          {"name":"白河小峰城","yomi":"しらかわこみねじょう","prefecture":"福島県","overview":"東北の玄関口を守った梯郭式平山城。"},
+          {"name":"水戸城","yomi":"みとじょう","prefecture":"茨城県","overview":"徳川御三家・水戸徳川家の居城。"},
+          {"name":"足利氏館","yomi":"あしかがしやかた","prefecture":"栃木県","overview":"足利尊氏ゆかりの居館跡。鑁阿寺として現存。"},
+          {"name":"箕輪城","yomi":"みのわじょう","prefecture":"群馬県","overview":"関東有数の山城。武田氏と北条氏が争奪。"},
+          {"name":"金山城","yomi":"かなやまじょう","prefecture":"群馬県","overview":"石垣を多用した戦国期の山城。"},
+          {"name":"鉢形城","yomi":"はちがたじょう","prefecture":"埼玉県","overview":"北条氏の関東防衛拠点。荒川の断崖を利用。"},
+          {"name":"川越城","yomi":"かわごえじょう","prefecture":"埼玉県","overview":"江戸の北を守る要衝。現存御殿あり。"},
+          {"name":"佐倉城","yomi":"さくらじょう","prefecture":"千葉県","overview":"土造りの城郭。堀と土塁が良好に残る。"},
+          {"name":"江戸城","yomi":"えどじょう","prefecture":"東京都","overview":"徳川将軍家の居城。日本最大規模の城郭。"},
+          {"name":"八王子城","yomi":"はちおうじじょう","prefecture":"東京都","overview":"北条氏照の山城。関東屈指の規模。"},
+          {"name":"小田原城","yomi":"おだわらじょう","prefecture":"神奈川県","overview":"後北条氏の本拠。難攻不落の城として有名。"},
+          {"name":"武田氏館","yomi":"たけだしやかた","prefecture":"山梨県","overview":"武田信玄の居館跡。躑躅ヶ崎館とも呼ばれる。"},
+          {"name":"甲府城","yomi":"こうふじょう","prefecture":"山梨県","overview":"徳川家康の命で築かれた近世城郭。"},
+          {"name":"松代城","yomi":"まつしろじょう","prefecture":"長野県","overview":"真田氏の居城。川中島合戦の舞台。"},
+          {"name":"上田城","yomi":"うえだじょう","prefecture":"長野県","overview":"真田昌幸が築き、徳川軍を撃退した名城。"},
+          {"name":"小諸城","yomi":"こもろじょう","prefecture":"長野県","overview":"穴城と呼ばれる珍しい構造の城。"},
+          {"name":"松本城","yomi":"まつもとじょう","prefecture":"長野県","overview":"国宝天守を持つ名城。別名烏城。"},
+          {"name":"高遠城","yomi":"たかとおじょう","prefecture":"長野県","overview":"武田氏ゆかりの城。桜の名所。"},
+          {"name":"新発田城","yomi":"しばたじょう","prefecture":"新潟県","overview":"三階櫓と辰巳櫓が現存する平城。"},
+          {"name":"春日山城","yomi":"かすがやまじょう","prefecture":"新潟県","overview":"上杉謙信の本拠地。巨大な山城。"},
+          {"name":"高岡城","yomi":"たかおかじょう","prefecture":"富山県","overview":"前田利長が築いた平城。水堀が特徴。"},
+          {"name":"七尾城","yomi":"ななおじょう","prefecture":"石川県","overview":"上杉謙信が攻略した難攻不落の山城。"},
+          {"name":"金沢城","yomi":"かなざわじょう","prefecture":"石川県","overview":"前田利家の居城。加賀百万石の中心。"},
+          {"name":"丸岡城","yomi":"まるおかじょう","prefecture":"福井県","overview":"現存天守を持つ最古級の城。"},
+          {"name":"一乗谷城","yomi":"いちじょうだにじょう","prefecture":"福井県","overview":"朝倉氏の城下町跡が残る中世城郭。"},
+          {"name":"岩村城","yomi":"いわむらじょう","prefecture":"岐阜県","overview":"日本三大山城の一つ。女城主で有名。"},
+          {"name":"岐阜城","yomi":"ぎふじょう","prefecture":"岐阜県","overview":"織田信長の居城。天下布武の拠点。"},
+          {"name":"山中城","yomi":"やまなかじょう","prefecture":"静岡県","overview":"障子堀が有名な北条氏の城。"},
+          {"name":"駿府城","yomi":"すんぷじょう","prefecture":"静岡県","overview":"徳川家康の晩年の居城。"},
+          {"name":"掛川城","yomi":"かけがわじょう","prefecture":"静岡県","overview":"山内一豊ゆかりの城。木造復元天守を持つ平山城。"},
+          {"name":"犬山城","yomi":"いぬやまじょう","prefecture":"愛知県","overview":"国宝天守を持つ日本最古級の現存天守。"},
+          {"name":"名古屋城","yomi":"なごやじょう","prefecture":"愛知県","overview":"徳川家康が築いた尾張徳川家の居城。金の鯱で有名。"},
+          {"name":"岡崎城","yomi":"おかざきじょう","prefecture":"愛知県","overview":"徳川家康生誕の城。三河武士の拠点。"},
+          {"name":"長篠城","yomi":"ながしのじょう","prefecture":"愛知県","overview":"長篠の戦いの舞台。織田・徳川連合軍が武田軍を破った。"},
+          {"name":"伊賀上野城","yomi":"いがうえのじょう","prefecture":"三重県","overview":"高石垣と藤堂高虎による築城で知られる。"},
+          {"name":"松阪城","yomi":"まつさかじょう","prefecture":"三重県","overview":"蒲生氏郷が築いた石垣の名城。"},
+          {"name":"小谷城","yomi":"おだにじょう","prefecture":"滋賀県","overview":"浅井長政の居城。戦国時代の山城。"},
+          {"name":"彦根城","yomi":"ひこねじょう","prefecture":"滋賀県","overview":"国宝天守を持つ井伊家の居城。"},
+          {"name":"安土城","yomi":"あづちじょう","prefecture":"滋賀県","overview":"織田信長が築いた革新的な城郭。"},
+          {"name":"観音寺城","yomi":"かんのんじじょう","prefecture":"滋賀県","overview":"六角氏の本拠。中世山城の代表例。"},
+          {"name":"二条城","yomi":"にじょうじょう","prefecture":"京都府","overview":"徳川将軍の上洛時の宿所。大政奉還の舞台。"},
+          {"name":"大阪城","yomi":"おおさかじょう","prefecture":"大阪府","overview":"豊臣秀吉の居城。日本最大級の城郭。"},
+          {"name":"千早城","yomi":"ちはやじょう","prefecture":"大阪府","overview":"楠木正成が幕府軍を迎え撃った山城。"},
+          {"name":"竹田城","yomi":"たけだじょう","prefecture":"兵庫県","overview":"雲海に浮かぶ天空の城として有名。"},
+          {"name":"篠山城","yomi":"ささやまじょう","prefecture":"兵庫県","overview":"徳川家康が築かせた西国支配の拠点。"},
+          {"name":"明石城","yomi":"あかしじょう","prefecture":"兵庫県","overview":"巽櫓・坤櫓が現存する海岸平城。"},
+          {"name":"姫路城","yomi":"ひめじじょう","prefecture":"兵庫県","overview":"国宝・世界遺産。白鷺城と呼ばれる名城。"},
+          {"name":"赤穂城","yomi":"あこうじょう","prefecture":"兵庫県","overview":"忠臣蔵で知られる近世城郭。"},
+          {"name":"高取城","yomi":"たかとりじょう","prefecture":"奈良県","overview":"日本三大山城の一つ。高所に築かれた城。"},
+          {"name":"和歌山城","yomi":"わかやまじょう","prefecture":"和歌山県","overview":"紀州徳川家の居城。虎伏山に築かれた。"},
+          {"name":"鳥取城","yomi":"とっとりじょう","prefecture":"鳥取県","overview":"羽柴秀吉の兵糧攻めで有名な城。"},
+          {"name":"松江城","yomi":"まつえじょう","prefecture":"島根県","overview":"国宝天守を持つ水城。別名千鳥城。"},
+          {"name":"月山富田城","yomi":"がっさんとだじょう","prefecture":"島根県","overview":"尼子氏の本拠地。中世最大級の山城。"},
+          {"name":"津和野城","yomi":"つわのじょう","prefecture":"島根県","overview":"山上に築かれた要害堅固な城。"},
+          {"name":"津山城","yomi":"つやまじょう","prefecture":"岡山県","overview":"森忠政が築いた石垣の名城。"},
+          {"name":"備中松山城","yomi":"びっちゅうまつやまじょう","prefecture":"岡山県","overview":"現存天守を持つ日本一高所の山城。"},
+          {"name":"鬼ノ城","yomi":"きのじょう","prefecture":"岡山県","overview":"古代山城とされる謎の多い城跡。"},
+          {"name":"広島城","yomi":"ひろしまじょう","prefecture":"広島県","overview":"毛利輝元が築いた平城。別名鯉城。"},
+          {"name":"岩国城","yomi":"いわくにじょう","prefecture":"山口県","overview":"吉川氏の居城。錦帯橋とともに有名。"},
+          {"name":"萩城","yomi":"はぎじょう","prefecture":"山口県","overview":"毛利氏の居城。城下町が良好に残る。"},
+          {"name":"徳島城","yomi":"とくしまじょう","prefecture":"徳島県","overview":"蜂須賀氏の居城。緑色片岩の石垣が特徴。"},
+          {"name":"高松城","yomi":"たかまつじょう","prefecture":"香川県","overview":"海水を引き込んだ日本三大水城の一つ。"},
+          {"name":"丸亀城","yomi":"まるがめじょう","prefecture":"香川県","overview":"現存天守と高石垣で知られる城。"},
+          {"name":"今治城","yomi":"いまばりじょう","prefecture":"愛媛県","overview":"藤堂高虎築城の海城。"},
+          {"name":"湯築城","yomi":"ゆづきじょう","prefecture":"愛媛県","overview":"河野氏の居城。中世城館跡。"},
+          {"name":"松山城","yomi":"まつやまじょう","prefecture":"愛媛県","overview":"現存天守を持つ連立式平山城。"},
+          {"name":"大洲城","yomi":"おおずじょう","prefecture":"愛媛県","overview":"肱川沿いに築かれた伊予の名城。"},
+          {"name":"宇和島城","yomi":"うわじまじょう","prefecture":"愛媛県","overview":"伊達秀宗が築いた現存天守の城。"},
+          {"name":"高知城","yomi":"こうちじょう","prefecture":"高知県","overview":"本丸御殿と天守が現存する貴重な城。"},
+          {"name":"福岡城","yomi":"ふくおかじょう","prefecture":"福岡県","overview":"黒田官兵衛・長政父子の居城。"},
+          {"name":"大野城","yomi":"おおのじょう","prefecture":"福岡県","overview":"白村江の戦い後に築かれた古代山城。"},
+          {"name":"名護屋城","yomi":"なごやじょう","prefecture":"佐賀県","overview":"豊臣秀吉の朝鮮出兵拠点。巨大城郭。"},
+          {"name":"吉野ヶ里","yomi":"よしのがり","prefecture":"佐賀県","overview":"弥生時代の環濠集落遺跡。"},
+          {"name":"佐賀城","yomi":"さがじょう","prefecture":"佐賀県","overview":"鍋島氏の居城。鯱の門が現存。"},
+          {"name":"平戸城","yomi":"ひらどじょう","prefecture":"長崎県","overview":"松浦氏の居城。海に突き出た城。"},
+          {"name":"島原城","yomi":"しまばらじょう","prefecture":"長崎県","overview":"島原の乱後に築かれた城。"},
+          {"name":"熊本城","yomi":"くまもとじょう","prefecture":"熊本県","overview":"加藤清正築城。難攻不落の名城。"},
+          {"name":"人吉城","yomi":"ひとよしじょう","prefecture":"熊本県","overview":"相良氏700年の居城。水城。"},
+          {"name":"大分府内城","yomi":"おおいたふないじょう","prefecture":"大分県","overview":"海に近い平城。大友宗麟ゆかり。"},
+          {"name":"岡城","yomi":"おかじょう","prefecture":"大分県","overview":"断崖絶壁に築かれた石垣の名城。"},
+          {"name":"飫肥城","yomi":"おびじょう","prefecture":"宮崎県","overview":"伊東氏の居城。九州小京都と称される城下町。"},
+          {"name":"鹿児島城","yomi":"かごしまじょう","prefecture":"鹿児島県","overview":"島津氏の居城。別名鶴丸城。"},
+          {"name":"今帰仁城","yomi":"なきじんじょう","prefecture":"沖縄県","overview":"琉球王国時代のグスク。世界遺産。"},
+          {"name":"中城城","yomi":"なかぐすくじょう","prefecture":"沖縄県","overview":"保存状態の良い琉球石灰岩の城。"},
+          {"name":"首里城","yomi":"しゅりじょう","prefecture":"沖縄県","overview":"琉球王国の王城。世界遺産。"}
+        ];
+
+        const REGION_MAP = {
+            "北海道": "北海道・東北", "青森県": "北海道・東北", "岩手県": "北海道・東北", "宮城県": "北海道・東北", "秋田県": "北海道・東北", "山形県": "北海道・東北", "福島県": "北海道・東北",
+            "茨城県": "関東", "栃木県": "関東", "群馬県": "関東", "埼玉県": "関東", "千葉県": "関東", "東京都": "関東", "神奈川県": "関東",
+            "新潟県": "北陸・甲信越", "富山県": "北陸・甲信越", "石川県": "北陸・甲信越", "福井県": "北陸・甲信越", "山梨県": "北陸・甲信越", "長野県": "北陸・甲信越",
+            "岐阜県": "東海", "静岡県": "東海", "愛知県": "東海", "三重県": "東海",
+            "滋賀県": "近畿", "京都府": "近畿", "大阪府": "近畿", "兵庫県": "近畿", "奈良県": "近畿", "和歌山県": "近畿",
+            "鳥取県": "中国", "島根県": "中国", "岡山県": "中国", "広島県": "中国", "山口県": "中国",
+            "徳島県": "四国", "香川県": "四国", "愛媛県": "四国", "高知県": "四国",
+            "福岡県": "九州・沖縄", "佐賀県": "九州・沖縄", "長崎県": "九州・沖縄", "熊本県": "九州・沖縄", "大分県": "九州・沖縄", "宮崎県": "九州・沖縄", "鹿児島県": "九州・沖縄", "沖縄県": "九州・沖縄"
+        };
+
+        // タイピング用：ひらがなトークン定義
+        // 1文字〜2文字(拗音)のひらがなに対し、許容されるローマ字のリスト
+        const KANA_MAP = {
+            'あ':['a'], 'い':['i','yi'], 'う':['u','wu','whu'], 'え':['e'], 'お':['o'],
+            'か':['ka','ca'], 'き':['ki'], 'く':['ku','cu','qu'], 'け':['ke'], 'こ':['ko','co'],
+            'さ':['sa'], 'し':['shi','si','ci'], 'す':['su'], 'せ':['se','ce'], 'そ':['so'],
+            'た':['ta'], 'ち':['chi','ti'], 'つ':['tsu','tu'], 'て':['te'], 'と':['to'],
+            'な':['na'], 'に':['ni'], 'ぬ':['nu'], 'ね':['ne'], 'の':['no'],
+            'は':['ha'], 'ひ':['hi'], 'ふ':['fu','hu'], 'へ':['he'], 'ほ':['ho'],
+            'ま':['ma'], 'み':['mi'], 'む':['mu'], 'め':['me'], 'も':['mo'],
+            'や':['ya'], 'ゆ':['yu'], 'よ':['yo'],
+            'ら':['ra'], 'り':['ri'], 'る':['ru'], 'れ':['re'], 'ろ':['ro'],
+            'わ':['wa'], 'を':['wo'], 'ん':['nn'], // んはnn固定
+            'が':['ga'], 'ぎ':['gi'], 'ぐ':['gu'], 'げ':['ge'], 'ご':['go'],
+            'ざ':['za'], 'じ':['ji','zi'], 'ず':['zu'], 'ぜ':['ze'], 'ぞ':['zo'],
+            'だ':['da'], 'ぢ':['ji','di'], 'づ':['zu','du'], 'で':['de'], 'ど':['do'],
+            'ば':['ba'], 'び':['bi'], 'ぶ':['bu'], 'べ':['be'], 'ぼ':['bo'],
+            'ぱ':['pa'], 'ぴ':['pi'], 'ぷ':['pu'], 'ぺ':['pe'], 'ぽ':['po'],
+            // 拗音
+            'きゃ':['kya'], 'きゅ':['kyu'], 'きょ':['kyo'],
+            'しゃ':['sha','sya'], 'しゅ':['shu','syu'], 'しょ':['sho','syo'],
+            'ちゃ':['cha','tya'], 'ちゅ':['chu','tyu'], 'ちょ':['cho','tyo'],
+            'にゃ':['nya'], 'にゅ':['nyu'], 'にょ':['nyo'],
+            'ひゃ':['hya'], 'ひゅ':['hyu'], 'ひょ':['hyo'],
+            'みゃ':['mya'], 'みゅ':['myu'], 'みょ':['myo'],
+            'りゃ':['rya'], 'りゅ':['ryu'], 'りょ':['ryo'],
+            'ぎゃ':['gya'], 'ぎゅ':['gyu'], 'ぎょ':['gyo'],
+            'じゃ':['ja','jya','zya'], 'じゅ':['ju','jyu','zyu'], 'じょ':['jo','jyo','zyo'],
+            'びゃ':['bya'], 'びゅ':['byu'], 'びょ':['byo'],
+            'ぴゃ':['pya'], 'ぴゅ':['pyu'], 'ぴょ':['pyo'],
+            // 促音・小書き
+            'っ':['ltu','xtu'], // ※後続子音重ねはロジックで処理
+            'ぁ':['la','xa'], 'ぃ':['li','xi'], 'ぅ':['lu','xu'], 'ぇ':['le','xe'], 'ぉ':['lo','xo'],
+            'ゃ':['lya','xya'], 'ゅ':['lyu','xyu'], 'ょ':['lyo','xyo']
+        };
+
+        /**
+         * 2. LOGIC CLASSES
+         */
+
+        class GameState {
+            constructor() {
+                this.correctCount = 0;
+                this.missCount = 0;
+                this.mode = 'home';
+                this.reviewList = [];
+            }
+            addResult(isCorrect, item = null) {
+                if (isCorrect) {
+                    this.correctCount++;
+                } else {
+                    this.missCount++;
+                    if (item) this.reviewList.push(item);
+                }
+                this.updateUI();
+            }
+            updateUI() {
+                // UI更新は各モードの専用メソッドでやるが、ステータスバーはここで
+                const bar = document.getElementById('status-bar');
+                if (this.mode === 'typing') {
+                    bar.innerHTML = `
+                        <span class="text-cyan-400">正打: ${this.correctCount}</span>
+                        <span class="text-red-400">ミス: ${this.missCount}</span>
+                    `;
+                } else if (this.mode === 'quiz') {
+                    bar.innerHTML = `
+                        <span class="text-yellow-400">正解数: ${this.correctCount}</span>
+                    `;
+                }
+            }
+        }
+
+        class QuizEngine {
+            constructor(data) {
+                this.data = data;
+            }
+            generateQuiz(count = 20) {
+                const shuffled = [...this.data].sort(() => 0.5 - Math.random());
+                const selected = shuffled.slice(0, count);
+                return selected.map(target => {
+                    const distractors = this.getDistractors(target);
+                    return {
+                        target: target,
+                        choices: this.shuffle([target, ...distractors])
+                    };
+                });
+            }
+            getDistractors(target) {
+                const others = this.data.filter(c => c.name !== target.name);
+                const samePref = others.filter(c => c.prefecture === target.prefecture);
+                const targetRegion = REGION_MAP[target.prefecture];
+                const sameRegion = others.filter(c => REGION_MAP[c.prefecture] === targetRegion && c.prefecture !== target.prefecture);
+                const targetChars = target.name.split('');
+                const nameSimilar = others.filter(c => targetChars.some(char => c.name.includes(char)));
+                let candidates = [...samePref, ...sameRegion, ...nameSimilar, ...others];
+                return [...new Set(candidates)].slice(0, 3);
+            }
+            shuffle(array) {
+                return array.sort(() => 0.5 - Math.random());
+            }
+        }
+
+        // 新しいタイピング判定ロジック：ひらがなベース
+        class TypingEngine {
+            constructor() {
+                this.tokens = [];
+                this.currentIndex = 0; // どのひらがなトークンを処理中か
+                this.inputBuffer = ""; // 現在のトークンに対して入力されたローマ字
+            }
+
+            setWord(yomi) {
+                this.tokens = this.tokenize(yomi);
+                this.currentIndex = 0;
+                this.inputBuffer = "";
+            }
+
+            // ひらがな文字列を処理単位（1文字または拗音ペア）に分割
+            tokenize(str) {
+                let res = [];
+                for (let i = 0; i < str.length; i++) {
+                    let char = str[i];
+                    let next = str[i+1] || '';
+                    // 拗音判定 (ゃ,ゅ,ょ)
+                    if (['ゃ','ゅ','ょ','ぁ','ぃ','ぅ','ぇ','ぉ'].includes(next)) {
+                        res.push(char + next);
+                        i++;
+                    } else {
+                        res.push(char);
+                    }
+                }
+                return res;
+            }
+
+            // 入力判定
+            checkInput(key) {
+                key = key.toLowerCase();
+                const targetToken = this.tokens[this.currentIndex];
+                const nextToken = this.tokens[this.currentIndex + 1];
+
+                let validPatterns = KANA_MAP[targetToken] || [];
+                
+                // 促音「っ」の場合の特殊処理：次の文字の子音でもOK
+                if (targetToken === 'っ' && nextToken) {
+                    // 次の文字の可能なローマ字入力の1文字目を取得
+                    let nextPatterns = KANA_MAP[nextToken] || [];
+                    // nextPatternsの各パターンの1文字目を許可リストに追加
+                    const nextConsonants = nextPatterns.map(p => p[0]);
+                    validPatterns = [...validPatterns, ...nextConsonants];
+                }
+
+                // マッチング候補を絞り込む
+                const currentInput = this.inputBuffer + key;
+                const matches = validPatterns.filter(p => p.startsWith(currentInput));
+
+                if (matches.length > 0) {
+                    this.inputBuffer += key;
+                    // 完全一致（かつ、それより長い一致候補がない、または入力済みバッファが候補のいずれかと完全一致）
+                    // 簡易化: inputBufferと一致するパターンがあれば完了とする
+                    if (matches.includes(this.inputBuffer)) {
+                        this.currentIndex++;
+                        this.inputBuffer = "";
+                        return 'complete'; // トークン完了
+                    }
+                    return 'ok'; // 入力OKだがトークン途中
+                }
+                return 'ng';
+            }
+
+            isAllComplete() {
+                return this.currentIndex >= this.tokens.length;
+            }
+
+            // 表示用HTML生成
+            getDisplayHtml() {
+                return this.tokens.map((token, idx) => {
+                    if (idx < this.currentIndex) {
+                        return `<span class="text-gray-600">${token}</span>`; // 完了
+                    } else if (idx === this.currentIndex) {
+                        return `<span class="text-cyan-400 border-b-2 border-cyan-400 animate-pulse">${token}</span>`; // 現在
+                    } else {
+                        return `<span class="text-white">${token}</span>`; // 未処理
+                    }
+                }).join('');
+            }
+        }
+
+        /**
+         * 3. APPLICATION CONTROLLER
+         */
+        const App = {
+            state: new GameState(),
+            quizEngine: new QuizEngine(CASTLE_DATA),
+            typingEngine: new TypingEngine(),
+            timer: null,
+            currentQuizSet: [],
+            currentQuizIndex: 0,
+            
+            init() {
+                this.renderKnowledgeBase();
+            },
+
+            // --- VIEW SWITCHING ---
+            hideAllScreens() {
+                document.querySelectorAll('main > section').forEach(el => el.classList.add('hidden'));
+                document.getElementById('status-bar').classList.add('hidden');
+                clearInterval(this.timer);
+            },
+            
+            showScreen(id) {
+                this.hideAllScreens();
+                document.getElementById(id).classList.remove('hidden');
+            },
+
+            returnHome() {
+                this.showScreen('screen-home');
+                window.removeEventListener('keydown', this.typingHandler);
+            },
+
+            // --- TYPING MODE ---
+            startTypingMode() {
+                Sound.init();
+                this.state = new GameState();
+                this.state.mode = 'typing';
+                this.state.updateUI();
+                this.showScreen('screen-typing');
+                document.getElementById('status-bar').classList.remove('hidden');
+                
+                let timeLeft = 60.00;
+                const timerEl = document.getElementById('typing-timer');
+                
+                this.nextTypingWord();
+
+                this.timer = setInterval(() => {
+                    timeLeft -= 0.05;
+                    if(timeLeft < 0) timeLeft = 0;
+                    timerEl.innerText = timeLeft.toFixed(2);
+                    if (timeLeft <= 0) {
+                        this.finishGame();
+                    }
+                }, 50);
+
+                // Event Listener
+                this.typingHandler = (e) => {
+                    if(document.getElementById('screen-typing').classList.contains('hidden')) return;
+                    
+                    // ESCでリタイア
+                    if(e.key === 'Escape') {
+                        this.finishGame();
+                        return;
+                    }
+
+                    if(e.key.length === 1 && /[a-zA-Z\-]/.test(e.key)) {
+                        const res = this.typingEngine.checkInput(e.key);
+                        
+                        if (res === 'ok' || res === 'complete') {
+                            Sound.playType();
+                            this.state.addResult(true);
+                            this.renderTypingDisplay();
+                            
+                            if (res === 'complete' && this.typingEngine.isAllComplete()) {
+                                Sound.playOK();
+                                // 次の問題へ
+                                setTimeout(() => this.nextTypingWord(), 100);
+                            }
+                        } else {
+                            Sound.playNG();
+                            this.state.addResult(false, this.typingEngine.currentCastle);
+                            // 揺れるエフェクト
+                            const box = document.querySelector('#screen-typing > div');
+                            box.classList.remove('shake');
+                            void box.offsetWidth;
+                            box.classList.add('shake');
+                        }
+                    }
+                };
+                window.addEventListener('keydown', this.typingHandler);
+            },
+
+            nextTypingWord() {
+                const randomCastle = CASTLE_DATA[Math.floor(Math.random() * CASTLE_DATA.length)];
+                // 内部参照用に保持
+                this.typingEngine.currentCastle = randomCastle;
+                this.typingEngine.setWord(randomCastle.yomi);
+                
+                document.getElementById('typing-kanji').innerText = randomCastle.name;
+                document.getElementById('typing-pref').innerText = randomCastle.prefecture;
+                this.renderTypingDisplay();
+            },
+
+            renderTypingDisplay() {
+                document.getElementById('typing-hiragana-display').innerHTML = this.typingEngine.getDisplayHtml();
+            },
+
+            // --- QUIZ MODE ---
+            startQuizMode() {
+                Sound.init();
+                this.state = new GameState();
+                this.state.mode = 'quiz';
+                this.state.updateUI();
+                
+                this.currentQuizSet = this.quizEngine.generateQuiz(20);
+                this.currentQuizIndex = 0;
+                
+                this.showScreen('screen-quiz');
+                document.getElementById('status-bar').classList.remove('hidden');
+                this.renderQuizQuestion();
+            },
+
+            renderQuizQuestion() {
+                if (this.currentQuizIndex >= this.currentQuizSet.length) {
+                    this.finishGame();
+                    return;
+                }
+
+                const q = this.currentQuizSet[this.currentQuizIndex];
+                document.getElementById('quiz-progress').innerText = `${this.currentQuizIndex + 1} / 20`;
+                document.getElementById('quiz-question').innerText = q.target.overview;
+                document.getElementById('quiz-category').innerText = `[${q.target.prefecture}] この城は？`;
+
+                const optionsContainer = document.getElementById('quiz-options');
+                optionsContainer.innerHTML = '';
+
+                q.choices.forEach(choice => {
+                    const btn = document.createElement('button');
+                    btn.className = "w-full p-4 text-left border border-gray-600 bg-gray-800 hover:bg-cyan-900/50 hover:border-cyan-400 transition-all rounded font-bold text-lg relative overflow-hidden";
+                    btn.innerText = choice.name;
+                    btn.onclick = () => this.handleQuizAnswer(choice, q.target);
+                    optionsContainer.appendChild(btn);
+                });
+            },
+
+            handleQuizAnswer(selected, target) {
+                const isCorrect = (selected.name === target.name);
+                const overlay = document.getElementById('quiz-overlay');
+                
+                if (isCorrect) {
+                    Sound.playOK();
+                    this.state.addResult(true);
+                    overlay.innerHTML = '<div class="mark-circle"></div>';
+                } else {
+                    Sound.playNG();
+                    this.state.addResult(false, target);
+                    overlay.innerHTML = '<div class="mark-cross"></div>';
+                }
+
+                // 演出表示
+                overlay.style.opacity = '1';
+                setTimeout(() => {
+                    overlay.style.opacity = '0';
+                    overlay.innerHTML = '';
+                    this.currentQuizIndex++;
+                    this.renderQuizQuestion();
+                }, 600);
+            },
+
+            // --- RESULT ---
+            finishGame() {
+                window.removeEventListener('keydown', this.typingHandler);
+                clearInterval(this.timer);
+
+                this.showScreen('screen-result');
+                
+                const container = document.getElementById('result-stats-container');
+                if (this.state.mode === 'typing') {
+                    container.innerHTML = `
+                        <div class="flex justify-around items-center">
+                            <div>
+                                <div class="text-gray-400 text-sm">CORRECT TYPES</div>
+                                <div class="text-4xl font-bold text-cyan-400">${this.state.correctCount}</div>
+                            </div>
+                            <div>
+                                <div class="text-gray-400 text-sm">MISS TYPES</div>
+                                <div class="text-4xl font-bold text-red-400">${this.state.missCount}</div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = `
+                        <div>
+                            <div class="text-gray-400 text-sm">QUIZ SCORE</div>
+                            <div class="text-4xl font-bold text-yellow-400">${this.state.correctCount} / ${this.currentQuizSet.length}</div>
+                        </div>
+                    `;
+                }
+
+                // Render Review List
+                const reviewEl = document.getElementById('review-list');
+                const reviewSec = document.getElementById('review-section');
+                reviewEl.innerHTML = '';
+                
+                if (this.state.reviewList.length > 0) {
+                    reviewSec.classList.remove('hidden');
+                    // 重複排除（タイピングで同じ城を何度もミスる可能性があるため）
+                    const uniqueReview = [...new Map(this.state.reviewList.map(item => [item.name, item])).values()];
+                    
+                    uniqueReview.forEach(c => {
+                        const li = document.createElement('li');
+                        li.className = "bg-gray-800 p-3 rounded border-l-4 border-red-500 text-left";
+                        li.innerHTML = `
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="font-bold text-white text-lg">${c.name}</span>
+                                <span class="text-xs bg-gray-700 px-2 py-1 rounded text-gray-300">${c.prefecture}</span>
+                            </div>
+                            <div class="text-xs text-gray-400 mb-1">(${c.yomi})</div>
+                            <p class="text-sm text-gray-300">${c.overview}</p>
+                        `;
+                        reviewEl.appendChild(li);
+                    });
+                } else {
+                    reviewSec.classList.add('hidden');
+                }
+            },
+
+            // --- KNOWLEDGE MODE ---
+            showKnowledgeMode() {
+                this.showScreen('screen-knowledge');
+            },
+
+            renderKnowledgeBase() {
+                const container = document.getElementById('knowledge-grid');
+                CASTLE_DATA.forEach(castle => {
+                    const card = document.createElement('div');
+                    card.className = "bg-gray-900 border border-gray-700 p-4 rounded hover:border-cyan-500 transition-colors";
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="text-xl font-bold text-white">${castle.name}</h3>
+                            <span class="text-xs bg-gray-700 px-2 py-1 rounded text-cyan-300">${castle.prefecture}</span>
+                        </div>
+                        <div class="text-xs text-gray-500 mb-2">${castle.yomi}</div>
+                        <p class="text-sm text-gray-300 leading-snug">${castle.overview}</p>
+                    `;
+                    container.appendChild(card);
+                });
+            }
+        };
+
+        // Start App
+        App.init();
+
+    </script>
+</body>
+</html>
