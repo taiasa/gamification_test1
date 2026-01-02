@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon English: Word Runner EX</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=DotGothic16&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Black+Ops+One&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #050505;
+            overflow: hidden;
+            font-family: 'DotGothic16', sans-serif;
+            color: white;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            display: block;
+            box-shadow: 0 0 50px rgba(0, 255, 255, 0.1);
+        }
+
+        /* 走査線エフェクト（レトロフューチャー感） */
+        #crt-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* クイズパネル */
+        /* --- 修正箇所 1/3 (CSS) --- */
+        #quiz-panel {
+            margin-top: 2px;       /* 3vh から 5px に変更（より上へ） */
+            text-align: center;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 5px 30px;     /* 15px 50px から縮小 */
+            border: 2px solid #0ff;
+            border-radius: 15px;
+            box-shadow: 0 0 20px #0ff, inset 0 0 20px rgba(0, 255, 255, 0.2);
+            backdrop-filter: blur(5px);
+            transform: perspective(500px) rotateX(10deg);
+        }
+        /* ラベルはそのままか、少し小さく */
+        #quiz-label { 
+            font-size: 12px;       /* 14px から縮小 */
+            color: #0ff; 
+            margin-bottom: 2px; 
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        /* 単語サイズを大幅に縮小 */
+        #target-word {
+            font-family: 'Black Ops One', cursive;
+            font-size: 32px;       /* 48px から 32px に縮小 */
+            color: #fff;
+            text-shadow: 0 0 10px #0ff, 3px 3px 0px #f0f;
+            letter-spacing: 3px;
+            min-width: 150px;
+        }
+
+        .hud-row {
+            display: flex;
+            justify-content: space-between;
+            width: 90%;
+            margin-top: 20px;
+            font-size: 28px;
+            text-shadow: 0 0 5px #0ff;
+            font-weight: bold;
+        }
+
+        #lives-display { color: #ff0055; font-size: 32px; letter-spacing: 5px; }
+        #score-display { color: #ffaa00; }
+
+        #start-screen, #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 30;
+            pointer-events: auto;
+            backdrop-filter: blur(8px);
+        }
+
+        h1 {
+            font-family: 'Black Ops One', cursive;
+            font-size: 60px;
+            margin: 0 0 10px 0;
+            background: linear-gradient(90deg, #0ff, #fff, #f0f);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(0, 255, 255, 0.8);
+            text-align: center;
+            animation: shine 3s linear infinite;
+        }
+        @keyframes shine { to { background-position: 200% center; } }
+
+        .tutorial-box {
+            background: rgba(0, 20, 40, 0.8);
+            border: 1px solid #0ff;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            max-width: 600px;
+            text-align: center;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+        }
+
+        .tutorial-text {
+            color: #fff;
+            font-size: 18px;
+            line-height: 1.8;
+            margin: 0;
+        }
+        .key-badge {
+            display: inline-block;
+            background: #333;
+            border: 1px solid #888;
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-family: monospace;
+            color: #0ff;
+            box-shadow: 0 2px 0 #000;
+        }
+        .highlight { color: #ff0; font-weight: bold; }
+
+        .btn-group {
+            display: flex;
+            gap: 20px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            position: relative;
+            padding: 15px 40px;
+            font-family: 'DotGothic16', sans-serif;
+            font-size: 22px;
+            background: rgba(0, 0, 0, 0.5);
+            color: #fff;
+            border: 2px solid #0ff;
+            border-radius: 5px;
+            cursor: pointer;
+            overflow: hidden;
+            transition: all 0.2s;
+            text-shadow: 0 0 5px #0ff;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+        }
+        .btn:hover { background: #0ff; color: #000; box-shadow: 0 0 40px #0ff; transform: scale(1.1); }
+        
+        .btn.hard { border-color: #ff0055; color: #ffcccc; box-shadow: 0 0 15px rgba(255, 0, 85, 0.2); }
+        .btn.hard:hover { background: #ff0055; color: #fff; box-shadow: 0 0 40px #ff0055; }
+        
+        .hidden { display: none !important; }
+
+        /* Game Over Specifics */
+        .go-score { font-size: 40px; color: #fff; margin: 10px 0; text-shadow: 0 0 10px #fff; }
+        .go-high { font-size: 20px; color: #ff0; margin-bottom: 30px; letter-spacing: 2px; }
+        .control-hint { color: #888; margin-top: 10px; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    <div id="crt-overlay"></div>
+
+    <div id="ui-layer">
+        <div class="hud-row">
+            <div id="score-display">SCORE: 0</div>
+            <div id="lives-display">❤️❤️❤️</div>
+        </div>
+
+        <div id="quiz-panel">
+            <div id="quiz-label">GET THIS ITEM!</div>
+            <div id="target-word">LOADING...</div>
+        </div>
+    </div>
+
+    <div id="start-screen">
+        <h1>NEON ENGLISH<br><span style="font-size:0.5em; letter-spacing: 5px; color:#fff;">WORD RUNNER EX</span></h1>
+        
+        <div class="tutorial-box">
+            <p class="tutorial-text">
+                <span class="highlight">【ルール】</span><br>
+                画面に表示された<span style="color:#0ff">「英単語」</span>と同じ<span style="color:#0ff">「絵文字」</span>を拾え！<br>
+                違う絵を拾うと減点。壁やトゲに当たるとダメージ。<br>
+                ライフが0になるとゲームオーバー。<br><br>
+                <span class="highlight">【操作方法】</span><br>
+                移動: <span class="key-badge">←</span> <span class="key-badge">→</span> 
+                ジャンプ: <span class="key-badge">SPACE</span>
+            </p>
+        </div>
+
+        <div class="btn-group">
+            <button class="btn" onclick="game.startGame('easy')">初級 (3列)</button>
+            <button class="btn" onclick="game.startGame('medium')">中級 (4列)</button>
+            <button class="btn hard" onclick="game.startGame('hard')">上級 (5列)</button>
+        </div>
+    </div>
+
+    <div id="game-over-screen" class="hidden">
+        <h1 style="color:#ff0055; -webkit-text-fill-color:#ff0055; text-shadow:0 0 30px #f00;">GAME OVER</h1>
+        <p id="final-score" class="go-score">SCORE: 0</p>
+        <p id="high-score-msg" class="go-high"></p>
+        
+        <div class="btn-group">
+            <button class="btn" id="retry-btn">RETRY <span style="font-size:0.7em">[Enter]</span></button>
+            <button class="btn" id="title-btn">TITLE <span style="font-size:0.7em">[Space]</span></button>
+        </div>
+        <p class="control-hint">※キーボード操作対応</p>
+    </div>
+</div>
+
+<script>
+/**
+ * 英単語データセット（大幅増量）
+ * レベル定義: 1=Easy, 2=Medium, 3=Hard
+ */
+const WORD_DATABASE = [
+    // Level 1: Basic Nouns, Fruits, Animals
+    { word: "APPLE", icon: "🍎", level: 1 }, { word: "BANANA", icon: "🍌", level: 1 },
+    { word: "GRAPE", icon: "🍇", level: 1 }, { word: "CAR", icon: "🚗", level: 1 },
+    { word: "CAT", icon: "🐱", level: 1 }, { word: "DOG", icon: "🐶", level: 1 },
+    { word: "BEAR", icon: "🐻", level: 1 }, { word: "RABBIT", icon: "🐰", level: 1 },
+    { word: "BALL", icon: "⚽", level: 1 }, { word: "BOOK", icon: "📕", level: 1 },
+    { word: "SUN", icon: "☀️", level: 1 }, { word: "MOON", icon: "🌙", level: 1 },
+    { word: "TREE", icon: "🌳", level: 1 }, { word: "FLOWER", icon: "🌺", level: 1 },
+    { word: "HOUSE", icon: "🏠", level: 1 }, { word: "BUS", icon: "🚌", level: 1 },
+    { word: "TRAIN", icon: "🚃", level: 1 }, { word: "EYE", icon: "👁️", level: 1 },
+    { word: "EAR", icon: "👂", level: 1 }, { word: "MOUTH", icon: "👄", level: 1 },
+    { word: "HAND", icon: "✋", level: 1 }, { word: "FOOT", icon: "🦶", level: 1 },
+    { word: "SMILE", icon: "😊", level: 1 }, { word: "HEART", icon: "❤️", level: 1 },
+    { word: "STAR", icon: "⭐", level: 1 }, { word: "FIRE", icon: "🔥", level: 1 },
+    { word: "WATER", icon: "💧", level: 1 }, { word: "EGG", icon: "🥚", level: 1 },
+
+    // Level 2: Objects, Places, Nature, Food
+    { word: "PLANE", icon: "✈️", level: 2 }, { word: "SHIP", icon: "🚢", level: 2 },
+    { word: "BIKE", icon: "🚲", level: 2 }, { word: "PHONE", icon: "📱", level: 2 },
+    { word: "WATCH", icon: "⌚", level: 2 }, { word: "CAMERA", icon: "📷", level: 2 },
+    { word: "PC", icon: "💻", level: 2 }, { word: "MUSIC", icon: "🎵", level: 2 },
+    { word: "GUITAR", icon: "🎸", level: 2 }, { word: "PIANO", icon: "🎹", level: 2 },
+    { word: "BURGER", icon: "🍔", level: 2 }, { word: "PIZZA", icon: "🍕", level: 2 },
+    { word: "SUSHI", icon: "🍣", level: 2 }, { word: "CAKE", icon: "🍰", level: 2 },
+    { word: "CANDY", icon: "🍬", level: 2 }, { word: "ICE CREAM", icon: "🍦", level: 2 },
+    { word: "COFFEE", icon: "☕", level: 2 }, { word: "BEER", icon: "🍺", level: 2 },
+    { word: "RAIN", icon: "☔", level: 2 }, { word: "SNOW", icon: "⛄", level: 2 },
+    { word: "OCEAN", icon: "🌊", level: 2 }, { word: "MOUNTAIN", icon: "🗻", level: 2 },
+    { word: "SCHOOL", icon: "🏫", level: 2 }, { word: "HOSPITAL", icon: "🏥", level: 2 },
+    { word: "MONEY", icon: "💰", level: 2 }, { word: "GIFT", icon: "🎁", level: 2 },
+    { word: "KEY", icon: "🔑", level: 2 }, { word: "LOCK", icon: "🔒", level: 2 },
+
+    // Level 3: Concepts, Tools, Space, Scary
+    { word: "GHOST", icon: "👻", level: 3 }, { word: "ALIEN", icon: "👽", level: 3 },
+    { word: "ROCKET", icon: "🚀", level: 3 }, { word: "UFO", icon: "🛸", level: 3 },
+    { word: "SKULL", icon: "💀", level: 3 }, { word: "BOMB", icon: "💣", level: 3 },
+    { word: "SWORD", icon: "⚔️", level: 3 }, { word: "SHIELD", icon: "🛡️", level: 3 },
+    { word: "CROWN", icon: "👑", level: 3 }, { word: "RING", icon: "💍", level: 3 },
+    { word: "DIAMOND", icon: "💎", level: 3 }, { word: "TROPHY", icon: "🏆", level: 3 },
+    { word: "MEDAL", icon: "🥇", level: 3 }, { word: "BRAIN", icon: "🧠", level: 3 },
+    { word: "BONE", icon: "🦴", level: 3 }, { word: "ROBOT", icon: "🤖", level: 3 },
+    { word: "DRAGON", icon: "🐉", level: 3 }, { word: "UNICORN", icon: "🦄", level: 3 },
+    { word: "VOLCANO", icon: "🌋", level: 3 }, { word: "EARTH", icon: "🌍", level: 3 },
+    { word: "TENT", icon: "⛺", level: 3 }, { word: "MAP", icon: "🗺️", level: 3 },
+    { word: "LIGHT", icon: "💡", level: 3 }, { word: "TRASH", icon: "🗑️", level: 3 },
+    { word: "TOILET", icon: "🚽", level: 3 }, { word: "SHOWER", icon: "🚿", level: 3 }
+];
+
+/**
+ * サウンドエンジン (Web Audio API)
+ * よりリッチで響きのある音に調整
+ */
+class SoundSynth {
+    constructor() {
+        this.ctx = null;
+        this.masterGain = null;
+        this.enabled = false;
+    }
+
+    init() {
+        if (this.ctx) return;
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AudioContext();
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = 0.3; // 少し音量上げ
+        this.masterGain.connect(this.ctx.destination);
+        this.enabled = true;
+    }
+
+    playTone(freq, type, duration, vol = 1.0, slide = 0, wait = 0, decay = 0.05) {
+        if (!this.enabled) return;
+        setTimeout(() => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+            if (slide !== 0) {
+                osc.frequency.exponentialRampToValueAtTime(Math.max(10, freq + slide), this.ctx.currentTime + duration);
+            }
+            gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration + decay);
+            
+            osc.connect(gain);
+            gain.connect(this.masterGain);
+            osc.start();
+            osc.stop(this.ctx.currentTime + duration + decay + 0.1);
+        }, wait * 1000);
+    }
+
+    // 効果音プリセット
+    playJump() { 
+        this.playTone(150, 'square', 0.1, 0.4, 300); 
+    }
+    playCorrect() { 
+        // 気持ちいい和音 (Major chord)
+        this.playTone(880, 'sine', 0.1, 0.3); // A5
+        this.playTone(1108, 'sine', 0.1, 0.3, 0, 0.05); // C#6
+        this.playTone(1318, 'sine', 0.3, 0.3, 0, 0.1); // E6
+        this.playTone(1760, 'triangle', 0.4, 0.2, 0, 0.1); // A6
+    }
+    playWrong() { 
+        this.playTone(150, 'sawtooth', 0.4, 0.5, -100); 
+        this.playTone(140, 'sawtooth', 0.4, 0.5, -100, 0.1);
+    } 
+    playDamage() { 
+        this.playTone(100, 'square', 0.1, 0.8, -50); 
+        this.playTone(50, 'sawtooth', 0.4, 0.8, -20);
+    }
+    playTick() { 
+        this.playTone(1200, 'square', 0.01, 0.1); 
+    }
+}
+
+/**
+ * ゲーム設定
+ */
+const CONFIG = {
+    GRAVITY: 2800,
+    JUMP_FORCE: 1000,
+    SPEED_BASE: 300,  // 初速を落として学習しやすく
+    SPEED_MAX: 1000,   // 最大速度も少し抑制
+    LANE_INTERPOLATION: 15,
+    MAX_LIVES: 3,
+    COLORS: {
+        PLAYER: '#00ffff',
+        WALL: '#ff0055', 
+        SPIKE: '#ffaa00',
+        CORRECT: '#00ff88',
+        WRONG: '#ff0000'
+    },
+    DIFFICULTY: {
+        'easy': { lanes: 3, speedMulti: 1.0, words: [1] },
+        'medium': { lanes: 4, speedMulti: 1.2, words: [1, 2] },
+        'hard': { lanes: 5, speedMulti: 1.4, words: [1, 2, 3] }
+    }
+};
+
+const Storage = {
+    saveHighscore: (diff, score) => {
+        try { localStorage.setItem(`neonEnglish_hs_${diff}`, Math.floor(score)); } catch(e){}
+    },
+    getHighscore: (diff) => {
+        try { return parseInt(localStorage.getItem(`neonEnglish_hs_${diff}`)) || 0; } catch(e){ return 0; }
+    }
+};
+
+/**
+ * 入力管理
+ */
+class Input {
+    constructor() {
+        this.keys = {};
+        this.touchStart = { x: 0, y: 0 };
+        this.actions = { left: false, right: false, jump: false, enter: false, space: false };
+        
+        window.addEventListener('keydown', e => this.onKey(e, true));
+        window.addEventListener('keyup', e => this.onKey(e, false));
+        window.addEventListener('touchstart', e => this.onTouchStart(e), {passive: false});
+        window.addEventListener('touchend', e => this.onTouchEnd(e), {passive: false});
+    }
+
+    onKey(e, pressed) {
+        // Prevent default scrolling for game keys
+        if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) {
+            e.preventDefault();
+        }
+
+        this.keys[e.code] = pressed;
+        if (pressed) {
+            if (['ArrowLeft', 'KeyA'].includes(e.code)) this.actions.left = true;
+            if (['ArrowRight', 'KeyD'].includes(e.code)) this.actions.right = true;
+            if (['Space', 'ArrowUp', 'KeyW'].includes(e.code)) this.actions.jump = true;
+            if (e.code === 'Enter') this.actions.enter = true;
+            if (e.code === 'Space') this.actions.space = true;
+        }
+    }
+
+    onTouchStart(e) {
+        this.touchStart.x = e.changedTouches[0].clientX;
+        this.touchStart.y = e.changedTouches[0].clientY;
+    }
+
+    onTouchEnd(e) {
+        const dx = e.changedTouches[0].clientX - this.touchStart.x;
+        const dy = e.changedTouches[0].clientY - this.touchStart.y;
+        
+        if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) {
+            dx > 0 ? this.actions.right = true : this.actions.left = true;
+        } else if (dy < -30 || (Math.abs(dx) < 20 && Math.abs(dy) < 20)) {
+            // Tap or Swipe Up
+            this.actions.jump = true;
+        }
+    }
+
+    reset() {
+        this.actions.left = false;
+        this.actions.right = false;
+        this.actions.jump = false;
+        this.actions.enter = false;
+        this.actions.space = false;
+    }
+}
+
+/**
+ * パーティクルクラス
+ */
+class Particle {
+    constructor() { this.active = false; }
+    spawn(x, y, color, size, speed = 5) {
+        this.x = x; this.y = y; this.color = color;
+        const angle = Math.random() * Math.PI * 2;
+        const vel = Math.random() * speed + 2;
+        this.vx = Math.cos(angle) * vel;
+        this.vy = Math.sin(angle) * vel;
+        this.life = 1.0;
+        this.decay = Math.random() * 0.02 + 0.01;
+        this.size = size;
+        this.active = true;
+        this.gravity = 0.2;
+    }
+    update() {
+        if (!this.active) return;
+        this.x += this.vx; 
+        this.y += this.vy;
+        this.vy += this.gravity; // 重力追加
+        this.life -= this.decay;
+        if (this.life <= 0) this.active = false;
+    }
+    draw(ctx) {
+        if (!this.active) return;
+        ctx.globalAlpha = this.life;
+        ctx.fillStyle = this.color;
+        // 四角形を回転させてリッチに
+        ctx.fillRect(this.x, this.y, this.size, this.size);
+        ctx.globalAlpha = 1.0;
+    }
+}
+
+class FloatingText {
+    constructor(x, y, text, color, size = 30) {
+        this.x = x; this.y = y; this.text = text; this.color = color; this.size = size;
+        this.life = 1.0; this.vy = -80;
+    }
+    update(dt) { this.y += this.vy * dt; this.life -= 1.2 * dt; }
+    draw(ctx) {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.fillStyle = this.color;
+        ctx.font = `bold ${this.size}px "DotGothic16"`;
+        ctx.textAlign = 'center';
+        ctx.shadowBlur = 5;
+        ctx.shadowColor = this.color;
+        ctx.fillText(this.text, this.x, this.y);
+        ctx.restore();
+    }
+}
+
+/**
+ * ゲーム本体
+ */
+class Game {
+    constructor() {
+        this.canvas = document.getElementById('gameCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.sound = new SoundSynth();
+        this.input = new Input();
+        
+        this.state = 'TITLE';
+        this.currentDifficulty = 'easy';
+        this.lastTime = 0;
+        
+        this.activeWordList = [];
+        this.targetWord = null;
+        this.targetIcon = null;
+        
+        this.score = 0;
+        this.lives = CONFIG.MAX_LIVES;
+        this.speed = 0;
+        this.distance = 0;
+        this.inputBlocked = false;
+        
+        // Player Y offset from bottom
+        this.playerYOffset = 120; // Lower on screen
+        this.player = { laneIndex: 1, x: 0, y: 0, z: 0, vz: 0, visualX: 0, invincible: 0 };
+        this.obstacles = [];
+        this.particles = Array.from({length: 150}, () => new Particle());
+        this.floatingTexts = [];
+        
+        this.ui = {
+            target: document.getElementById('target-word'),
+            score: document.getElementById('score-display'),
+            lives: document.getElementById('lives-display'),
+            start: document.getElementById('start-screen'),
+            gameover: document.getElementById('game-over-screen'),
+            finalScore: document.getElementById('final-score'),
+            highScore: document.getElementById('high-score-msg')
+        };
+
+        window.addEventListener('resize', () => this.resize());
+        document.getElementById('retry-btn').addEventListener('click', () => this.restartGame());
+        document.getElementById('title-btn').addEventListener('click', () => this.backToTitle());
+        
+        this.resize();
+        requestAnimationFrame(t => this.loop(t));
+        window.game = this;
+    }
+
+    resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+        // Lane width adjust
+        this.laneWidth = Math.min(this.canvas.width / (this.laneCount || 3 + 0.5), 160);
+        this.totalLaneWidth = this.laneWidth * (this.laneCount || 3);
+        this.startX = (this.canvas.width - this.totalLaneWidth) / 2;
+        if (this.player) this.player.y = this.canvas.height - this.playerYOffset;
+    }
+
+    getLaneX(index) {
+        return this.startX + (index * this.laneWidth) + (this.laneWidth / 2);
+    }
+
+    setNewWord() {
+        // 現在の難易度リストからランダム選出
+        if (this.activeWordList.length === 0) return;
+        const data = this.activeWordList[Math.floor(Math.random() * this.activeWordList.length)];
+        this.targetWord = data.word;
+        this.targetIcon = data.icon;
+        
+        // UI更新
+        this.ui.target.style.opacity = 0;
+        this.ui.target.style.transform = "scale(0.5)";
+        this.ui.target.style.transition = "all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
+        
+        setTimeout(() => {
+            this.ui.target.innerText = this.targetWord;
+            this.ui.target.style.opacity = 1;
+            this.ui.target.style.transform = "scale(1.2)";
+            setTimeout(() => this.ui.target.style.transform = "scale(1.0)", 100);
+        }, 200);
+    }
+
+    startGame(difficulty) {
+        this.sound.init();
+        this.sound.playCorrect();
+        
+        this.currentDifficulty = difficulty;
+        const diffConfig = CONFIG.DIFFICULTY[difficulty];
+        this.laneCount = diffConfig.lanes;
+        
+        // 難易度に基づいて単語リストを構築
+        this.activeWordList = WORD_DATABASE.filter(item => diffConfig.words.includes(item.level));
+        
+        this.resize();
+
+        this.state = 'PLAYING';
+        this.score = 0;
+        this.lives = CONFIG.MAX_LIVES;
+        this.speed = CONFIG.SPEED_BASE * diffConfig.speedMulti;
+        this.distance = 0;
+        
+        this.player.laneIndex = Math.floor(this.laneCount / 2);
+        this.player.visualX = this.getLaneX(this.player.laneIndex);
+        this.player.z = 0;
+        this.player.vz = 0;
+        this.player.invincible = 0;
+        
+        this.obstacles = [];
+        this.floatingTexts = [];
+        this.setNewWord();
+        
+        this.ui.start.classList.add('hidden');
+        this.ui.gameover.classList.add('hidden');
+        this.updateHUD();
+    }
+
+    restartGame() { this.startGame(this.currentDifficulty); }
+
+    backToTitle() {
+        this.state = 'TITLE';
+        this.ui.gameover.classList.add('hidden');
+        this.ui.start.classList.remove('hidden');
+    }
+
+    gameOver() {
+        this.state = 'GAMEOVER';
+        this.sound.playDamage();
+        
+        const oldHs = Storage.getHighscore(this.currentDifficulty);
+        const currentScore = Math.floor(this.score);
+        let msg = `HIGH SCORE: ${oldHs}`;
+        
+        if (currentScore > oldHs) {
+            Storage.saveHighscore(this.currentDifficulty, currentScore);
+            msg = "★ NEW HIGH SCORE! ★";
+            this.sound.playCorrect(); // Highscore sound
+        }
+
+        this.ui.finalScore.innerText = `SCORE: ${currentScore}`;
+        this.ui.highScore.innerText = msg;
+        this.ui.gameover.classList.remove('hidden');
+        
+        this.inputBlocked = true;
+        setTimeout(() => this.inputBlocked = false, 500);
+    }
+
+    updateHUD() {
+        this.ui.score.innerText = `SCORE: ${Math.floor(this.score)}`;
+        let hearts = "";
+        for(let i=0; i<this.lives; i++) hearts += "❤️";
+        for(let i=this.lives; i<CONFIG.MAX_LIVES; i++) hearts += "🖤";
+        this.ui.lives.innerText = hearts;
+    }
+
+    spawnObstacle() {
+        const laneIndex = Math.floor(Math.random() * this.laneCount);
+        const r = Math.random();
+        
+        let type, itemData;
+        let isItem = false;
+        
+        // アイテム出現率高め
+        if (r < 0.45) {
+            type = 'CORRECT';
+            itemData = { word: this.targetWord, icon: this.targetIcon };
+            isItem = true;
+        } else if (r < 0.75) {
+            type = 'WRONG';
+            let wrongData;
+            // ターゲット以外からランダム
+            let safetyCounter = 0;
+            do {
+                wrongData = this.activeWordList[Math.floor(Math.random() * this.activeWordList.length)];
+                safetyCounter++;
+            } while(wrongData.word === this.targetWord && safetyCounter < 50);
+            
+            itemData = wrongData;
+            isItem = true;
+        } else {
+            type = (Math.random() < 0.6) ? 'WALL' : 'SPIKE';
+            itemData = null;
+        }
+
+        this.obstacles.push({
+            laneIndex, type, itemData, isItem,
+            y: -300, active: true,
+            color: (type === 'WALL') ? CONFIG.COLORS.WALL : CONFIG.COLORS.SPIKE,
+            scale: 0
+        });
+    }
+
+    takeDamage() {
+        if (this.player.invincible > 0) return;
+        
+        this.lives--;
+        this.sound.playDamage();
+        this.player.invincible = 2.0; 
+        this.createExplosion(this.player.visualX, this.player.y, '#ff0000', 30);
+        this.spawnText("OUCH!", "#ff0000", 50);
+        this.shakeScreen(25);
+        
+        this.updateHUD();
+        
+        if (this.lives <= 0) {
+            this.gameOver();
+        }
+    }
+
+    update(dt) {
+        // Game Over Input Handling
+        if (this.state === 'GAMEOVER' && !this.inputBlocked) {
+            if (this.input.actions.enter) this.restartGame();
+            if (this.input.actions.space) this.backToTitle();
+            this.input.reset();
+            return;
+        }
+
+        if (this.state !== 'PLAYING') return;
+
+        // 加速処理 (最大速度まで)
+        if (this.speed < CONFIG.SPEED_MAX) this.speed += 10 * dt;
+        this.distance += this.speed * dt;
+
+        // Player Controls
+        if (this.input.actions.left && this.player.laneIndex > 0) {
+            this.player.laneIndex--;
+            this.sound.playTick();
+        }
+        if (this.input.actions.right && this.player.laneIndex < this.laneCount - 1) {
+            this.player.laneIndex++;
+            this.sound.playTick();
+        }
+        if (this.input.actions.jump && this.player.z === 0) {
+            this.player.vz = CONFIG.JUMP_FORCE;
+            this.sound.playJump();
+            // Dust effect
+            this.createExplosion(this.player.visualX, this.player.y, '#0ff', 5);
+        }
+        this.input.reset();
+
+        // Player Physics
+        const targetX = this.getLaneX(this.player.laneIndex);
+        this.player.visualX += (targetX - this.player.visualX) * CONFIG.LANE_INTERPOLATION * dt;
+        this.player.z += this.player.vz * dt;
+        this.player.vz -= CONFIG.GRAVITY * dt;
+        if (this.player.z < 0) { this.player.z = 0; this.player.vz = 0; }
+        
+        if (this.player.invincible > 0) this.player.invincible -= dt;
+
+        // Spawn Logic
+        if (this.distance > 300) { 
+            this.distance = 0;
+            this.spawnObstacle();
+        }
+
+        // Obstacles Update
+        this.obstacles.forEach(obs => {
+            if (!obs.active) return;
+            obs.y += this.speed * dt;
+
+            // Collision Detection
+            const hitY = Math.abs(obs.y - this.player.y) < 60;
+            const hitX = Math.abs(this.player.visualX - this.getLaneX(obs.laneIndex)) < 40;
+            const hitZ = this.player.z < 40;
+
+            if (hitY && hitX) {
+                if (obs.isItem) {
+                    obs.active = false;
+                    if (obs.type === 'CORRECT') {
+                        // Correct!
+                        this.sound.playCorrect();
+                        this.score += 1000 + (this.speed * 0.5); // 速度ボーナス
+                        this.createExplosion(this.player.visualX, this.player.y, CONFIG.COLORS.CORRECT, 40);
+                        this.spawnText("EXCELLENT!", CONFIG.COLORS.CORRECT, 40);
+                        this.spawnText(`+1000`, "#fff");
+                        this.setNewWord();
+                        this.updateHUD();
+                    } else {
+                        // Wrong!
+                        this.sound.playWrong();
+                        this.score = Math.max(0, this.score - 500);
+                        this.createExplosion(this.player.visualX, this.player.y, CONFIG.COLORS.WRONG, 20);
+                        this.spawnText("WRONG...", CONFIG.COLORS.WRONG);
+                        this.updateHUD();
+                        this.shakeScreen(10);
+                    }
+                } else {
+                    // Obstacles
+                    if (obs.type === 'SPIKE' && !hitZ) {
+                        // Avoided by jump
+                    } else {
+                        obs.active = false;
+                        this.takeDamage();
+                    }
+                }
+            }
+        });
+
+        this.obstacles = this.obstacles.filter(obs => obs.y < this.canvas.height + 150);
+        this.floatingTexts.forEach(t => t.update(dt));
+        this.floatingTexts = this.floatingTexts.filter(t => t.life > 0);
+        this.particles.forEach(p => p.update());
+    }
+
+    draw() {
+        this.ctx.clearRect(0,0,this.canvas.width, this.canvas.height);
+
+        // BG
+        this.ctx.fillStyle = '#050510';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // Moving Grid (Cyberpunk floor)
+        this.ctx.strokeStyle = 'rgba(0, 255, 255, 0.3)';
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        
+        // Vertical lines
+        for (let i = 0; i <= this.laneCount; i++) {
+            const x = this.startX + i * this.laneWidth;
+            // Perspective hack
+            const topX = this.startX + (this.totalLaneWidth/2 - (this.totalLaneWidth/2 - i*this.laneWidth)*0.1);
+            
+            this.ctx.moveTo(x, this.canvas.height); // bottom
+            this.ctx.lineTo(x, 0); // top (simplified for 2D look)
+        }
+
+        // Horizontal Moving Lines
+        const offset = (Date.now() * this.speed * 0.001) % 80;
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeStyle = 'rgba(255, 0, 255, 0.2)';
+        for (let y = offset; y < this.canvas.height; y += 80) {
+            this.ctx.moveTo(this.startX - 50, y);
+            this.ctx.lineTo(this.startX + this.totalLaneWidth + 50, y);
+        }
+        this.ctx.stroke();
+
+        // Draw Obstacles
+        // Sort by Y to draw correctly
+        this.obstacles.sort((a,b) => a.y - b.y).forEach(obs => {
+            if (!obs.active) return;
+            const x = this.getLaneX(obs.laneIndex);
+            
+            // Simple depth scale
+            const scale = 0.5 + (obs.y / this.canvas.height) * 0.5;
+            const size = 45 * scale;
+
+            if (obs.isItem) {
+                this.ctx.font = `${Math.floor(size)}px sans-serif`;
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+                this.ctx.shadowBlur = 15;
+                this.ctx.shadowColor = obs.type === 'CORRECT' ? '#0f0' : '#f00';
+                this.ctx.fillText(obs.itemData.icon, x, obs.y);
+                this.ctx.shadowBlur = 0;
+            } else {
+                this.ctx.fillStyle = obs.color;
+                this.ctx.shadowBlur = 10;
+                this.ctx.shadowColor = obs.color;
+                
+                if (obs.type === 'WALL') {
+                    // Block
+                    this.ctx.fillRect(x - size/2, obs.y - size, size, size);
+                    this.ctx.fillStyle = '#000';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.font = `bold ${Math.floor(size*0.6)}px sans-serif`;
+                    this.ctx.fillText("!", x, obs.y - size/3);
+                } else {
+                    // Spike
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, obs.y - size);
+                    this.ctx.lineTo(x + size/2, obs.y);
+                    this.ctx.lineTo(x - size/2, obs.y);
+                    this.ctx.fill();
+                }
+            }
+            this.ctx.shadowBlur = 0;
+        });
+
+        // Player
+        if (this.state !== 'GAMEOVER') {
+            const jumpOffset = this.player.z;
+            this.ctx.save();
+            this.ctx.translate(this.player.visualX, this.player.y - jumpOffset);
+
+            // Shadow
+            if (jumpOffset > 0) {
+                this.ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                const s = 1 - Math.min(jumpOffset/300, 0.6);
+                this.ctx.beginPath();
+                this.ctx.ellipse(0, jumpOffset + 25, 18*s, 8*s, 0, 0, Math.PI*2);
+                this.ctx.fill();
+            }
+
+            // Invincible Blink
+            const blink = (this.player.invincible > 0 && Math.floor(Date.now()/50)%2);
+            if (!blink) {
+                this.ctx.shadowBlur = 25;
+                this.ctx.shadowColor = CONFIG.COLORS.PLAYER;
+                this.ctx.fillStyle = CONFIG.COLORS.PLAYER;
+                
+                // Futuristic Player Shape
+                this.ctx.beginPath();
+                this.ctx.moveTo(0, -25);
+                this.ctx.lineTo(20, 15);
+                this.ctx.lineTo(0, 8);
+                this.ctx.lineTo(-20, 15);
+                this.ctx.closePath();
+                this.ctx.fill();
+                
+                // Core
+                this.ctx.fillStyle = '#fff';
+                this.ctx.beginPath();
+                this.ctx.arc(0, -4, 3, 0, Math.PI*2);
+                this.ctx.fill();
+            }
+
+            this.ctx.restore();
+        }
+
+        // VFX
+        this.particles.forEach(p => p.draw(this.ctx));
+        this.floatingTexts.forEach(t => t.draw(this.ctx));
+    }
+
+    createExplosion(x, y, color, count) {
+        for(let i=0; i<count; i++) {
+            const p = this.particles.find(p => !p.active);
+            if(p) p.spawn(x, y, color, 12);
+        }
+    }
+
+    spawnText(text, color, size = 30) {
+        this.floatingTexts.push(new FloatingText(this.player.visualX, this.player.y - 80, text, color, size));
+    }
+
+    shakeScreen(intensity) {
+        this.canvas.style.transform = `translate(${Math.random()*intensity-intensity/2}px, ${Math.random()*intensity-intensity/2}px)`;
+        setTimeout(() => this.canvas.style.transform = 'none', 100);
+    }
+
+    loop(timestamp) {
+        const dt = Math.min((timestamp - this.lastTime) / 1000, 0.1);
+        this.lastTime = timestamp;
+        this.update(dt);
+        this.draw();
+        requestAnimationFrame(t => this.loop(t));
+    }
+}
+
+window.onload = () => new Game();
+</script>
+</body>
+</html>
