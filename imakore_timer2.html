@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>イマコレ・スケジュール PC</title>
+    <style>
+        /* 見やすい丸ゴシック */
+        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;800&display=swap');
+
+        :root {
+            --bg-setup: #f4f7f6;
+            --card-bg: #ffffff;
+            --primary: #5c6bc0;
+            --text-main: #333;
+        }
+
+        body {
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-setup);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            transition: background-color 0.8s ease;
+        }
+
+        /* --- 設定画面エリア --- */
+        #setup-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            overflow-y: auto;
+            padding: 40px 0;
+            box-sizing: border-box;
+        }
+
+        .setup-card {
+            background: var(--card-bg);
+            width: 900px; /* 横幅を少し拡張 */
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary);
+            margin-bottom: 10px;
+            font-size: 2rem;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1rem;
+        }
+
+        .control-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .phase-list {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .phase-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: #f9f9f9;
+            padding: 15px 20px;
+            border-radius: 8px;
+            border-left: 6px solid #ccc;
+        }
+
+        .phase-num {
+            font-weight: bold;
+            font-size: 1.2rem;
+            width: 30px;
+            color: #888;
+        }
+
+        /* フォーム要素 */
+        label { font-size: 0.8rem; font-weight: bold; color: #666; display: block; margin-bottom: 5px;}
+        
+        input[type="number"], input[type="text"], select {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-family: inherit;
+            text-align: center;
+        }
+
+        /* 時・分・秒の入力幅調整 */
+        input[type="number"] { width: 60px; }
+        
+        input[type="text"] { flex: 1; text-align: left; }
+        select { width: 130px; cursor: pointer; text-align: left; }
+
+        /* カラープレビュー */
+        .phase-item.color-blue { border-left-color: #2196F3; }
+        /* JSで制御するためclass追加は補助 */
+
+        .end-settings {
+            margin-top: 30px;
+            padding: 20px;
+            background: #333;
+            color: white;
+            border-radius: 8px;
+        }
+        .end-settings h3 { margin: 0 0 15px 0; font-size: 1.1rem; border-bottom: 1px solid #555; padding-bottom: 10px; }
+        .end-settings label { color: #ccc; }
+        .end-settings input, .end-settings select { background: #555; color: white; border-color: #666; }
+
+        .btn-start {
+            display: block;
+            width: 100%;
+            padding: 20px;
+            margin-top: 30px;
+            background: var(--primary);
+            color: white;
+            font-size: 1.5rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            box-shadow: 0 4px 15px rgba(92, 107, 192, 0.4);
+        }
+        .btn-start:hover { opacity: 0.9; }
+
+        /* --- 実行画面エリア --- */
+        #timer-container {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        #current-message {
+            font-size: 3vw;
+            font-weight: 800;
+            margin-bottom: 2vh;
+            text-shadow: 2px 2px 10px rgba(0,0,0,0.2);
+            text-align: center;
+            width: 90%;
+            line-height: 1.2;
+            word-wrap: break-word;
+            max-height: 30vh;
+            overflow: hidden;
+            flex-shrink: 1; 
+        }
+
+        #current-timer {
+            flex-shrink: 0;
+            font-size: 10vw; 
+            font-weight: 800;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+            text-shadow: 4px 4px 20px rgba(0,0,0,0.2);
+            letter-spacing: -0.02em;
+        }
+
+        #next-event-wrapper {
+            position: absolute;
+            bottom: 30px;
+            right: 40px;
+            text-align: right;
+            opacity: 0.8;
+        }
+        #next-label { 
+            font-size: 1rem; 
+            display: block; 
+            opacity: 0.7; 
+            margin-bottom: 5px;
+        }
+        #next-time-display {
+            font-size: 2.5rem;
+            font-weight: bold;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* リスタートボタン */
+        #restart-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            padding: 10px 20px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: inherit;
+            transition: background 0.2s;
+        }
+        #restart-btn:hover { background: rgba(255, 255, 255, 0.6); }
+
+        /* 終了時のリトライボタン */
+        #retry-area {
+            display: none;
+            margin-top: 50px;
+        }
+        #retry-btn {
+            font-size: 1.5rem;
+            padding: 15px 40px;
+            border-radius: 50px;
+            border: none;
+            background: white;
+            color: #333;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255,255,255,0.3);
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- 設定画面 -->
+    <div id="setup-container">
+        <div class="setup-card">
+            <h1>イマコレ・スケジュール</h1>
+            <div class="subtitle">指定した時刻になると画面が切り替わります</div>
+
+            <div class="control-row">
+                <label style="font-size:1.1rem;">切り替えポイント数:</label>
+                <input type="number" id="phase-count" value="3" min="1" max="20" style="width:100px;">
+                <button onclick="renderForms()" style="padding:10px 20px; cursor:pointer; margin-left:10px;">更新</button>
+            </div>
+
+            <div id="forms-area" class="phase-list">
+                <!-- JSでここにフォームが生成されます -->
+            </div>
+
+            <!-- 終了設定 -->
+            <div class="end-settings">
+                <h3>終了時刻の設定（すべての予定が終わった後）</h3>
+                <div style="display:flex; gap:20px; align-items:center; flex-wrap: wrap;">
+                    <div style="display:flex; gap:5px; align-items: flex-end;">
+                        <div>
+                            <label>時</label>
+                            <input type="number" id="end-hour" min="0" max="23" value="18">
+                        </div>
+                        <span style="padding-bottom:10px;">:</span>
+                        <div>
+                            <label>分</label>
+                            <input type="number" id="end-min" min="0" max="59" value="00">
+                        </div>
+                    </div>
+                    <div>
+                        <label>背景色</label>
+                        <select id="end-color">
+                            <option value="#000000" selected>黒（おしまい）</option>
+                            <option value="#FFFFFF">白（クリア）</option>
+                            <option value="#E91E63">ピンク（達成）</option>
+                            <option value="#2196F3">青（クール）</option>
+                        </select>
+                    </div>
+                    <div style="flex:1; min-width: 200px;">
+                        <label>終了時の文字</label>
+                        <input type="text" id="end-text" value="本日の予定は終了です">
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn-start" onclick="startApp()">スケジュール スタート</button>
+        </div>
+    </div>
+
+    <!-- 実行画面 -->
+    <div id="timer-container">
+        <button id="restart-btn" onclick="resetToSetup()">← 設定に戻る</button>
+
+        <div id="current-message">待機中...</div>
+        <div id="current-timer">--:--:--</div>
+
+        <div id="next-event-wrapper">
+            <!-- 順番変更: メッセージを一番上に -->
+            <span id="next-message">--</span>
+            <span id="next-label"></span>
+            <span id="next-time-display">--:--:--</span>
+        </div>
+
+        <div id="retry-area">
+            <button id="retry-btn" onclick="resetToSetup()">設定へ戻る</button>
+        </div>
+    </div>
+
+    <script>
+        // --- 設定データ定義 ---
+        const colorPresets = [
+            { name: "青（開始）", val: "#1565C0" },
+            { name: "緑（作業）", val: "#43A047" },
+            { name: "黄（注意）", val: "#FDD835" },
+            { name: "赤（重要）", val: "#D32F2F" },
+            { name: "紫（会議）", val: "#8E24AA" },
+            { name: "水色（休憩）", val: "#42A5F5" },
+            { name: "橙（警告）", val: "#FB8C00" },
+            { name: "黒（暗闇）", val: "#212121" },
+            { name: "白（空白）", val: "#FFFFFF" }
+        ];
+
+        // --- DOM要素 ---
+        const setupContainer = document.getElementById('setup-container');
+        const timerContainer = document.getElementById('timer-container');
+        const phaseCountInput = document.getElementById('phase-count');
+        const formsArea = document.getElementById('forms-area');
+
+        // --- 変数 ---
+        let timerInterval = null;
+        let schedule = [];      // 実行用スケジュール（ソート済み）
+        let endTimeObj = null;  // 終了時刻オブジェクト
+        
+        // --- 初期化 ---
+        // --- 初期化 & 自動保存 ---
+        window.addEventListener('DOMContentLoaded', () => {
+            loadSettings(); // 保存データを読み込み
+            renderForms();  // フォームへ反映
+        });
+
+        // ★追加: 画面を閉じる（リロードする）直前にも現在の入力を保存
+        window.addEventListener('beforeunload', () => {
+            saveSettings();
+        });
+
+        // --- フォーム生成 ---
+        function renderForms() {
+            let currentData = getFormData();
+            
+            // 画面上のフォームが空(初期状態)で、かつ保存データがあるなら、保存データを使う
+            if (currentData.length === 0 && window.savedPhases) {
+                currentData = window.savedPhases;
+            }
+
+            const count = parseInt(phaseCountInput.value) || 3;
+            formsArea.innerHTML = '';
+            
+            // 時刻のデフォルト値計算用
+            const now = new Date();
+            const curH = now.getHours();
+
+            for (let i = 0; i < count; i++) {
+                const saved = currentData[i] || {};
+                
+                // 保存値があればそれを、なければ現在時刻からの連番でデフォルト設定
+                const defHour = saved.hour !== undefined ? saved.hour : (curH + i) % 24;
+                const defMin = saved.min !== undefined ? saved.min : 0;
+                const defSec = saved.sec !== undefined ? saved.sec : 0;
+                const defColor = saved.color || colorPresets[i % colorPresets.length].val;
+                const defText = saved.text || `スケジュール ${i+1}`;
+
+                const div = document.createElement('div');
+                div.className = 'phase-item';
+                div.style.borderLeftColor = defColor;
+                
+                div.innerHTML = `
+                    <div class="phase-num">${i + 1}</div>
+                    <div style="display:flex; gap:5px; align-items:flex-end;">
+                        <div>
+                            <label>時</label>
+                            <input type="number" class="p-hour" min="0" max="23" value="${defHour}">
+                        </div>
+                        <span style="padding-bottom:10px; font-weight:bold;">:</span>
+                        <div>
+                            <label>分</label>
+                            <input type="number" class="p-min" min="0" max="59" value="${defMin}">
+                        </div>
+                        <span style="padding-bottom:10px; font-weight:bold;">:</span>
+                        <div>
+                            <label>秒</label>
+                            <input type="number" class="p-sec" min="0" max="59" value="${defSec}">
+                        </div>
+                    </div>
+                    <div>
+                        <label>色</label>
+                        <select class="p-color" onchange="this.closest('.phase-item').style.borderLeftColor=this.value">
+                            ${colorPresets.map(c => `<option value="${c.val}" ${c.val === defColor ? 'selected' : ''}>${c.name}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div style="flex:1;">
+                        <label>表示文字</label>
+                        <input type="text" class="p-text" value="${defText}">
+                    </div>
+                `;
+                formsArea.appendChild(div);
+            }
+            // 使い終わった保存データはクリア（次回の更新操作で邪魔しないように）
+            window.savedPhases = null; 
+        }
+
+        // --- データ取得 ---
+        function getFormData() {
+            const items = document.querySelectorAll('.phase-item');
+            const data = [];
+            items.forEach(item => {
+                data.push({
+                    hour: parseInt(item.querySelector('.p-hour').value) || 0,
+                    min: parseInt(item.querySelector('.p-min').value) || 0,
+                    sec: parseInt(item.querySelector('.p-sec').value) || 0,
+                    color: item.querySelector('.p-color').value,
+                    text: item.querySelector('.p-text').value
+                });
+            });
+            return data;
+        }
+
+        // --- 保存設定 ---
+        function saveSettings() {
+            // 設定画面が表示されていない(実行中)なら、フォームの値を取得できないので保存しない
+            if (setupContainer.style.display === 'none') return;
+
+            const data = getFormData();
+            const endSettings = {
+                hour: document.getElementById('end-hour').value,
+                min: document.getElementById('end-min').value,
+                color: document.getElementById('end-color').value,
+                text: document.getElementById('end-text').value
+            };
+            const settings = {
+                count: phaseCountInput.value,
+                phases: data,
+                end: endSettings
+            };
+            localStorage.setItem('visualScheduleSettings', JSON.stringify(settings));
+        }
+
+        // --- 読み込み設定 ---
+        function loadSettings() {
+            const json = localStorage.getItem('visualScheduleSettings');
+            if (!json) return;
+            try {
+                const settings = JSON.parse(json);
+                if (settings.count) phaseCountInput.value = settings.count;
+                if (settings.end) {
+                    if(settings.end.hour !== undefined) document.getElementById('end-hour').value = settings.end.hour;
+                    if(settings.end.min !== undefined) document.getElementById('end-min').value = settings.end.min;
+                    if(settings.end.color) document.getElementById('end-color').value = settings.end.color;
+                    if(settings.end.text) document.getElementById('end-text').value = settings.end.text;
+                }
+                window.savedPhases = settings.phases; 
+            } catch (e) {
+                console.error("設定読み込みエラー", e);
+            }
+        }
+
+        // --- アプリ実行ロジック ---
+        function startApp() {
+            const formData = getFormData();
+            
+            // 入力値をDateオブジェクトに変換して配列化（日付またぎは考慮せず、当日の時刻として扱う）
+            const now = new Date();
+            const todayBase = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+            schedule = formData.map(d => {
+                const time = new Date(todayBase);
+                time.setHours(d.hour, d.min, d.sec, 0);
+                return {
+                    time: time,
+                    color: d.color,
+                    text: d.text
+                };
+            });
+
+            // 時刻順にソート（ユーザーがバラバラに入れても大丈夫なように）
+            schedule.sort((a, b) => a.time - b.time);
+
+            // 終了時刻の設定
+            const endH = parseInt(document.getElementById('end-hour').value) || 18;
+            const endM = parseInt(document.getElementById('end-min').value) || 0;
+            endTimeObj = new Date(todayBase);
+            endTimeObj.setHours(endH, endM, 0, 0);
+
+            // スケジュール配列に終了イベントも疑似的に追加しておくと管理しやすいが、
+            // 「終了」は特殊状態なので別扱いにする。
+
+            // UI切り替え
+            saveSettings();
+            setupContainer.style.display = 'none';
+            timerContainer.style.display = 'flex';
+            document.getElementById('retry-area').style.display = 'none';
+            document.getElementById('current-timer').style.display = 'block';
+            document.getElementById('next-event-wrapper').style.display = 'block';
+
+            // ループ開始
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(updateClock, 200); // 秒単位の時計なので200ms更新で十分
+            updateClock(); // 即時実行
+        }
+
+        function updateClock() {
+            const now = new Date();
+
+            // 1. 現在時刻表示の更新
+            document.getElementById('current-timer').innerText = formatTimeHMS(now);
+
+            // 2. 現在の状態判定
+            let activePhase = null;
+            let nextPhaseTime = null;
+            let nextPhaseText = ""; // ★追加: 次の文字用変数
+
+            // 終了時刻を過ぎているか？
+            if (now >= endTimeObj) {
+                finishApp();
+                return;
+            }
+
+            // スケジュール判定
+            for (let i = 0; i < schedule.length; i++) {
+                if (now >= schedule[i].time) {
+                    activePhase = schedule[i];
+                } else {
+                    // まだ来ていない最初のイベントが見つかったら、それがNext
+                    nextPhaseTime = schedule[i].time;
+                    nextPhaseText = schedule[i].text; // ★追加: 次の文字を取得
+                    break;
+                }
+            }
+
+            // Nextがスケジュール内に見つからなかった場合、次は「終了時刻」
+            if (!nextPhaseTime) {
+                nextPhaseTime = endTimeObj;
+                // ★追加: 終了設定の文字を取得
+                nextPhaseText = document.getElementById('end-text').value; 
+            }
+
+            // 3. UI反映 (現在の背景と文字)
+            if (activePhase) {
+                applyVisuals(activePhase.color, activePhase.text);
+            } else {
+                applyVisuals("#ddd", "開始待機中...");
+            }
+
+            // 4. NEXT表示更新 (右下)
+            if (nextPhaseTime) {
+                document.getElementById('next-time-display').innerText = formatTimeHM(nextPhaseTime);
+                
+                // ★追加: 次の文字を表示
+                document.getElementById('next-message').innerText = nextPhaseText;
+
+                // ラベル変更
+                if (nextPhaseTime === endTimeObj) {
+                    document.getElementById('next-label').innerText = "FINISH TIME";
+                } else {
+                    document.getElementById('next-label').innerText = "";
+                }
+            }
+        }
+
+        function applyVisuals(color, text) {
+            // 色とテキストが変わる時だけDOM操作したほうが軽量だが、
+            // ブラウザの最適化に任せてもこの規模なら問題ない。
+            // チラつき防止のため、テキストが同じなら更新しないガードを入れる
+            const msgEl = document.getElementById('current-message');
+            if (msgEl.innerText !== text) {
+                msgEl.innerText = text;
+            }
+
+            if (document.body.style.backgroundColor !== color) {
+                document.body.style.backgroundColor = color;
+                adjustTextColor(color);
+            }
+        }
+
+        function finishApp() {
+            clearInterval(timerInterval);
+            
+            const endColor = document.getElementById('end-color').value;
+            const endText = document.getElementById('end-text').value;
+
+            applyVisuals(endColor, endText);
+            
+            // 時計は止めずに表示し続けるか？ -> 要件「タイマーの代わりに現在時刻」。
+            // 終了画面でも時計は動いていたほうが便利なので更新し続ける。
+            // ただしNext表示は消す。
+            document.getElementById('current-timer').innerText = formatTimeHMS(new Date());
+            document.getElementById('next-event-wrapper').style.display = 'none';
+            
+            // 簡易的な時計のみ継続ループ
+            timerInterval = setInterval(() => {
+                document.getElementById('current-timer').innerText = formatTimeHMS(new Date());
+            }, 1000);
+
+            document.getElementById('retry-area').style.display = 'block';
+        }
+
+        function resetToSetup() {
+            clearInterval(timerInterval);
+            document.body.style.backgroundColor = "var(--bg-setup)";
+            document.body.style.color = "var(--text-main)";
+            
+            timerContainer.style.display = 'none';
+            setupContainer.style.display = 'flex';
+        }
+
+        // --- ユーティリティ ---
+        function formatTimeHMS(dateObj) {
+            const h = String(dateObj.getHours()).padStart(2, '0');
+            const m = String(dateObj.getMinutes()).padStart(2, '0');
+            const s = String(dateObj.getSeconds()).padStart(2, '0');
+            return `${h}:${m}:${s}`;
+        }
+
+        function formatTimeHM(dateObj) {
+            const h = String(dateObj.getHours()).padStart(2, '0');
+            const m = String(dateObj.getMinutes()).padStart(2, '0');
+            const s = String(dateObj.getSeconds()).padStart(2, '0');
+            return `${h}:${m}:${s}`;
+        }
+
+        function adjustTextColor(hexColor) {
+            // 短縮形 (#fff) 対応は省略（入力フォームがフルhex前提のため）
+            if (hexColor.length < 7) return; 
+
+            const r = parseInt(hexColor.substr(1, 2), 16);
+            const g = parseInt(hexColor.substr(3, 2), 16);
+            const b = parseInt(hexColor.substr(5, 2), 16);
+            
+            const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+            
+            const mainText = document.getElementById('timer-container');
+            const restartBtn = document.getElementById('restart-btn');
+
+            if (luminance > 0.6) {
+                mainText.style.color = '#333333';
+                restartBtn.style.borderColor = 'rgba(0,0,0,0.3)';
+                restartBtn.style.background = 'rgba(0,0,0,0.1)';
+            } else {
+                mainText.style.color = '#FFFFFF';
+                restartBtn.style.borderColor = 'rgba(255,255,255,0.5)';
+                restartBtn.style.background = 'rgba(255,255,255,0.2)';
+            }
+        }
+
+    </script>
+</body>
+</html>
