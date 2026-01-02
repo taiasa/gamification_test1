@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>歴トレ - 歴史トレーニング</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700&family=Zen+Old+Mincho:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'washi': '#F5F5F0',
+                        'sumi': '#2B2B2B',
+                        'shu': '#BC2424',
+                        'matcha': '#5D8C3E',
+                        'ai': '#3E488C',
+                        'gold': '#C5A059'
+                    },
+                    fontFamily: {
+                        'sans': ['"Zen Kaku Gothic New"', 'sans-serif'],
+                        'serif': ['"Zen Old Mincho"', 'serif'],
+                    },
+                    animation: {
+                        'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+                        'pop': 'pop 0.3s ease-out forwards',
+                    },
+                    keyframes: {
+                        shake: {
+                            '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+                            '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+                            '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+                            '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
+                        },
+                        pop: {
+                            '0%': { transform: 'scale(0.5)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { background-color: #F5F5F0; user-select: none; }
+        
+        /* 和紙テクスチャ */
+        .washi-texture {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url('data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22 opacity=%220.1%22/%3E%3C/svg%3E');
+            pointer-events: none; z-index: -1;
+        }
+
+        /* 筆致ボタン */
+        .brush-btn {
+            position: relative; overflow: hidden; transition: all 0.2s ease;
+            box-shadow: 2px 4px 6px rgba(0,0,0,0.1);
+        }
+        .brush-btn:active { transform: translateY(2px); box-shadow: none; }
+
+        /* 桜吹雪パーティクル */
+        .sakura {
+            position: absolute; pointer-events: none;
+            background-color: #ffb7b2; border-radius: 100% 0 100% 0;
+            animation: fall linear forwards; z-index: 50;
+        }
+        @keyframes fall {
+            to { transform: translateY(100vh) rotate(720deg); }
+        }
+
+        /* スタンプアニメーション */
+        @keyframes stamp-in {
+            0% { transform: scale(3); opacity: 0; }
+            50% { transform: scale(0.9); opacity: 1; }
+            70% { transform: scale(1.1); }
+            100% { transform: scale(1) rotate(-5deg); }
+        }
+        .stamp-anim { animation: stamp-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; border: 5px solid currentColor; border-radius: 50%; padding: 1rem; display: inline-block; mask-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='); }
+
+        .fade-enter { animation: fadeIn 0.5s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* 悪い天候（不正解） */
+        .rain {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.2) 100%);
+            z-index: 40; pointer-events: none; display: none;
+        }
+    </style>
+</head>
+<body class="text-sumi font-sans antialiased min-h-screen flex flex-col relative overflow-x-hidden">
+    <div class="washi-texture"></div>
+    <div id="rain-effect" class="rain"></div>
+
+    <!-- Header -->
+    <header class="bg-sumi text-washi p-4 shadow-lg z-20 relative overflow-hidden border-b-4 border-gold">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl md:text-3xl font-serif font-black tracking-widest cursor-pointer hover:text-shu transition" onclick="app.goHome()">
+                <i class="fa-solid fa-torii-gate mr-2 text-shu"></i>歴トレ
+            </h1>
+            <div id="score-board" class="hidden flex items-center gap-3 bg-gray-800 px-4 py-1 rounded-full border border-gray-600">
+                <span class="text-gold font-bold"><i class="fa-solid fa-star mr-1"></i>得点: <span id="current-score">0</span></span>
+                <span id="quiz-progress" class="text-xs text-gray-400 border-l border-gray-600 pl-3"></span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Guide Message -->
+    <div class="bg-shu text-white text-center py-2 px-4 shadow-md font-bold text-sm md:text-base relative z-10 border-b-2 border-red-900">
+        <span id="guide-message">いざ、歴史の旅へ！</span>
+    </div>
+
+    <!-- Main Content Area -->
+    <main id="app-container" class="flex-grow container mx-auto p-4 md:p-8 relative z-10">
+        <!-- Views will be injected here -->
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-200 text-center p-4 text-xs text-gray-500 font-serif border-t border-gray-300">
+        &copy; 2026 歴トレ Project - 歴史を楽しく学ぶ
+    </footer>
+
+    <!-- Overlay for Feedback -->
+    <div id="feedback-overlay" class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-50 hidden">
+        <div id="feedback-content" class="text-center p-8 md:p-12 bg-washi rounded-xl border-8 shadow-2xl transform relative max-w-lg w-full mx-4">
+            <div id="feedback-icon" class="text-8xl mb-4"></div>
+            <h2 id="feedback-title" class="text-5xl md:text-6xl font-serif font-black mb-4 tracking-wider"></h2>
+            <p id="feedback-text" class="text-lg md:text-xl font-bold mb-8 text-gray-700"></p>
+            <button id="feedback-next-btn" onclick="app.closeFeedback()" class="w-full bg-sumi text-white text-xl py-4 rounded-lg font-bold hover:bg-gray-700 transition border-b-4 border-black active:border-b-0 active:translate-y-1">次へ進む</button>
+        </div>
+    </div>
+
+    <!-- Modal for Database Detail -->
+    <div id="detail-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden" onclick="if(event.target === this) app.closeModal()">
+        <div class="bg-white rounded-lg max-w-md w-full mx-4 p-6 shadow-2xl border-t-8 border-matcha relative animate-pop">
+            <button onclick="app.closeModal()" class="absolute top-2 right-4 text-3xl text-gray-400 hover:text-gray-600">&times;</button>
+            <h3 id="modal-title" class="text-3xl font-serif font-bold text-sumi mb-2 border-b-2 border-matcha inline-block"></h3>
+            <div class="text-sm text-gray-500 font-bold mb-4" id="modal-period"></div>
+            
+            <div class="bg-washi p-4 rounded border border-gray-200">
+                <h4 class="text-sm font-bold text-gray-400 mb-1">関連する出来事</h4>
+                <p id="modal-event" class="text-lg font-serif font-bold text-sumi leading-relaxed"></p>
+                <p id="modal-desc" class="text-sm text-gray-600 mt-2"></p>
+            </div>
+            <button onclick="app.closeModal()" class="mt-6 w-full py-3 bg-matcha text-white font-bold rounded shadow hover:bg-green-700 transition">閉じる</button>
+        </div>
+    </div>
+
+    <!-- Javascript Application Logic -->
+    <script>
+        // 1. Sound System (Web Audio API)
+        const AudioSys = {
+            ctx: null,
+            init: () => {
+                if (!AudioSys.ctx) {
+                    AudioSys.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (AudioSys.ctx.state === 'suspended') AudioSys.ctx.resume();
+            },
+            playCorrect: () => {
+                AudioSys.init();
+                const t = AudioSys.ctx.currentTime;
+                const osc = AudioSys.ctx.createOscillator();
+                const gain = AudioSys.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, t); 
+                osc.frequency.setValueAtTime(659.25, t + 0.1); 
+                osc.frequency.setValueAtTime(783.99, t + 0.2); 
+                osc.frequency.setValueAtTime(1046.50, t + 0.3); 
+                gain.gain.setValueAtTime(0.3, t);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + 1.5);
+                osc.connect(gain);
+                gain.connect(AudioSys.ctx.destination);
+                osc.start(t);
+                osc.stop(t + 1.5);
+            },
+            playIncorrect: () => {
+                AudioSys.init();
+                const t = AudioSys.ctx.currentTime;
+                const osc = AudioSys.ctx.createOscillator();
+                const gain = AudioSys.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, t);
+                osc.frequency.linearRampToValueAtTime(50, t + 0.4);
+                gain.gain.setValueAtTime(0.5, t);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
+                osc.connect(gain);
+                gain.connect(AudioSys.ctx.destination);
+                osc.start(t);
+                osc.stop(t + 0.5);
+            }
+        };
+
+        // 2. Data Source
+        const eventsData = [
+          { "出来事名": "大化の改新", "元号": "大化", "年号": "645年", "出来事の概略": "中大兄皇子と中臣鎌足が蘇我氏を倒し、天皇中心の中央集権国家を目指した政治改革。公地公民制の始まり。" },
+          { "出来事名": "承平天慶の乱", "元号": "承平・天慶", "年号": "935年〜947年", "出来事の概略": "平将門の乱と藤原純友の乱を総称した呼び名。地方反乱が同時期に発生し、朝廷の支配力低下が顕在化した。" },
+          { "出来事名": "保元の乱", "元号": "保元", "年号": "1156年", "出来事の概略": "皇位継承問題と藤原氏・武士の対立が絡んだ内乱。武士が政治の中心に進出する契機となった。" },
+          { "出来事名": "平治の乱", "元号": "平治", "年号": "1159年", "出来事の概略": "平清盛と源義朝が争った政変。平氏が政権を掌握し、平氏政権成立の基盤となった。" },
+          { "出来事名": "治承・寿永の乱", "元号": "治承・寿永", "年号": "1180年〜1185年", "出来事の概略": "源氏と平氏による全国規模の内乱（源平合戦）。最終的に源氏が勝利し、鎌倉幕府成立へとつながった。" },
+          { "出来事名": "承久の乱", "元号": "承久", "年号": "1221年", "出来事の概略": "後鳥羽上皇が鎌倉幕府に反旗を翻した戦い。幕府が勝利し、武家政権の優位が確立した。" },
+          { "出来事名": "文永の役", "元号": "文永", "年号": "1274年", "出来事の概略": "モンゴル帝国（元）による日本侵攻の第1回。暴風雨や防衛により撃退した。" },
+          { "出来事名": "弘安の役", "元号": "弘安", "年号": "1281年", "出来事の概略": "元による日本侵攻の第2回。大規模な台風（神風）により元軍が壊滅した。" },
+          { "出来事名": "正中の変", "元号": "正中", "年号": "1324年", "出来事の概略": "後醍醐天皇による倒幕計画が発覚し失敗した事件。後の元弘の変へとつながる。" },
+          { "出来事名": "元弘の変", "元号": "元弘", "年号": "1331年〜1333年", "出来事の概略": "後醍醐天皇による倒幕運動。足利尊氏らの活躍により鎌倉幕府が滅亡した。" },
+          { "出来事名": "建武の新政", "元号": "建武", "年号": "1334年〜1336年", "出来事の概略": "後醍醐天皇が行った天皇中心の政治改革。武士の不満が高まり短期間で崩壊した。" },
+          { "出来事名": "観応の擾乱", "元号": "観応", "年号": "1350年〜1352年", "出来事の概略": "足利尊氏と直義の兄弟間の内紛。室町幕府の内部対立が深刻化した。" },
+          { "出来事名": "応仁の乱", "元号": "応仁", "年号": "1467年〜1477年", "出来事の概略": "将軍継承問題から始まった大規模内乱。全国に戦乱が拡大し、戦国時代の幕開けとなった。" },
+          { "出来事名": "天正遣欧少年使節", "元号": "天正", "年号": "1582年", "出来事の概略": "九州のキリシタン大名が派遣した日本初の公式ヨーロッパ使節団。" },
+          { "出来事名": "文禄の役", "元号": "文禄", "年号": "1592年〜1593年", "出来事の概略": "豊臣秀吉による朝鮮出兵の前半。明・朝鮮との戦争が展開された。" },
+          { "出来事名": "慶長の役", "元号": "慶長", "年号": "1597年〜1598年", "出来事の概略": "朝鮮出兵の後半。秀吉の死により日本軍が撤退した。" },
+          { "出来事名": "元和偃武", "元号": "元和", "年号": "1615年", "出来事の概略": "大坂夏の陣後、徳川家康が武力行使を抑え、文治政治へ移行した方針。" },
+          { "出来事名": "明暦の大火", "元号": "明暦", "年号": "1657年", "出来事の概略": "江戸を焼き尽くした大火災。都市改造と防災政策が進められた。" },
+          { "出来事名": "享保の改革", "元号": "享保", "年号": "1716年〜1745年", "出来事の概略": "徳川吉宗による幕府財政再建と政治改革。質素倹約と新田開発を推進。" },
+          { "出来事名": "天明の飢饉", "元号": "天明", "年号": "1782年〜1788年", "出来事の概略": "冷害と噴火により発生した大飢饉。農村に深刻な被害を与えた。" },
+          { "出来事名": "寛政の改革", "元号": "寛政", "年号": "1787年〜1793年", "出来事の概略": "松平定信による改革。倹約令や朱子学の奨励を行った。" },
+          { "出来事名": "天保の改革", "元号": "天保", "年号": "1841年〜1843年", "出来事の概略": "水野忠邦による幕政改革。厳しい統制で反発を招き失敗した。" },
+          { "出来事名": "安政の大獄", "元号": "安政", "年号": "1858年〜1859年", "出来事の概略": "井伊直弼が反対派を弾圧した政治事件。幕府の権威低下を招いた。" },
+          { "出来事名": "明治維新", "元号": "明治", "年号": "1868年", "出来事の概略": "幕府が倒れ、近代国家建設が始まった政治・社会の大変革。" },
+          { "出来事名": "大正デモクラシー", "元号": "大正", "年号": "1910年代〜1920年代", "出来事の概略": "政党政治や普通選挙運動が発展した民主主義的風潮。" },
+          { "出来事名": "昭和恐慌", "元号": "昭和", "年号": "1929年〜1931年", "出来事の概略": "世界恐慌の影響を受けた深刻な経済不況。農村や中小企業に大打撃を与えた。" },
+          { "出来事名": "平成の大合併", "元号": "平成", "年号": "1999年〜2010年", "出来事の概略": "市町村の大規模な統廃合により自治体数が大幅に減少した。" }
+        ];
+
+        const historyData = {
+          "時代一覧": [
+            { "時代名": "縄文", "開始年": "紀元前14000", "終了年": "紀元前300", "元号": "なし" },
+            { "時代名": "弥生", "開始年": "紀元前300", "終了年": "250", "元号": "なし" },
+            { "時代名": "古墳", "開始年": "250", "終了年": "592", "元号": "なし" },
+            { "時代名": "飛鳥", "開始年": "592", "終了年": "710", "元号": [ 
+                { "元号名": "大化", "開始年": 645, "終了年": 650 }, 
+                { "元号名": "白雉", "開始年": 650, "終了年": 654 } 
+            ]},
+            { "時代名": "奈良", "開始年": "710", "終了年": "794", "元号": [ 
+                { "元号名": "和銅", "開始年": 708, "終了年": 715 }, { "元号名": "霊亀", "開始年": 715, "終了年": 717 }, 
+                { "元号名": "養老", "開始年": 717, "終了年": 724 }, { "元号名": "神亀", "開始年": 724, "終了年": 729 }, 
+                { "元号名": "天平", "開始年": 729, "終了年": 749 }, { "元号名": "天平勝宝", "開始年": 749, "終了年": 757 }, 
+                { "元号名": "天平宝字", "開始年": 757, "終了年": 765 }, { "元号名": "天平神護", "開始年": 765, "終了年": 767 }, 
+                { "元号名": "神護景雲", "開始年": 767, "終了年": 770 }, { "元号名": "宝亀", "開始年": 770, "終了年": 781 }, 
+                { "元号名": "天応", "開始年": 781, "終了年": 782 }, { "元号名": "延暦", "開始年": 782, "終了年": 806 }
+            ]},
+            { "時代名": "平安", "開始年": "794", "終了年": "1185", "元号": [ 
+                { "元号名": "延暦", "開始年": 782, "終了年": 806 }, { "元号名": "大同", "開始年": 806, "終了年": 810 }, 
+                { "元号名": "弘仁", "開始年": 810, "終了年": 824 }, { "元号名": "天長", "開始年": 824, "終了年": 834 }, 
+                { "元号名": "承和", "開始年": 834, "終了年": 848 }, { "元号名": "嘉祥", "開始年": 848, "終了年": 851 },
+                { "元号名": "仁寿", "開始年": 851, "終了年": 854 }, { "元号名": "斉衡", "開始年": 854, "終了年": 857 },
+                { "元号名": "天安", "開始年": 857, "終了年": 859 }, { "元号名": "貞観", "開始年": 859, "終了年": 877 },
+                { "元号名": "元慶", "開始年": 877, "終了年": 885 }, { "元号名": "仁和", "開始年": 885, "終了年": 889 },
+                { "元号名": "寛平", "開始年": 889, "終了年": 898 }, { "元号名": "昌泰", "開始年": 898, "終了年": 901 },
+                { "元号名": "延喜", "開始年": 901, "終了年": 923 }, { "元号名": "延長", "開始年": 923, "終了年": 931 },
+                { "元号名": "承平", "開始年": 931, "終了年": 938 }, { "元号名": "天慶", "開始年": 938, "終了年": 947 },
+                { "元号名": "天暦", "開始年": 947, "終了年": 957 }, { "元号名": "天徳", "開始年": 957, "終了年": 961 },
+                { "元号名": "応和", "開始年": 961, "終了年": 964 }, { "元号名": "康保", "開始年": 964, "終了年": 968 },
+                { "元号名": "安和", "開始年": 968, "終了年": 970 }, { "元号名": "天禄", "開始年": 970, "終了年": 973 },
+                { "元号名": "天延", "開始年": 973, "終了年": 976 }, { "元号名": "貞元", "開始年": 976, "終了年": 978 },
+                { "元号名": "天元", "開始年": 978, "終了年": 983 }, { "元号名": "永観", "開始年": 983, "終了年": 985 },
+                { "元号名": "寛和", "開始年": 985, "終了年": 987 }, { "元号名": "永延", "開始年": 987, "終了年": 989 },
+                { "元号名": "永祚", "開始年": 989, "終了年": 990 }, { "元号名": "正暦", "開始年": 990, "終了年": 995 },
+                { "元号名": "長徳", "開始年": 995, "終了年": 999 }, { "元号名": "長保", "開始年": 999, "終了年": 1004 },
+                { "元号名": "寛弘", "開始年": 1004, "終了年": 1012 }, { "元号名": "長和", "開始年": 1012, "終了年": 1017 },
+                { "元号名": "寛仁", "開始年": 1017, "終了年": 1021 }, { "元号名": "治安", "開始年": 1021, "終了年": 1024 },
+                { "元号名": "万寿", "開始年": 1024, "終了年": 1028 }, { "元号名": "長元", "開始年": 1028, "終了年": 1037 },
+                { "元号名": "長暦", "開始年": 1037, "終了年": 1040 }, { "元号名": "長久", "開始年": 1040, "終了年": 1044 },
+                { "元号名": "寛徳", "開始年": 1044, "終了年": 1046 }, { "元号名": "永承", "開始年": 1046, "終了年": 1053 },
+                { "元号名": "天喜", "開始年": 1053, "終了年": 1058 }, { "元号名": "康平", "開始年": 1058, "終了年": 1065 },
+                { "元号名": "治暦", "開始年": 1065, "終了年": 1069 }, { "元号名": "延久", "開始年": 1069, "終了年": 1074 },
+                { "元号名": "承保", "開始年": 1074, "終了年": 1077 }, { "元号名": "承暦", "開始年": 1077, "終了年": 1081 },
+                { "元号名": "永保", "開始年": 1081, "終了年": 1084 }, { "元号名": "応徳", "開始年": 1084, "終了年": 1087 },
+                { "元号名": "寛治", "開始年": 1087, "終了年": 1094 }, { "元号名": "嘉保", "開始年": 1094, "終了年": 1096 },
+                { "元号名": "永長", "開始年": 1096, "終了年": 1097 }, { "元号名": "承徳", "開始年": 1097, "終了年": 1099 },
+                { "元号名": "康和", "開始年": 1099, "終了年": 1104 }, { "元号名": "長治", "開始年": 1104, "終了年": 1106 },
+                { "元号名": "嘉承", "開始年": 1106, "終了年": 1108 }, { "元号名": "天仁", "開始年": 1108, "終了年": 1110 },
+                { "元号名": "天永", "開始年": 1110, "終了年": 1113 }, { "元号名": "永久", "開始年": 1113, "終了年": 1118 },
+                { "元号名": "元永", "開始年": 1118, "終了年": 1120 }, { "元号名": "保安", "開始年": 1120, "終了年": 1124 },
+                { "元号名": "天治", "開始年": 1124, "終了年": 1126 }, { "元号名": "大治", "開始年": 1126, "終了年": 1131 },
+                { "元号名": "天承", "開始年": 1131, "終了年": 1132 }, { "元号名": "長承", "開始年": 1132, "終了年": 1135 },
+                { "元号名": "保延", "開始年": 1135, "終了年": 1141 }, { "元号名": "永治", "開始年": 1141, "終了年": 1142 },
+                { "元号名": "康治", "開始年": 1142, "終了年": 1144 }, { "元号名": "天養", "開始年": 1144, "終了年": 1145 },
+                { "元号名": "久安", "開始年": 1145, "終了年": 1151 }, { "元号名": "仁平", "開始年": 1151, "終了年": 1154 },
+                { "元号名": "久寿", "開始年": 1154, "終了年": 1156 }, { "元号名": "保元", "開始年": 1156, "終了年": 1159 },
+                { "元号名": "平治", "開始年": 1159, "終了年": 1160 }, { "元号名": "永暦", "開始年": 1160, "終了年": 1161 },
+                { "元号名": "応保", "開始年": 1161, "終了年": 1163 }, { "元号名": "長寛", "開始年": 1163, "終了年": 1165 },
+                { "元号名": "永万", "開始年": 1165, "終了年": 1166 }, { "元号名": "仁安", "開始年": 1166, "終了年": 1169 },
+                { "元号名": "嘉応", "開始年": 1169, "終了年": 1171 }, { "元号名": "承安", "開始年": 1171, "終了年": 1175 },
+                { "元号名": "安元", "開始年": 1175, "終了年": 1177 }, { "元号名": "治承", "開始年": 1177, "終了年": 1181 },
+                { "元号名": "養和", "開始年": 1181, "終了年": 1182 }, { "元号名": "寿永", "開始年": 1182, "終了年": 1184 },
+                { "元号名": "元暦", "開始年": 1184, "終了年": 1185 }
+            ]},
+            { "時代名": "鎌倉", "開始年": "1185", "終了年": "1333", "元号": [
+                { "元号名": "文治", "開始年": 1185, "終了年": 1190 }, { "元号名": "建久", "開始年": 1190, "終了年": 1199 },
+                { "元号名": "正治", "開始年": 1199, "終了年": 1201 }, { "元号名": "建仁", "開始年": 1201, "終了年": 1204 },
+                { "元号名": "元久", "開始年": 1204, "終了年": 1206 }, { "元号名": "建永", "開始年": 1206, "終了年": 1207 },
+                { "元号名": "承元", "開始年": 1207, "終了年": 1211 }, { "元号名": "建暦", "開始年": 1211, "終了年": 1213 },
+                { "元号名": "建保", "開始年": 1213, "終了年": 1219 }, { "元号名": "承久", "開始年": 1219, "終了年": 1222 },
+                { "元号名": "貞応", "開始年": 1222, "終了年": 1224 }, { "元号名": "元仁", "開始年": 1224, "終了年": 1225 },
+                { "元号名": "嘉禄", "開始年": 1225, "終了年": 1227 }, { "元号名": "安貞", "開始年": 1227, "終了年": 1229 },
+                { "元号名": "寛喜", "開始年": 1229, "終了年": 1232 }, { "元号名": "貞永", "開始年": 1232, "終了年": 1233 },
+                { "元号名": "天福", "開始年": 1233, "終了年": 1234 }, { "元号名": "文暦", "開始年": 1234, "終了年": 1235 },
+                { "元号名": "嘉禎", "開始年": 1235, "終了年": 1238 }, { "元号名": "暦仁", "開始年": 1238, "終了年": 1239 },
+                { "元号名": "延応", "開始年": 1239, "終了年": 1240 }, { "元号名": "仁治", "開始年": 1240, "終了年": 1243 },
+                { "元号名": "寛元", "開始年": 1243, "終了年": 1247 }, { "元号名": "宝治", "開始年": 1247, "終了年": 1249 },
+                { "元号名": "建長", "開始年": 1249, "終了年": 1256 }, { "元号名": "康元", "開始年": 1256, "終了年": 1257 },
+                { "元号名": "正嘉", "開始年": 1257, "終了年": 1259 }, { "元号名": "正元", "開始年": 1259, "終了年": 1260 },
+                { "元号名": "文応", "開始年": 1260, "終了年": 1261 }, { "元号名": "弘長", "開始年": 1261, "終了年": 1264 },
+                { "元号名": "文永", "開始年": 1264, "終了年": 1275 }, { "元号名": "建治", "開始年": 1275, "終了年": 1278 },
+                { "元号名": "弘安", "開始年": 1278, "終了年": 1288 }, { "元号名": "正応", "開始年": 1288, "終了年": 1293 },
+                { "元号名": "永仁", "開始年": 1293, "終了年": 1299 }, { "元号名": "正安", "開始年": 1299, "終了年": 1302 },
+                { "元号名": "乾元", "開始年": 1302, "終了年": 1303 }, { "元号名": "嘉元", "開始年": 1303, "終了年": 1306 },
+                { "元号名": "徳治", "開始年": 1306, "終了年": 1308 }, { "元号名": "延慶", "開始年": 1308, "終了年": 1311 },
+                { "元号名": "応長", "開始年": 1311, "終了年": 1312 }, { "元号名": "正和", "開始年": 1312, "終了年": 1317 },
+                { "元号名": "文保", "開始年": 1317, "終了年": 1319 }, { "元号名": "元応", "開始年": 1319, "終了年": 1321 },
+                { "元号名": "元亨", "開始年": 1321, "終了年": 1324 }, { "元号名": "正中", "開始年": 1324, "終了年": 1326 },
+                { "元号名": "嘉暦", "開始年": 1326, "終了年": 1329 }, { "元号名": "元徳", "開始年": 1329, "終了年": 1331 },
+                { "元号名": "元弘", "開始年": 1331, "終了年": 1334 }
+            ]},
+            { "時代名": "室町", "開始年": "1336", "終了年": "1573", "元号": [
+                { "元号名": "建武", "開始年": 1334, "終了年": 1338 }, { "元号名": "暦応", "開始年": 1338, "終了年": 1342 },
+                { "元号名": "康永", "開始年": 1342, "終了年": 1345 }, { "元号名": "貞和", "開始年": 1345, "終了年": 1350 },
+                { "元号名": "観応", "開始年": 1350, "終了年": 1352 }, { "元号名": "文和", "開始年": 1352, "終了年": 1356 },
+                { "元号名": "延文", "開始年": 1356, "終了年": 1361 }, { "元号名": "康安", "開始年": 1361, "終了年": 1362 },
+                { "元号名": "貞治", "開始年": 1362, "終了年": 1368 }, { "元号名": "応安", "開始年": 1368, "終了年": 1375 },
+                { "元号名": "永和", "開始年": 1375, "終了年": 1379 }, { "元号名": "康暦", "開始年": 1379, "終了年": 1381 },
+                { "元号名": "永徳", "開始年": 1381, "終了年": 1384 }, { "元号名": "至徳", "開始年": 1384, "終了年": 1387 },
+                { "元号名": "嘉慶", "開始年": 1387, "終了年": 1389 }, { "元号名": "康応", "開始年": 1389, "終了年": 1390 },
+                { "元号名": "明徳", "開始年": 1390, "終了年": 1394 }, { "元号名": "応永", "開始年": 1394, "終了年": 1428 },
+                { "元号名": "正長", "開始年": 1428, "終了年": 1429 }, { "元号名": "永享", "開始年": 1429, "終了年": 1441 },
+                { "元号名": "嘉吉", "開始年": 1441, "終了年": 1444 }, { "元号名": "文安", "開始年": 1444, "終了年": 1449 },
+                { "元号名": "宝徳", "開始年": 1449, "終了年": 1452 }, { "元号名": "享徳", "開始年": 1452, "終了年": 1455 },
+                { "元号名": "康正", "開始年": 1455, "終了年": 1457 }, { "元号名": "長禄", "開始年": 1457, "終了年": 1460 },
+                { "元号名": "寛正", "開始年": 1460, "終了年": 1466 }, { "元号名": "文正", "開始年": 1466, "終了年": 1467 },
+                { "元号名": "応仁", "開始年": 1467, "終了年": 1469 }, { "元号名": "文明", "開始年": 1469, "終了年": 1487 },
+                { "元号名": "長享", "開始年": 1487, "終了年": 1489 }, { "元号名": "延徳", "開始年": 1489, "終了年": 1492 },
+                { "元号名": "明応", "開始年": 1492, "終了年": 1501 }, { "元号名": "文亀", "開始年": 1501, "終了年": 1504 },
+                { "元号名": "永正", "開始年": 1504, "終了年": 1521 }, { "元号名": "大永", "開始年": 1521, "終了年": 1528 },
+                { "元号名": "享禄", "開始年": 1528, "終了年": 1532 }, { "元号名": "天文", "開始年": 1532, "終了年": 1555 },
+                { "元号名": "弘治", "開始年": 1555, "終了年": 1558 }, { "元号名": "永禄", "開始年": 1558, "終了年": 1570 },
+                { "元号名": "元亀", "開始年": 1570, "終了年": 1573 }
+            ]},
+            { "時代名": "安土桃山", "開始年": "1573", "終了年": "1603", "元号": [
+                { "元号名": "天正", "開始年": 1573, "終了年": 1592 }, { "元号名": "文禄", "開始年": 1592, "終了年": 1596 },
+                { "元号名": "慶長", "開始年": 1596, "終了年": 1615 }
+            ]},
+            { "時代名": "江戸", "開始年": "1603", "終了年": "1868", "元号": [
+                { "元号名": "元和", "開始年": 1615, "終了年": 1624 }, { "元号名": "寛永", "開始年": 1624, "終了年": 1644 },
+                { "元号名": "正保", "開始年": 1644, "終了年": 1648 }, { "元号名": "慶安", "開始年": 1648, "終了年": 1652 },
+                { "元号名": "承応", "開始年": 1652, "終了年": 1655 }, { "元号名": "明暦", "開始年": 1655, "終了年": 1658 },
+                { "元号名": "万治", "開始年": 1658, "終了年": 1661 }, { "元号名": "寛文", "開始年": 1661, "終了年": 1673 },
+                { "元号名": "延宝", "開始年": 1673, "終了年": 1681 }, { "元号名": "天和", "開始年": 1681, "終了年": 1684 },
+                { "元号名": "貞享", "開始年": 1684, "終了年": 1688 }, { "元号名": "元禄", "開始年": 1688, "終了年": 1704 },
+                { "元号名": "宝永", "開始年": 1704, "終了年": 1711 }, { "元号名": "正徳", "開始年": 1711, "終了年": 1716 },
+                { "元号名": "享保", "開始年": 1716, "終了年": 1736 }, { "元号名": "元文", "開始年": 1736, "終了年": 1741 },
+                { "元号名": "寛保", "開始年": 1741, "終了年": 1744 }, { "元号名": "延享", "開始年": 1744, "終了年": 1748 },
+                { "元号名": "寛延", "開始年": 1748, "終了年": 1751 }, { "元号名": "宝暦", "開始年": 1751, "終了年": 1764 },
+                { "元号名": "明和", "開始年": 1764, "終了年": 1772 }, { "元号名": "安永", "開始年": 1772, "終了年": 1781 },
+                { "元号名": "天明", "開始年": 1781, "終了年": 1789 }, { "元号名": "寛政", "開始年": 1789, "終了年": 1801 },
+                { "元号名": "享和", "開始年": 1801, "終了年": 1804 }, { "元号名": "文化", "開始年": 1804, "終了年": 1818 },
+                { "元号名": "文政", "開始年": 1818, "終了年": 1830 }, { "元号名": "天保", "開始年": 1830, "終了年": 1844 },
+                { "元号名": "弘化", "開始年": 1844, "終了年": 1848 }, { "元号名": "嘉永", "開始年": 1848, "終了年": 1854 },
+                { "元号名": "安政", "開始年": 1854, "終了年": 1860 }, { "元号名": "万延", "開始年": 1860, "終了年": 1861 },
+                { "元号名": "文久", "開始年": 1861, "終了年": 1864 }, { "元号名": "元治", "開始年": 1864, "終了年": 1865 },
+                { "元号名": "慶応", "開始年": 1865, "終了年": 1868 }
+            ]},
+            { "時代名": "明治", "開始年": "1868", "終了年": "1912", "元号": [ { "元号名": "明治", "開始年": 1868, "終了年": 1912 } ] },
+            { "時代名": "大正", "開始年": "1912", "終了年": "1926", "元号": [ { "元号名": "大正", "開始年": 1912, "終了年": 1926 } ] },
+            { "時代名": "昭和", "開始年": "1926", "終了年": "1989", "元号": [ { "元号名": "昭和", "開始年": 1926, "終了年": 1989 } ] },
+            { "時代名": "平成", "開始年": "1989", "終了年": "2019", "元号": [ { "元号名": "平成", "開始年": 1989, "終了年": 2019 } ] },
+            { "時代名": "令和", "開始年": "2019", "終了年": "現在", "元号": [ { "元号名": "令和", "開始年": 2019, "終了年": "現在" } ] }
+          ]
+        };
+
+        // 3. Utility Functions
+        const Utils = {
+            parseYear: (yearStr) => {
+                if (typeof yearStr === 'number') return yearStr;
+                if (yearStr === "現在") return new Date().getFullYear();
+                if (yearStr.includes("紀元前")) {
+                    return -parseInt(yearStr.replace("紀元前", "")) || -1000;
+                }
+                return parseInt(yearStr) || 0;
+            },
+            getRandomInt: (min, max) => Math.floor(Math.random() * (max - min + 1)) + min,
+            shuffle: (array) => {
+                const arr = [...array];
+                for (let i = arr.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [arr[i], arr[j]] = [arr[j], arr[i]];
+                }
+                return arr;
+            },
+            getEraByYear: (year) => {
+                return historyData["時代一覧"].find(era => {
+                    const start = Utils.parseYear(era.開始年);
+                    const end = Utils.parseYear(era.終了年);
+                    return year >= start && year < end;
+                }) || historyData["時代一覧"][historyData["時代一覧"].length - 1];
+            },
+            getEventByGengo: (gengoName) => {
+                return eventsData.find(e => e.元号.includes(gengoName));
+            }
+        };
+
+        // 4. Application State & Logic
+        const app = {
+            state: {
+                score: 0,
+                mode: null,
+                currentQuestion: null,
+                questionCount: 0,
+                quizQueue: [],
+                results: []
+            },
+
+            init: () => {
+                app.goHome();
+                document.body.addEventListener('click', AudioSys.init, { once: true });
+            },
+
+            setGuide: (text) => {
+                document.getElementById('guide-message').innerText = text;
+            },
+
+            updateScore: (points) => {
+                app.state.score += points;
+                document.getElementById('current-score').innerText = app.state.score;
+            },
+
+            createParticles: (type) => {
+                if(type === 'correct') {
+                    for(let i=0; i<30; i++){
+                        const el = document.createElement('div');
+                        el.classList.add('sakura');
+                        el.style.left = Math.random() * 100 + 'vw';
+                        el.style.top = -20 + 'px';
+                        el.style.width = (Math.random() * 10 + 5) + 'px';
+                        el.style.height = el.style.width;
+                        el.style.animationDuration = (Math.random() * 2 + 2) + 's';
+                        document.body.appendChild(el);
+                        setTimeout(() => el.remove(), 4000);
+                    }
+                }
+            },
+
+            goHome: () => {
+                app.state.mode = 'home';
+                app.state.score = 0;
+                app.state.questionCount = 0;
+                app.state.quizQueue = [];
+                app.state.results = [];
+                document.getElementById('score-board').classList.add('hidden');
+                document.getElementById('rain-effect').style.display = 'none';
+                app.setGuide("いざ、参る！挑戦する修行（モード）を選んでくだされ。");
+                
+                const html = `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto fade-enter">
+                        <!-- Mode 1 -->
+                        <div onclick="app.startEraMode()" class="card-hover cursor-pointer bg-white rounded-xl border-l-8 border-shu p-6 shadow-sm relative overflow-hidden group">
+                            <div class="absolute right-0 top-0 text-9xl text-gray-100 font-serif font-black -mr-4 -mt-4 transition group-hover:text-red-50">時</div>
+                            <h3 class="text-2xl font-serif font-bold text-sumi mb-2">時代モード</h3>
+                            <p class="text-gray-600 mb-4">「1192年」などの年号から、その時代を当てる10問勝負。</p>
+                            <span class="inline-block bg-shu text-white px-3 py-1 rounded-full text-xs font-bold">初級</span>
+                        </div>
+
+                        <!-- Mode 2 -->
+                        <div onclick="app.startGengoMode()" class="card-hover cursor-pointer bg-white rounded-xl border-l-8 border-ai p-6 shadow-sm relative overflow-hidden group">
+                            <div class="absolute right-0 top-0 text-9xl text-gray-100 font-serif font-black -mr-4 -mt-4 transition group-hover:text-blue-50">元</div>
+                            <h3 class="text-2xl font-serif font-bold text-sumi mb-2">元号モード</h3>
+                            <p class="text-gray-600 mb-4">「大化」や「令和」などの元号から、時代を言い当てる10問勝負。</p>
+                            <span class="inline-block bg-ai text-white px-3 py-1 rounded-full text-xs font-bold">中級</span>
+                        </div>
+
+                        <!-- Mode 3 (Quiz) -->
+                        <div onclick="app.startQuizMode()" class="card-hover cursor-pointer bg-white rounded-xl border-l-8 border-gold p-6 shadow-sm relative overflow-hidden group">
+                            <div class="absolute right-0 top-0 text-9xl text-gray-100 font-serif font-black -mr-4 -mt-4 transition group-hover:text-yellow-50">知</div>
+                            <h3 class="text-2xl font-serif font-bold text-sumi mb-2">出来事クイズ</h3>
+                            <p class="text-gray-600 mb-4">出来事の概略を読み、正しい出来事名を当てる10問勝負。</p>
+                            <span class="inline-block bg-gold text-white px-3 py-1 rounded-full text-xs font-bold">上級</span>
+                        </div>
+
+                        <!-- Mode 4 -->
+                        <div onclick="app.showDatabase()" class="card-hover cursor-pointer bg-white rounded-xl border-l-8 border-matcha p-6 shadow-sm relative overflow-hidden group">
+                            <div class="absolute right-0 top-0 text-9xl text-gray-100 font-serif font-black -mr-4 -mt-4 transition group-hover:text-green-50">巻</div>
+                            <h3 class="text-2xl font-serif font-bold text-sumi mb-2">歴史絵巻</h3>
+                            <p class="text-gray-600 mb-4">全ての時代・元号データを確認できる書物。</p>
+                            <span class="inline-block bg-matcha text-white px-3 py-1 rounded-full text-xs font-bold">資料</span>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('app-container').innerHTML = html;
+            },
+
+            // --- Mode 1: Era Mode ---
+            startEraMode: () => {
+                app.state.mode = 'era';
+                app.state.score = 0;
+                app.state.questionCount = 0;
+                app.state.results = [];
+                
+                // Pre-generate 10 random years
+                app.state.quizQueue = [];
+                for(let i=0; i<10; i++) {
+                    app.state.quizQueue.push(Utils.getRandomInt(600, 2024));
+                }
+
+                document.getElementById('score-board').classList.remove('hidden');
+                app.nextEraQuestion();
+            },
+            nextEraQuestion: () => {
+                if(app.state.quizQueue.length === 0) {
+                    app.showResults();
+                    return;
+                }
+
+                const targetYear = app.state.quizQueue.pop();
+                const correctEra = Utils.getEraByYear(targetYear);
+                
+                app.state.questionCount++;
+                document.getElementById('quiz-progress').innerText = `${app.state.questionCount}/10問目`;
+
+                app.state.currentQuestion = {
+                    type: 'era',
+                    question: `${targetYear}年`,
+                    answer: correctEra.時代名,
+                    rawData: targetYear // for result display
+                };
+                app.setGuide(`この年はどの時代じゃ？`);
+
+                let choices = [correctEra.時代名];
+                while(choices.length < 4) {
+                    const rand = historyData["時代一覧"][Utils.getRandomInt(0, historyData["時代一覧"].length - 1)].時代名;
+                    if(!choices.includes(rand)) choices.push(rand);
+                }
+                choices = Utils.shuffle(choices);
+                app.renderQuestionView("YEAR", `${targetYear}<span class="text-2xl md:text-4xl">年</span>`, choices);
+            },
+
+            // --- Mode 2: Gengo Mode ---
+            startGengoMode: () => {
+                app.state.mode = 'gengo';
+                app.state.score = 0;
+                app.state.questionCount = 0;
+                app.state.results = [];
+
+                // Pre-generate 10 random Gengo objects
+                const validEras = historyData["時代一覧"].filter(e => Array.isArray(e.元号) && e.元号.length > 0 && e.元号 !== "なし");
+                const allGengos = [];
+                validEras.forEach(e => {
+                    e.元号.forEach(g => {
+                        if(g.元号名 !== "なし") allGengos.push({ gengo: g, era: e });
+                    });
+                });
+                const shuffled = Utils.shuffle(allGengos);
+                app.state.quizQueue = shuffled.slice(0, 10);
+
+                document.getElementById('score-board').classList.remove('hidden');
+                app.nextGengoQuestion();
+            },
+            nextGengoQuestion: () => {
+                if(app.state.quizQueue.length === 0) {
+                    app.showResults();
+                    return;
+                }
+
+                const item = app.state.quizQueue.pop();
+                const targetGengoObj = item.gengo;
+                const targetEra = item.era;
+                
+                app.state.questionCount++;
+                document.getElementById('quiz-progress').innerText = `${app.state.questionCount}/10問目`;
+
+                app.state.currentQuestion = {
+                    type: 'gengo',
+                    question: targetGengoObj.元号名,
+                    answer: targetEra.時代名,
+                    detail: `${targetGengoObj.元号名} (${targetGengoObj.開始年}〜${targetGengoObj.終了年})`
+                };
+                app.setGuide(`「${targetGengoObj.元号名}」はどの時代じゃ？`);
+
+                let choices = [targetEra.時代名];
+                while(choices.length < 4) {
+                    const rand = historyData["時代一覧"][Utils.getRandomInt(0, historyData["時代一覧"].length - 1)].時代名;
+                    if(!choices.includes(rand)) choices.push(rand);
+                }
+                choices = Utils.shuffle(choices);
+                app.renderQuestionView("GENGO", targetGengoObj.元号名, choices);
+            },
+
+            // --- Mode 3: Quiz Mode ---
+            startQuizMode: () => {
+                app.state.mode = 'quiz';
+                app.state.score = 0;
+                app.state.questionCount = 0;
+                app.state.results = [];
+                
+                const shuffledEvents = Utils.shuffle([...eventsData]);
+                app.state.quizQueue = shuffledEvents.slice(0, 10);
+                
+                document.getElementById('score-board').classList.remove('hidden');
+                app.nextQuizQuestion();
+            },
+            nextQuizQuestion: () => {
+                if(app.state.quizQueue.length === 0) {
+                    app.showResults();
+                    return;
+                }
+
+                const qData = app.state.quizQueue.pop();
+                app.state.questionCount++;
+                document.getElementById('quiz-progress').innerText = `${app.state.questionCount}/10問目`;
+
+                // Question: Description, Answer: Event Name
+                app.state.currentQuestion = {
+                    type: 'quiz',
+                    question: qData.出来事の概略,
+                    answer: qData.出来事名,
+                    data: qData
+                };
+
+                app.setGuide(`この説明が示す出来事はどれじゃ？`);
+
+                // Create Distractors (Other Event Names)
+                let choices = [qData.出来事名];
+                const allEventNames = eventsData.map(e => e.出来事名);
+                
+                while(choices.length < 4) {
+                    const r = allEventNames[Utils.getRandomInt(0, allEventNames.length - 1)];
+                    if(!choices.includes(r)) choices.push(r);
+                }
+                choices = Utils.shuffle(choices);
+
+                // Custom Render for Quiz Mode (Text Heavy)
+                const html = `
+                    <div class="max-w-2xl mx-auto text-center fade-enter mt-4">
+                        <div class="bg-white p-6 md:p-8 rounded-2xl shadow-lg border-4 border-gold mb-6 relative">
+                            <div class="text-gold text-sm font-bold absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-sumi px-4 py-1 rounded-full">SUMMARY</div>
+                            <h3 class="text-xl md:text-2xl font-serif font-bold text-sumi leading-relaxed mt-4">
+                                ${qData.出来事の概略}
+                            </h3>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            ${choices.map(c => `
+                                <button onclick="app.checkAnswer('${c}')" class="brush-btn bg-washi border-2 border-sumi text-sumi hover:bg-gold hover:text-white hover:border-gold text-lg md:text-xl font-serif py-4 px-2 rounded-lg shadow-md transition transform hover:scale-105">
+                                    ${c}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                document.getElementById('app-container').innerHTML = html;
+            },
+
+            // --- Shared Result Screen ---
+            showResults: () => {
+                app.setGuide("修行終了！結果を確認せよ！");
+                const correctCount = app.state.results.filter(r => r.isCorrect).length;
+                
+                let comment = "";
+                if(correctCount === 10) comment = "免許皆伝！歴史博士じゃ！";
+                else if(correctCount >= 7) comment = "あっぱれ！よく勉強しておる。";
+                else comment = "まだまだ修行が足りぬようじゃな。";
+
+                // Dynamic Header based on Mode
+                let th1 = "問題", th2 = "正解", th3 = "回答";
+                if(app.state.mode === 'era') { th1 = "年号"; th2 = "時代"; }
+                else if(app.state.mode === 'gengo') { th1 = "元号"; th2 = "時代"; }
+                else if(app.state.mode === 'quiz') { th1 = "出来事の概略"; th2 = "出来事名"; }
+
+                const html = `
+                    <div class="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-xl fade-enter border-4 border-sumi">
+                        <div class="text-center mb-8">
+                            <h2 class="text-4xl font-serif font-black text-shu mb-2">結果発表</h2>
+                            <div class="text-6xl font-black text-sumi my-4">${correctCount}<span class="text-2xl">/10問</span></div>
+                            <p class="text-xl font-bold text-gold">${comment}</p>
+                        </div>
+
+                        <div class="overflow-y-auto max-h-96 border-t border-b border-gray-200 py-4 mb-6">
+                            <table class="w-full text-left">
+                                <thead>
+                                    <tr class="text-gray-400 text-xs border-b">
+                                        <th class="pb-2 w-10">判定</th>
+                                        <th class="pb-2">${th1}</th>
+                                        <th class="pb-2">${th2}</th>
+                                        <th class="pb-2">${th3}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${app.state.results.map(r => {
+                                        let qText = r.question;
+                                        // Truncate long summary for quiz mode table
+                                        if(app.state.mode === 'quiz' && qText.length > 20) {
+                                            qText = qText.substring(0, 20) + "...";
+                                        }
+                                        return `
+                                        <tr class="border-b border-gray-100 ${r.isCorrect ? 'bg-red-50' : 'bg-gray-100'}">
+                                            <td class="p-3 text-center text-xl font-bold ${r.isCorrect ? 'text-shu' : 'text-blue-800'}">
+                                                ${r.isCorrect ? '<i class="fa-regular fa-circle"></i>' : '<i class="fa-solid fa-xmark"></i>'}
+                                            </td>
+                                            <td class="p-3 font-bold text-sm text-gray-700">${qText}</td>
+                                            <td class="p-3 font-serif font-bold text-shu">${r.answer}</td>
+                                            <td class="p-3 text-sm ${r.isCorrect ? '' : 'text-blue-800 font-bold'}">${r.userAnswer}</td>
+                                        </tr>
+                                    `}).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <button onclick="app.goHome()" class="w-full bg-sumi text-white text-xl py-4 rounded-lg font-bold hover:bg-gray-700 transition">タイトルへ戻る</button>
+                    </div>
+                `;
+                document.getElementById('app-container').innerHTML = html;
+            },
+
+            // --- Shared Render ---
+            renderQuestionView: (label, mainContent, choices) => {
+                const html = `
+                    <div class="max-w-2xl mx-auto text-center fade-enter mt-10">
+                        <div class="bg-white p-10 rounded-2xl shadow-lg border-4 border-sumi mb-8 relative">
+                            <div class="text-gray-400 text-sm font-bold absolute top-4 left-1/2 transform -translate-x-1/2">${label}</div>
+                            <div class="text-6xl md:text-8xl font-serif font-black text-sumi tracking-tighter mt-2">
+                                ${mainContent}
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            ${choices.map(c => `
+                                <button onclick="app.checkAnswer('${c}')" class="brush-btn bg-washi border-2 border-sumi text-sumi hover:bg-shu hover:text-white hover:border-shu text-xl md:text-2xl font-serif py-6 rounded-lg shadow-md transition transform hover:scale-105">
+                                    ${c}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                document.getElementById('app-container').innerHTML = html;
+            },
+
+            // --- Database View ---
+            showDatabase: () => {
+                app.state.mode = 'list';
+                app.setGuide("元号をタップすると詳細が見れるぞ。");
+                document.getElementById('score-board').classList.add('hidden');
+
+                const html = `
+                    <div class="max-w-5xl mx-auto bg-white p-4 md:p-6 rounded-lg shadow-xl fade-enter border border-gray-300">
+                        <div class="flex justify-between items-center mb-6 border-b pb-4">
+                            <h2 class="text-2xl font-serif font-bold"><i class="fa-solid fa-scroll mr-2"></i>時代・元号一覧</h2>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-sumi text-white">
+                                        <th class="p-3 rounded-tl-lg whitespace-nowrap">時代</th>
+                                        <th class="p-3 w-32 whitespace-nowrap">期間</th>
+                                        <th class="p-3 rounded-tr-lg">元号（タップで詳細）</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${historyData["時代一覧"].map((era, i) => `
+                                        <tr class="border-b border-gray-200 hover:bg-gray-50 transition ${i % 2 === 0 ? 'bg-washi' : 'bg-white'}">
+                                            <td class="p-4 font-bold text-lg font-serif text-shu whitespace-nowrap align-top">${era.時代名}</td>
+                                            <td class="p-4 text-xs text-gray-700 font-sans whitespace-nowrap align-top">
+                                                ${era.開始年}<br>|<br>${era.終了年}
+                                            </td>
+                                            <td class="p-4 text-sm">
+                                                ${Array.isArray(era.元号) 
+                                                    ? `<div class="flex flex-wrap gap-2">
+                                                        ${era.元号.map(g => {
+                                                            const hasEvent = Utils.getEventByGengo(g.元号名);
+                                                            const badgeClass = hasEvent ? "border-l-4 border-shu" : "";
+                                                            return `<button onclick='app.openModal(${JSON.stringify(g)}, "${era.時代名}")' class="bg-white border border-gray-300 px-3 py-2 rounded shadow-sm hover:shadow-md hover:bg-red-50 hover:text-shu transition text-base font-serif font-bold ${badgeClass}">${g.元号名}</button>`;
+                                                        }).join('')}
+                                                       </div>` 
+                                                    : '<span class="text-gray-400">（元号なし）</span>'}
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('app-container').innerHTML = html;
+            },
+            
+            openModal: (gengoObj, eraName) => {
+                const modal = document.getElementById('detail-modal');
+                const title = document.getElementById('modal-title');
+                const period = document.getElementById('modal-period');
+                const evtName = document.getElementById('modal-event');
+                const evtDesc = document.getElementById('modal-desc');
+
+                title.innerText = gengoObj.元号名;
+                period.innerText = `${eraName}時代 | ${gengoObj.開始年}年 〜 ${gengoObj.終了年}年`;
+
+                const evt = Utils.getEventByGengo(gengoObj.元号名);
+                if(evt) {
+                    evtName.innerHTML = `<span class="text-shu">★ ${evt.出来事名}</span> <span class="text-xs text-gray-500">(${evt.年号})</span>`;
+                    evtDesc.innerText = evt.出来事の概略;
+                } else {
+                    evtName.innerHTML = "<span class='text-gray-400'>特筆すべき記録なし</span>";
+                    evtDesc.innerText = "";
+                }
+
+                modal.classList.remove('hidden');
+            },
+            closeModal: () => {
+                document.getElementById('detail-modal').classList.add('hidden');
+            },
+
+            // --- Check Answer & Feedback ---
+            checkAnswer: (userAnswer) => {
+                let isCorrect = false;
+                let title = "";
+                let msg = "";
+                let correctAns = app.state.currentQuestion.answer;
+
+                isCorrect = (userAnswer === correctAns);
+                
+                app.state.results.push({
+                    question: app.state.currentQuestion.question,
+                    answer: correctAns,
+                    userAnswer: userAnswer,
+                    isCorrect: isCorrect
+                });
+                
+                if (isCorrect) {
+                    title = "あっぱれ！";
+                    msg = `正解じゃ！答えは「${correctAns}」で間違いない！`;
+                } else {
+                    title = "無念...";
+                    msg = `残念...正解は「${correctAns}」じゃ。`;
+                }
+
+                app.showFeedback(isCorrect, title, msg);
+            },
+
+            showFeedback: (isCorrect, title, message) => {
+                const overlay = document.getElementById('feedback-overlay');
+                const fbTitle = document.getElementById('feedback-title');
+                const fbText = document.getElementById('feedback-text');
+                const icon = document.getElementById('feedback-icon');
+                const rain = document.getElementById('rain-effect');
+                const content = document.getElementById('feedback-content');
+
+                fbTitle.innerText = title;
+                fbText.innerText = message;
+                overlay.classList.remove('hidden');
+
+                if (isCorrect) {
+                    AudioSys.playCorrect();
+                    app.updateScore(10);
+                    app.createParticles('correct');
+                    
+                    fbTitle.className = "text-6xl md:text-7xl font-serif font-black mb-4 stamp-anim text-shu transform rotate-[-5deg]";
+                    fbTitle.style.textShadow = "4px 4px 0 #fff";
+                    icon.innerHTML = '<i class="fa-regular fa-circle text-shu animate-pulse"></i>';
+                    content.className = "text-center p-8 md:p-12 bg-washi rounded-xl border-8 border-gold shadow-2xl transform scale-100 transition duration-300";
+                    rain.style.display = 'none';
+                } else {
+                    AudioSys.playIncorrect();
+                    
+                    fbTitle.className = "text-6xl md:text-7xl font-serif font-black mb-4 text-ai animate-shake";
+                    icon.innerHTML = '<i class="fa-solid fa-xmark text-ai"></i>';
+                    content.className = "text-center p-8 md:p-12 bg-gray-300 rounded-xl border-8 border-gray-600 shadow-2xl relative overflow-hidden";
+                    rain.style.display = 'block';
+                }
+            },
+
+            closeFeedback: () => {
+                document.getElementById('feedback-overlay').classList.add('hidden');
+                document.getElementById('rain-effect').style.display = 'none';
+                
+                if (app.state.mode === 'era') {
+                    app.nextEraQuestion();
+                } else if (app.state.mode === 'gengo') {
+                    app.nextGengoQuestion();
+                } else if (app.state.mode === 'quiz') {
+                    app.nextQuizQuestion();
+                }
+            }
+        };
+
+        window.onload = app.init;
+    </script>
+</body>
+</html>
