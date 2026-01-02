@@ -1,0 +1,1588 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>憲法マスター！法廷の覇者 Ver.2.0</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kosugi+Maru&family=Noto+Serif+JP:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #8e44ad;
+            --accent: #f1c40f;
+            --wood: #5d4037;
+            --paper: #fdfbf7;
+            --text: #2d3436;
+            --ok: #27ae60;
+            --ng: #c0392b;
+        }
+
+        * { box-sizing: border-box; user-select: none; touch-action: manipulation; }
+
+        body {
+            font-family: 'Kosugi Maru', sans-serif;
+            background-color: #2c3e50;
+            background-image: repeating-linear-gradient(45deg, #34495e 0, #34495e 20px, #2c3e50 20px, #2c3e50 40px);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #app {
+            width: 100%;
+            max-width: 900px;
+            height: 95vh;
+            background: var(--paper);
+            border-radius: 15px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            position: relative;
+            overflow: hidden;
+            border: 12px solid var(--wood);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 共通UIパーツ */
+        .home-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 50px;
+            height: 50px;
+            background: var(--wood);
+            color: var(--accent);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #3e2723;
+            z-index: 100;
+            border: 2px solid var(--accent);
+            transition: transform 0.1s;
+        }
+        .home-btn:active { transform: translateY(4px); box-shadow: none; }
+        .home-btn:hover { filter: brightness(1.2); }
+
+        .screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            padding: 20px;
+            width: 100%;
+            height: 100%;
+            animation: fadeIn 0.4s ease;
+        }
+        .screen.active { display: flex; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        h1, h2 { font-family: 'Noto Serif JP', serif; color: var(--wood); text-align: center; }
+
+        .btn {
+            background: var(--wood);
+            color: #fff;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px;
+            box-shadow: 0 6px 0 #3e2723;
+            transition: all 0.1s;
+            font-family: 'Noto Serif JP', serif;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn:active { transform: translateY(6px); box-shadow: none; }
+        .btn::after {
+            content: ''; position: absolute; top:0; left:-100%; width:100%; height:100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: 0.5s;
+        }
+        .btn:hover::after { left: 100%; }
+
+        /* タイトル画面 */
+        .rank-badge {
+            background: linear-gradient(135deg, var(--accent), #f39c12);
+            padding: 10px 30px;
+            border-radius: 30px;
+            font-weight: bold;
+            color: var(--wood);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+            border: 2px solid #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .rank-title { font-size: 1.5rem; font-family: 'Noto Serif JP'; }
+        .xp-bar-container { width: 200px; height: 10px; background: rgba(0,0,0,0.2); border-radius: 5px; margin-top: 5px; overflow: hidden; }
+        .xp-bar { height: 100%; background: #fff; width: 0%; transition: width 0.5s; }
+
+        /* リスト画面 */
+        .article-list {
+            width: 90%;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            padding: 10px;
+        }
+        .article-btn {
+            background: #fff;
+            border: 2px solid var(--wood);
+            color: var(--wood);
+            padding: 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            text-align: left;
+            transition: 0.2s;
+            position: relative;
+        }
+        .article-btn:hover { background: var(--wood); color: #fff; transform: translateY(-3px); }
+        .article-btn .cleared-mark {
+            position: absolute; right: 10px; top: 10px; color: var(--accent); font-size: 1.5rem; display: none;
+        }
+        .article-btn.cleared .cleared-mark { display: block; }
+
+        /* タイピング画面 */
+        .typing-container {
+            width: 100%;
+            max-width: 800px;
+            text-align: left; /* 左揃えに変更 */
+            position: relative;
+            margin: 20px auto; /* 上下20px、左右は自動で中央寄せ */
+            padding: 0 40px;   /* 左右に40pxの余白を入れて見やすくする */
+        }
+        .typing-kanji {
+            font-family: 'Noto Serif JP';
+            font-size: 1.3rem;
+            margin: 20px 0;
+            line-height: 1.6;
+            color: #bdc3c7;
+        }
+        .typing-kana {
+            font-size: 1.0rem;
+            color: #bdc3c7;
+            margin-bottom: 10px;
+            min-height: 2em;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-start; /* 左端から並べる */
+            gap: 2px; /* 文字同士がくっつきすぎないように少し隙間を開ける */
+        }
+        /* トークンごとのスタイル */
+        .token {
+            display: inline-block;
+            margin: 0 1px;
+            transition: transform 0.1s;
+        }
+        .token.target {
+            color: var(--secondary);
+            font-weight: bold;
+            transform: scale(1.3);
+            border-bottom: 2px solid var(--accent);
+        }
+        .token.done { color: var(--ok); }
+        .token.error { color: var(--ng); animation: shake 0.3s; }
+        .token.combo-heat { color: #e74c3c; text-shadow: 0 0 5px orange; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .timer-display { font-size: 2rem; font-family: 'Noto Serif JP'; color: var(--wood); margin-bottom: 5px; }
+        
+        /* コンボ表示 */
+        #combo-display {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--accent);
+            text-shadow: 2px 2px var(--wood);
+            height: 40px;
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        #combo-display.active { opacity: 1; transform: scale(1.2); }
+
+        /* フラッシュカード */
+        .flash-card {
+            background: #fff;
+            border: 4px double var(--wood);
+            width: 80%;
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            padding: 20px;
+            box-shadow: 10px 10px 0 rgba(0,0,0,0.1);
+            cursor: pointer;
+            margin-bottom: 30px;
+            position: relative;
+        }
+        .flash-card:active { transform: scale(0.98); }
+        
+        /* クイズ（中央寄せ修正） */
+        #quiz-area {
+            display: none;
+            width: 100%;
+            max-width: 700px; /* 横幅制限 */
+            flex-direction: column; /* 縦並び */
+            align-items: center;    /* 中央揃え */
+            justify-content: center;
+        }
+        .quiz-choice {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .choice-item {
+            background: #fff;
+            border: 2px solid var(--wood);
+            padding: 20px;
+            text-align: center;
+            font-size: 1.2rem;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: 0.2s;
+            display: flex; /* 上下中央用 */
+            align-items: center;
+            justify-content: center;
+        }
+        .choice-item:hover { background: var(--accent); color: var(--wood); border-color: var(--wood); }
+
+        /* パーティクル */
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: pop 0.6s ease-out forwards;
+        }
+        @keyframes pop {
+            0% { transform: translate(0,0) scale(1) rotate(0deg); opacity: 1; }
+            100% { transform: translate(var(--dx), var(--dy)) scale(0) rotate(180deg); opacity: 0; }
+        }
+        /* 紙吹雪（正解時） */
+        .confetti {
+            position: absolute;
+            width: 10px; height: 10px;
+            animation: fall linear forwards;
+            pointer-events: none;
+        }
+        @keyframes fall {
+            to { transform: translateY(100vh) rotate(720deg); }
+        }
+        
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div class="home-btn" onclick="sound.play('click'); goHome()">🏠</div>
+
+    <!-- 1. タイトル画面 -->
+    <div id="title-screen" class="screen active">
+        <h1>憲法マスター<br><span style="font-size:1.2rem; color:#555">法廷の覇者</span></h1>
+        
+        <div class="rank-badge">
+            <div class="rank-title" id="rank-display">見習い</div>
+            <div style="font-size:0.8rem">次のランクまであと <span id="xp-needed">100</span> XP</div>
+            <div class="xp-bar-container"><div class="xp-bar" id="xp-bar"></div></div>
+        </div>
+
+        <button class="btn" style="width:250px" onclick="startGame('typing')">⌨️ タイピング試練</button>
+        <button class="btn" style="width:250px" onclick="startGame('flashcard')">🃏 暗記カード特訓</button>
+        <button class="btn" style="width:250px; background:#95a5a6; margin-top:20px; font-size:1rem;" onclick="resetData()">🗑️ データ初期化</button>
+    </div>
+
+    <!-- 2. 条文選択 -->
+    <div id="select-screen" class="screen">
+        <h2>挑戦する条文を選べ</h2>
+        <div class="article-list" id="article-list"></div>
+    </div>
+
+    <!-- 3. タイピング画面 -->
+    <div id="typing-screen" class="screen">
+        <div class="timer-display" id="typing-timer">00:00</div>
+        <div id="combo-display">COMBO 0</div>
+        <div style="color:#7f8c8d; font-size:0.9rem;">※「しゃ」は sha / sya 両対応</div>
+        
+        <div class="typing-container">
+            <div class="typing-kanji" id="typing-kanji-display"></div>
+            <div class="typing-kana" id="typing-kana-display"></div>
+        </div>
+    </div>
+
+    <!-- 4. フラッシュカード画面 -->
+    <div id="flashcard-screen" class="screen">
+        <h2 id="flash-title"></h2>
+        <div class="flash-card" id="flash-card" onclick="nextCard()">
+            <span id="flash-text">タップして開始</span>
+            <span style="position:absolute; bottom:10px; font-size:0.8rem; color:#999;">タップで次へ</span>
+        </div>
+        
+        <!-- クイズ -->
+        <div id="quiz-area">
+            <h3>空欄に入る言葉は？</h3>
+            <div id="quiz-question" style="font-size:1.5rem; margin-bottom:20px; text-align:center;"></div>
+            <div class="quiz-choice" id="quiz-choices"></div>
+        </div>
+    </div>
+
+    <!-- 5. 結果画面 -->
+    <div id="result-screen" class="screen">
+        <h2>判決</h2>
+        <div style="font-size:4rem; margin:10px;" id="result-icon">⚖️</div>
+        <h3 id="result-msg" style="color:var(--wood)"></h3>
+        <div style="font-size:1.5rem; color:var(--accent); text-shadow:1px 1px 0 #000; margin:10px;">
+            獲得経験値: <span id="result-xp">0</span> XP
+        </div>
+        <button class="btn" onclick="goHome()">トップへ戻る</button>
+    </div>
+</div>
+
+<script>
+/**
+ * データ・定数定義
+ */
+// 問題プールを各条文に5問程度設定
+const CONSTITUTION_DATA = [
+    {
+  "id": "preface",
+  "title": "前文①",
+  "theme": "憲法の基本原理",
+  "text": "日本国民は、正当に選挙された国会における代表者を通じて行動し、われらとわれらの子孫のために、諸国民との協和による成果と、わが国全土にわたって自由のもたらす恵沢を確保し、政府の行為によって再び戦争の惨禍が起こることのないやうにすることを決意し、ここに主権が国民に存することを宣言し、この憲法を確定する。",
+  "kana": "にほんこくみんは、せいとうにせんきょされたこっかいにおけるだいひょうしゃをつうじてこうどうし、われらとわれらのしそんのために、しょこくみんとのきょうわによるせいかと、わがくにぜんどにわたってじゆうのもたらすけいたくをかくほし、せいふのこういによってふたたびせんそうのさんかがおこることのないようにすることをけついし、ここにしゅけんがこくみんにそんすることをせんげんし、このけんぽうをかくていする。",
+  "quizzes": [
+    {
+      "q": "主権が存すると宣言されているのは[ ? ]である",
+      "a": "国民",
+      "c": ["天皇", "内閣", "国会", "国民"]
+    },
+    {
+      "q": "国政は国民の何によるものか",
+      "a": "信託",
+      "c": ["命令", "義務", "信託", "服従"]
+    },
+    {
+      "q": "日本国民が念願しているものは恒久の[ ? ]である",
+      "a": "平和",
+      "c": ["安全", "繁栄", "平和", "統一"]
+    },
+    {
+      "q": "全世界の国民が免かれるべきものは恐怖と[ ? ]である",
+      "a": "欠乏",
+      "c": ["貧困", "戦争", "欠乏", "不安"]
+    }
+  ]
+},
+{
+  "id": "preface",
+  "title": "前文②",
+  "theme": "憲法の基本原理",
+  "text": "そもそも国政は、国民の厳粛な信託によるものであって、その権威は国民に由来し、その権力は国民の代表者がこれを行使し、その福利は国民がこれを享受する。これは人類普遍の原理であり、この憲法は、かかる原理に基づくものである。われらは、これに反する一切の憲法、法令及び詔勅を排除する。",
+  "kana": "そもそもこくせいは、こくみんのげんしゅくなしんたくによるものであって、そのけんいはこくみんにゆらいし、そのけんりょくはこくみんのだいひょうしゃがこれをこうしし、そのふくりはこくみんがこれをきょうじゅする。これはじんるいふへんのげんりであり、このけんぽうは、かかるげんりにもとづくものである。われらは、これにはんするいっさいのけんぽう、ほうれいおよびしょうちょくをはいじょする。",
+  "quizzes": [
+    {
+      "q": "主権が存すると宣言されているのは[ ? ]である",
+      "a": "国民",
+      "c": ["天皇", "内閣", "国会", "国民"]
+    },
+    {
+      "q": "国政は国民の何によるものか",
+      "a": "信託",
+      "c": ["命令", "義務", "信託", "服従"]
+    },
+    {
+      "q": "日本国民が念願しているものは恒久の[ ? ]である",
+      "a": "平和",
+      "c": ["安全", "繁栄", "平和", "統一"]
+    },
+    {
+      "q": "全世界の国民が免かれるべきものは恐怖と[ ? ]である",
+      "a": "欠乏",
+      "c": ["貧困", "戦争", "欠乏", "不安"]
+    }
+  ]
+},
+{
+  "id": "preface",
+  "title": "前文③",
+  "theme": "憲法の基本原理",
+  "text": "日本国民は、恒久の平和を念願し、人間相互の関係を支配する崇高な理想を深く自覚するのであって、平和を愛する諸国民の公正と信義に信頼して、われらの安全と生存を保持しやうと決意した。\n\nわれらは、平和を維持し、専制と隷従、圧迫と偏狭を地上から永遠に除去しやうと努めてゐる国際社会において、名誉ある地位を占めたいと思ふ。\n\nわれらは、全世界の国民が、ひとしく恐怖と欠乏から免かれ、平和のうちに生存する権利を有することを確認する。",
+  "kana": "にほんこくみんは、こうきゅうのへいわをねんがんし、にんげんそうごのかんけいをしはいするすうこうなりそうをふかくじかくするのであって、へいわをあいするしょこくみんのこうせいとしんぎにしんらいして、われらのあんぜんとせいぞんをほじしようとけついした。われらは、へいわをいじし、せんせいとれいじゅう、あっぱくとへんきょうをちじょうからえいえんにじょきょしようとつとめているこくさいしゃかいにおいて、めいよあるちいをしめたいとおもう。われらは、ぜんせかいのこくみんが、ひとしくきょうふとけつぼうからまぬかれ、へいわのうちにせいぞんするけんりをゆうすることをかくにんする。",
+  "quizzes": [
+    {
+      "q": "主権が存すると宣言されているのは[ ? ]である",
+      "a": "国民",
+      "c": ["天皇", "内閣", "国会", "国民"]
+    },
+    {
+      "q": "国政は国民の何によるものか",
+      "a": "信託",
+      "c": ["命令", "義務", "信託", "服従"]
+    },
+    {
+      "q": "日本国民が念願しているものは恒久の[ ? ]である",
+      "a": "平和",
+      "c": ["安全", "繁栄", "平和", "統一"]
+    },
+    {
+      "q": "全世界の国民が免かれるべきものは恐怖と[ ? ]である",
+      "a": "欠乏",
+      "c": ["貧困", "戦争", "欠乏", "不安"]
+    }
+  ]
+},
+{
+  "id": "preface",
+  "title": "前文④",
+  "theme": "憲法の基本原理",
+  "text": "われらは、いづれの国家も、自国のことのみに専念して他国を無視してはならないのであって、政治道徳の法則は、普遍的なものであり、この法則に従ふことは、自国の主権を維持し、他国との対等関係に立たうとする各国の責務であると信ずる。\n\n日本国民は、国家の名誉にかけ、全力をあげてこの崇高な理想と目的を達成することを誓ふ。",
+  "kana": "われらは、いずれのこっかも、じこくのことのみにせんねんしてたこくをむししてはならないのであって、せいじどうとくのほうそくは、ふへんてきなものであり、このほうそくにしたがうことは、じこくのしゅけんをいじし、たこくとのたいとうかんけいにたとうとするかっこくのせきむであるとしんずる。にほんこくみんは、こっかのめいよにかけ、ぜんりょくをあげてこのすうこうなりそうともくてきをたっせいすることをちかう。",
+  "quizzes": [
+    {
+      "q": "主権が存すると宣言されているのは[ ? ]である",
+      "a": "国民",
+      "c": ["天皇", "内閣", "国会", "国民"]
+    },
+    {
+      "q": "国政は国民の何によるものか",
+      "a": "信託",
+      "c": ["命令", "義務", "信託", "服従"]
+    },
+    {
+      "q": "日本国民が念願しているものは恒久の[ ? ]である",
+      "a": "平和",
+      "c": ["安全", "繁栄", "平和", "統一"]
+    },
+    {
+      "q": "全世界の国民が免かれるべきものは恐怖と[ ? ]である",
+      "a": "欠乏",
+      "c": ["貧困", "戦争", "欠乏", "不安"]
+    }
+  ]
+},
+   {
+  "id": "article1",
+  "title": "第1条",
+  "theme": "天皇の地位",
+  "text": "天皇は、日本国の象徴であり日本国民統合の象徴であって、この地位は、主権の存する日本国民の総意に基づく。",
+  "kana": "てんのうは、にほんこくのしょうちょうでありにほんこくみんとうごうのしょうちょうであって、このちいは、しゅけんのそんするにほんこくみんのそういにもとづく。",
+  "quizzes": [
+    {
+      "q": "天皇は日本国の何であるか",
+      "a": "象徴",
+      "c": ["元首", "統治者", "象徴", "代表者"]
+    },
+    {
+      "q": "天皇は何の象徴とされているか",
+      "a": "日本国民統合",
+      "c": ["国家権力", "政治権威", "日本国民統合", "行政機関"]
+    },
+    {
+      "q": "天皇の地位は誰の総意に基づくか",
+      "a": "日本国民",
+      "c": ["内閣", "国会", "日本国民", "裁判所"]
+    },
+    {
+      "q": "主権が存するとされているのはどこか",
+      "a": "国民",
+      "c": ["天皇", "国家", "政府", "国民"]
+    }
+  ]
+},
+{
+  "id": "article4",
+  "title": "第4条",
+  "theme": "天皇の権限",
+  "text": "天皇は、この憲法の定める国事に関する行為のみを行ひ、国政に関する権能を有しない。天皇は、法律の定めるところにより、その国事に関する行為を委任することができる。",
+  "kana": "てんのうは、このけんぽうのさだめるこくじにかんするこういのみをおこない、こくせいにかんするけんのうをゆうしない。てんのうは、ほうりつのさだめるところにより、そのこくじにかんするこういをいにんすることができる。",
+  "quizzes": [
+    {
+      "q": "天皇が行うことができるのは[ ? ]に関する行為のみである",
+      "a": "国事",
+      "c": ["国政", "行政", "国事", "立法"]
+    },
+    {
+      "q": "天皇は国政に関する何を有しないか",
+      "a": "権能",
+      "c": ["責任", "地位", "権能", "義務"]
+    },
+    {
+      "q": "天皇の国事行為は何に基づいて行われるか",
+      "a": "憲法",
+      "c": ["慣習", "詔勅", "憲法", "内閣の判断"]
+    },
+    {
+      "q": "国事に関する行為を委任できる根拠は何か",
+      "a": "法律",
+      "c": ["憲法", "命令", "法律", "国会決議"]
+    }
+  ]
+},
+{
+  "id": "article9",
+  "title": "第9条",
+  "theme": "平和主義",
+  "text": "日本国民は、正義と秩序を基調とする国際平和を誠実に希求し、国権の発動たる戦争と、武力による威嚇又は武力の行使は、国際紛争を解決する手段としては、永久にこれを放棄する。\n\n前項の目的を達するため、陸海空軍その他の戦力は、これを保持しない。国の交戦権は、これを認めない。",
+  "kana": "にほんこくみんは、せいぎとちつじょをきちょうとするこくさいへいわをせいじつにききゅうし、こっけんのはつどうたるせんそうと、ぶりょくによるいかくまたはぶりょくのこうしは、こくさいふんそうをかいけつするしゅだんとしては、えいきゅうにこれをほうきする。\n\nぜんこうのもくてきをたっするため、りくかいくうぐんそのたのせんりょくは、これをほじしない。くにのこうせんけんは、これをみとめない。",
+  "quizzes": [
+    {
+      "q": "戦争を放棄する主体として明記されているのは誰か",
+      "a": "日本国民",
+      "c": ["内閣", "国会", "日本国民", "天皇"]
+    },
+    {
+      "q": "放棄されるものとして挙げられているのは戦争と何か",
+      "a": "武力の行使",
+      "c": ["外交交渉", "軍事同盟", "武力の行使", "防衛政策"]
+    },
+    {
+      "q": "保持しないとされているものは何か",
+      "a": "戦力",
+      "c": ["防衛力", "警察力", "戦力", "自衛措置"]
+    },
+    {
+      "q": "国が認めないとされている権利は何か",
+      "a": "交戦権",
+      "c": ["自衛権", "参政権", "交戦権", "統治権"]
+    }
+  ]
+},
+{
+  "id": "article11",
+  "title": "第11条",
+  "theme": "基本的人権の永久性",
+  "text": "国民は、すべての基本的人権の享有を妨げられない。この憲法が国民に保障する基本的人権は、侵すことのできない永久の権利として、現在及び将来の国民に与へられる。",
+  "kana": "こくみんは、すべてのきほんてきじんけんのきょうゆうをさまたげられない。このけんぽうがこくみんにほしょうするきほんてきじんけんは、おかすことのできないえいきゅうのけんりとして、げんざいおよびしょうらいのこくみんにあたえられる。",
+  "quizzes": [
+    {
+      "q": "基本的人権の享有を妨げられないのは誰か",
+      "a": "国民",
+      "c": ["政府", "裁判所", "国民", "国会"]
+    },
+    {
+      "q": "基本的人権は侵すことのできない何とされているか",
+      "a": "永久の権利",
+      "c": ["一時の権利", "制限された権利", "永久の権利", "条件付きの権利"]
+    },
+    {
+      "q": "基本的人権が与えられるのは現在の国民と誰か",
+      "a": "将来の国民",
+      "c": ["過去の国民", "外国人", "将来の国民", "未成年者"]
+    },
+    {
+      "q": "基本的人権を保障しているのは何か",
+      "a": "憲法",
+      "c": ["法律", "命令", "憲法", "条約"]
+    }
+  ]
+},
+{
+  "id": "article12",
+  "title": "第12条",
+  "theme": "公共の福祉",
+  "text": "この憲法が国民に保障する自由及び権利は、国民の不断の努力によって、これを保持しなければならない。又、国民は、これを濫用してはならないのであって、常に公共の福祉のためにこれを利用する責任を負ふ。",
+  "kana": "このけんぽうがこくみんにほしょうするじゆうおよびけんりは、こくみんのふだんのどりょくによって、これをほじしなければならない。また、こくみんは、これをらんようしてはならないのであって、つねにこうきょうのふくしのためにこれをりようするせきにんをおう。",
+  "quizzes": [
+    {
+      "q": "自由や権利は国民の何によって保持されるか",
+      "a": "不断の努力",
+      "c": ["政府の保障", "法律の制定", "不断の努力", "裁判所の判断"]
+    },
+    {
+      "q": "国民は自由や権利を何してはならないか",
+      "a": "濫用",
+      "c": ["制限", "放棄", "濫用", "主張"]
+    },
+    {
+      "q": "自由や権利は何のために利用すべきとされているか",
+      "a": "公共の福祉",
+      "c": ["個人の利益", "国家の都合", "公共の福祉", "多数決"]
+    },
+    {
+      "q": "自由や権利を利用する際に国民が負うものは何か",
+      "a": "責任",
+      "c": ["権限", "自由", "責任", "特権"]
+    }
+  ]
+},
+{
+  "id": "article13",
+  "title": "第13条",
+  "theme": "個人の尊重・幸福追求権",
+  "text": "すべて国民は、個人として尊重される。生命、自由及び幸福追求に対する国民の権利については、公共の福祉に反しない限り、立法その他の国政の上で、最大の尊重を必要とする。",
+  "kana": "すべてこくみんは、こじんとしてそんちょうされる。せいめい、じゆうおよびこうふくついきゅうにたいするこくみんのけんりについては、こうきょうのふくしにはんしないかぎり、りっぽうそのたのこくせいのうえで、さいだいのそんちょうをひつようとする。",
+  "quizzes": [
+    {
+      "q": "すべて国民は何として尊重されるか",
+      "a": "個人",
+      "c": ["集団", "国家", "個人", "国民全体"]
+    },
+    {
+      "q": "第13条で尊重される権利として挙げられていないものはどれか",
+      "a": "財産",
+      "c": ["生命", "自由", "幸福追求", "財産"]
+    },
+    {
+      "q": "幸福追求権が尊重される条件は何か",
+      "a": "公共の福祉に反しない限り",
+      "c": ["常に無制限に", "法律の定める範囲で", "公共の福祉に反しない限り", "国の判断により"]
+    },
+    {
+      "q": "幸福追求に対する権利は国政の上でどのように扱われるか",
+      "a": "最大の尊重",
+      "c": ["一定の制限", "原則禁止", "最大の尊重", "条件付き承認"]
+    }
+  ]
+},
+{
+  "id": "article14",
+  "title": "第14条",
+  "theme": "法の下の平等",
+  "text": "すべて国民は、法の下に平等であって、人種、信条、性別、社会的身分又は門地により、政治的、経済的又は社会的関係において、差別されない。華族その他の貴族の制度は、これを認めない。栄誉、勲章その他の栄典の授与は、いかなる特権も伴はない。",
+  "kana": "すべてこくみんは、ほうのもとにびょうどうであって、じんしゅ、しんじょう、せいべつ、しゃかいてきみぶんまたはもんちにより、せいじてき、けいざいてきまたはしゃかいてきかんけいにおいて、さべつされない。かぞくそのたのきぞくのせいどは、これをみとめない。えいよ、くんしょうそのたのえいてんのじゅよは、いかなるとっけんもともなわない。",
+  "quizzes": [
+    {
+      "q": "すべて国民は何の下に平等であるとされているか",
+      "a": "法",
+      "c": ["憲法", "国民", "法", "政府"]
+    },
+    {
+      "q": "差別の理由として挙げられていないものはどれか",
+      "a": "年齢",
+      "c": ["人種", "信条", "年齢", "性別"]
+    },
+    {
+      "q": "認められていない制度は何か",
+      "a": "貴族の制度",
+      "c": ["議会制度", "選挙制度", "貴族の制度", "内閣制度"]
+    },
+    {
+      "q": "栄典の授与に伴わないものは何か",
+      "a": "特権",
+      "c": ["名誉", "称号", "特権", "評価"]
+    }
+  ]
+},
+{
+  "id": "article19",
+  "title": "第19条",
+  "theme": "思想・良心の自由",
+  "text": "思想及び良心の自由は、これを侵してはならない。",
+  "kana": "しそうおよびりょうしんのじゆうは、これをおかしてはならない。",
+  "quizzes": [
+    {
+      "q": "保障されている自由は思想と何か",
+      "a": "良心",
+      "c": ["信仰", "言論", "良心", "表現"]
+    },
+    {
+      "q": "思想及び良心の自由はどうしてはならないか",
+      "a": "侵してはならない",
+      "c": ["制限してよい", "法律で決める", "侵してはならない", "管理される"]
+    },
+    {
+      "q": "第19条が保障する自由の性質として最も近いものはどれか",
+      "a": "内心の自由",
+      "c": ["身体の自由", "経済の自由", "内心の自由", "社会権"]
+    },
+    {
+      "q": "思想・良心の自由が直接関係するものはどれか",
+      "a": "心の中の考え",
+      "c": ["行動の結果", "心の中の考え", "公共施設", "選挙制度"]
+    }
+  ]
+},
+{
+  "id": "article20",
+  "title": "第20条",
+  "theme": "信教の自由・政教分離",
+  "text": "信教の自由は、何人に対してもこれを保障する。いかなる宗教団体も、国から特権を受け、又は政治上の権力を行使してはならない。何人も、宗教上の行為、祝典、儀式又は行事に参加することを強制されない。国及びその機関は、宗教教育その他いかなる宗教的活動もしてはならない。",
+  "kana": "しんきょうのじゆうは、なんびとにたいしてもこれをほしょうする。いかなるしゅうきょうだんたいも、くにからとっけんをうけ、またはせいじじょうのけんりょくをこうししてはならない。なんびとも、しゅうきょうじょうのこうい、しゅくてん、ぎしきまたはぎょうじにさんかすることをきょうせいされない。くにおよびそのきかんは、しゅうきょうきょういくそのたいかなるしゅうきょうてきかつどうもしてはならない。",
+  "quizzes": [
+    {
+      "q": "信教の自由は誰に保障されているか",
+      "a": "何人",
+      "c": ["国民のみ", "宗教者", "何人", "成人"]
+    },
+    {
+      "q": "国から特権を受けてはならないのは何か",
+      "a": "宗教団体",
+      "c": ["政党", "企業", "宗教団体", "自治体"]
+    },
+    {
+      "q": "強制されないとされているものは何か",
+      "a": "宗教行事への参加",
+      "c": ["投票", "納税", "宗教行事への参加", "教育"]
+    },
+    {
+      "q": "国やその機関がしてはならない活動は何か",
+      "a": "宗教的活動",
+      "c": ["文化活動", "福祉活動", "宗教的活動", "国際交流"]
+    }
+  ]
+},
+{
+  "id": "article21",
+  "title": "第21条",
+  "theme": "表現の自由",
+  "text": "集会、結社及び言論、出版その他一切の表現の自由は、これを保障する。検閲は、これをしてはならない。通信の秘密は、これを侵してはならない。",
+  "kana": "しゅうかい、けっしゃおよびげんろん、しゅっぱんそのたいっさいのひょうげんのじゆうは、これをほしょうする。けんえつは、これをしてはならない。つうしんのひみつは、これをおかしてはならない。",
+  "quizzes": [
+    {
+      "q": "保障されている自由として正しいものはどれか",
+      "a": "表現の自由",
+      "c": ["思想の統制", "表現の自由", "宗教の統一", "報道の制限"]
+    },
+    {
+      "q": "憲法で明確に禁止されている行為は何か",
+      "a": "検閲",
+      "c": ["監督", "検閲", "指導", "規制"]
+    },
+    {
+      "q": "侵してはならないとされているものは何か",
+      "a": "通信の秘密",
+      "c": ["郵便制度", "通信の秘密", "放送内容", "情報公開"]
+    },
+    {
+      "q": "第21条に含まれない自由はどれか",
+      "a": "信教の自由",
+      "c": ["集会の自由", "結社の自由", "信教の自由", "言論の自由"]
+    }
+  ]
+},
+{
+  "id": "article25",
+  "title": "第25条",
+  "theme": "生存権",
+  "text": "すべて国民は、健康で文化的な最低限度の生活を営む権利を有する。国は、すべての生活部面について、社会福祉、社会保障及び公衆衛生の向上及び増進に努めなければならない。",
+  "kana": "すべてこくみんは、けんこうでぶんかてきなさいていげんどのせいかつをいとなむけんりをゆうする。くには、すべてのせいかつぶめんについて、しゃかいふくし、しゃかいほしょうおよびこうしゅうえいせいのこうじょうおよびぞうしんにつとめなければならない。",
+  "quizzes": [
+    {
+      "q": "第25条で保障されている権利は何か",
+      "a": "生存権",
+      "c": ["教育を受ける権利", "勤労の権利", "生存権", "財産権"]
+    },
+    {
+      "q": "国民が営むことを保障されている生活の水準はどれか",
+      "a": "健康で文化的な最低限度",
+      "c": ["ぜいたくな生活", "平均的な生活", "健康で文化的な最低限度", "自由な生活"]
+    },
+    {
+      "q": "国が向上・増進に努めるものとして挙げられていないものはどれか",
+      "a": "教育制度",
+      "c": ["社会福祉", "社会保障", "公衆衛生", "教育制度"]
+    },
+    {
+      "q": "第25条の性質として正しいものはどれか",
+      "a": "社会権",
+      "c": ["自由権", "参政権", "社会権", "請願権"]
+    }
+  ]
+},
+{
+  "id": "article26",
+  "title": "第26条",
+  "theme": "教育を受ける権利・義務教育",
+  "text": "すべて国民は、法律の定めるところにより、その能力に応じて、ひとしく教育を受ける権利を有する。すべて国民は、法律の定めるところにより、その保護する子女に普通教育を受けさせる義務を負ふ。義務教育は、これを無償とする。",
+  "kana": "すべてこくみんは、ほうりつのさだめるところにより、そののうりょくにおうじて、ひとしくきょういくをうけるけんりをゆうする。すべてこくみんは、ほうりつのさだめるところにより、そのほごするしじょにふつうきょういくをうけさせるぎむをおう。ぎむきょういくは、これをむしょうとする。",
+  "quizzes": [
+    {
+      "q": "教育を受ける権利は何に応じて保障されるか",
+      "a": "能力",
+      "c": ["年齢", "財産", "能力", "身分"]
+    },
+    {
+      "q": "普通教育を受けさせる義務を負うのは誰か",
+      "a": "保護者",
+      "c": ["国", "学校", "保護者", "地方自治体"]
+    },
+    {
+      "q": "無償とされているのはどの教育か",
+      "a": "義務教育",
+      "c": ["高等教育", "私立教育", "義務教育", "社会教育"]
+    },
+    {
+      "q": "第26条に規定されていないものはどれか",
+      "a": "教育内容の自由",
+      "c": ["教育を受ける権利", "義務教育", "無償", "教育内容の自由"]
+    }
+  ]
+},
+{
+  "id": "article27",
+  "title": "第27条",
+  "theme": "勤労の権利と義務",
+  "text": "すべて国民は、勤労の権利を有し、義務を負ふ。賃金、就業時間、休息その他の勤労条件に関する基準は、法律でこれを定める。児童は、これを酷使してはならない。",
+  "kana": "すべてこくみんは、きんろうのけんりをゆうし、ぎむをおう。ちんぎん、しゅうぎょうじかん、きゅうそくそのたのきんろうじょうけんにかんするきじゅんは、ほうりつでこれをさだめる。じどうは、これをこくししてはならない。",
+  "quizzes": [
+    {
+      "q": "国民が有するとされている権利は何か",
+      "a": "勤労の権利",
+      "c": ["教育の権利", "勤労の権利", "参政権", "生存権"]
+    },
+    {
+      "q": "勤労について国民が負うものは何か",
+      "a": "義務",
+      "c": ["自由", "責任", "義務", "制限"]
+    },
+    {
+      "q": "勤労条件の基準は何で定められるか",
+      "a": "法律",
+      "c": ["憲法", "政令", "法律", "条例"]
+    },
+    {
+      "q": "してはならないとされている行為は何か",
+      "a": "児童の酷使",
+      "c": ["残業", "失業", "児童の酷使", "転職"]
+    }
+  ]
+},
+{
+  "id": "article28",
+  "title": "第28条",
+  "theme": "労働基本権",
+  "text": "勤労者の団結する権利及び団体交渉その他団体行動をする権利は、これを保障する。",
+  "kana": "きんろうしゃのだんけつするけんりおよびだんたいこうしょうそのただんたいこうどうをするけんりは、これをほしょうする。",
+  "quizzes": [
+    {
+      "q": "第28条で保障されている主体は誰か",
+      "a": "勤労者",
+      "c": ["国民", "経営者", "勤労者", "公務員"]
+    },
+    {
+      "q": "勤労者が団結して行うことができるのは何か",
+      "a": "団体行動",
+      "c": ["政治活動", "選挙運動", "団体行動", "行政行為"]
+    },
+    {
+      "q": "団結権と並んで保障されている権利は何か",
+      "a": "団体交渉権",
+      "c": ["参政権", "財産権", "団体交渉権", "教育権"]
+    },
+    {
+      "q": "第28条が保障する権利の総称は何か",
+      "a": "労働基本権",
+      "c": ["生存権", "自由権", "労働基本権", "社会保障権"]
+    }
+  ]
+},
+{
+  "id": "article41",
+  "title": "第41条",
+  "theme": "国会の地位（国権の最高機関）",
+  "text": "国会は、国権の最高機関であって、国の唯一の立法機関である。",
+  "kana": "こっかいは、こっけんのさいこうきかんであって、くにのゆいいつのりっぽうきかんである。",
+  "quizzes": [
+    {
+      "q": "国会は何の最高機関とされているか",
+      "a": "国権",
+      "c": ["行政権", "司法権", "国権", "統治権"]
+    },
+    {
+      "q": "国会の役割として正しいものはどれか",
+      "a": "立法",
+      "c": ["行政", "司法", "立法", "執行"]
+    },
+    {
+      "q": "国会は国の何の機関であるか",
+      "a": "唯一の立法機関",
+      "c": ["最高裁判機関", "唯一の立法機関", "行政の中心", "象徴機関"]
+    },
+    {
+      "q": "第41条が示す国会の位置づけとして正しいものはどれか",
+      "a": "国権の最高機関",
+      "c": ["内閣の補助機関", "地方自治体の代表", "国権の最高機関", "諮問機関"]
+    }
+  ]
+},
+{
+  "id": "article92",
+  "title": "第92条",
+  "theme": "地方自治",
+  "text": "地方公共団体の組織及び運営に関する事項は、地方自治の本旨に基いて、法律でこれを定める。",
+  "kana": "ちほうこうきょうだんたいのそしきおよびうんえいにかんするじこうは、ちほうじちのほんしにもとづいて、ほうりつでこれをさだめる。",
+  "quizzes": [
+    {
+      "q": "地方公共団体の組織や運営は何に基づくか",
+      "a": "地方自治の本旨",
+      "c": ["国の命令", "内閣の方針", "地方自治の本旨", "慣習"]
+    },
+    {
+      "q": "地方公共団体に関する事項は何で定められるか",
+      "a": "法律",
+      "c": ["条例", "政令", "法律", "規則"]
+    },
+    {
+      "q": "第92条が位置づけている原理はどれか",
+      "a": "地方自治",
+      "c": ["中央集権", "行政統制", "地方自治", "権力分立"]
+    },
+    {
+      "q": "地方自治の『本旨』として最も近い考えはどれか",
+      "a": "住民自治",
+      "c": ["官僚支配", "住民自治", "国家統制", "議会主義"]
+    }
+  ]
+},
+{
+  "id": "article93",
+  "title": "第93条",
+  "theme": "地方公共団体の機関",
+  "text": "地方公共団体には、法律の定めるところにより、その議事機関として議会を設置する。地方公共団体の長、その議会の議員及び法律の定めるその他の吏員は、その地方公共団体の住民が、直接これを選挙する。",
+  "kana": "ちほうこうきょうだんたいには、ほうりつのさだめるところにより、そのぎじきかんとしてぎかいをせっちする。ちほうこうきょうだんたいのちょう、そのぎかいのぎいんおよびほうりつのさだめるそのたのりいんは、そのちほうこうきょうだんたいのじゅうみんが、ちょくせつこれをせんきょする。",
+  "quizzes": [
+    {
+      "q": "地方公共団体の議事機関として設置されるものは何か",
+      "a": "議会",
+      "c": ["裁判所", "委員会", "議会", "内閣"]
+    },
+    {
+      "q": "地方公共団体の長や議員は誰が選ぶか",
+      "a": "住民",
+      "c": ["国会", "内閣", "住民", "裁判所"]
+    },
+    {
+      "q": "地方公共団体の長などはどのように選ばれるか",
+      "a": "直接選挙",
+      "c": ["間接選挙", "任命制", "直接選挙", "推薦制"]
+    },
+    {
+      "q": "第93条が示している原則はどれか",
+      "a": "住民自治",
+      "c": ["中央集権", "官僚統制", "住民自治", "行政主導"]
+    }
+  ]
+},
+{
+  "id": "article94",
+  "title": "第94条",
+  "theme": "条例制定権",
+  "text": "地方公共団体は、その議会を設けるほか、法律の定めるところにより、条例を制定することができる。",
+  "kana": "ちほうこうきょうだんたいは、そのぎかいをもうけるほか、ほうりつのさだめるところにより、じょうれいをせいていすることができる。",
+  "quizzes": [
+    {
+      "q": "条例を制定することができるのは誰か",
+      "a": "地方公共団体",
+      "c": ["国会", "内閣", "地方公共団体", "裁判所"]
+    },
+    {
+      "q": "条例制定は何に基づいて行われるか",
+      "a": "法律",
+      "c": ["憲法", "慣習", "法律", "政令"]
+    },
+    {
+      "q": "地方公共団体が設ける機関として定められているものは何か",
+      "a": "議会",
+      "c": ["裁判所", "内閣", "議会", "委員会"]
+    },
+    {
+      "q": "第94条が示す地方自治の内容として正しいものはどれか",
+      "a": "自治立法権",
+      "c": ["外交権", "課税権", "自治立法権", "軍事権"]
+    }
+  ]
+},
+{
+  "id": "article97",
+  "title": "第97条",
+  "theme": "最高法規・基本的人権の根本原理",
+  "text": "この憲法が日本国民に保障する基本的人権は、人類の多年にわたる自由獲得の努力の成果であって、これらの権利は、過去幾多の試錬に堪へ、現在及び将来の国民に対し、侵すことのできない永久の権利として信託されたものである。",
+  "kana": "このけんぽうがにほんこくみんにほしょうするきほんてきじんけんは、じんるいのたねんにわたるじゆうかくとくのどりょくのせいかであって、これらのけんりは、かこいくたのしれんにたえ、げんざいおよびしょうらいのこくみんにたいし、おかすことのできないえいきゅうのけんりとしてしんたくされたものである。",
+  "quizzes": [
+    {
+      "q": "基本的人権は何の成果とされているか",
+      "a": "自由獲得の努力",
+      "c": ["国家の恩恵", "法律の制定", "自由獲得の努力", "政治改革"]
+    },
+    {
+      "q": "基本的人権はどのような権利とされているか",
+      "a": "侵すことのできない永久の権利",
+      "c": ["条件付きの権利", "一時的な権利", "侵すことのできない永久の権利", "法律上の権利"]
+    },
+    {
+      "q": "基本的人権は誰に対して信託されているか",
+      "a": "現在及び将来の国民",
+      "c": ["政府", "裁判所", "現在及び将来の国民", "国会"]
+    },
+    {
+      "q": "第97条が強調している価値は何か",
+      "a": "人権の普遍性",
+      "c": ["国家主権", "立法権の優位", "人権の普遍性", "行政権の独立"]
+    }
+  ]
+}
+];
+
+const RANKS = [
+    { name: "司法修習生見習い", minXP: 0 },
+    { name: "書記官", minXP: 300 },
+    { name: "新米弁護士", minXP: 600 },
+    { name: "熟練弁護士", minXP: 1000 },
+    { name: "検察官", minXP: 1500 },
+    { name: "判事", minXP: 2500 },
+    { name: "最高裁判所長官", minXP: 4000 },
+    { name: "法の番人", minXP: 6000 },
+    { name: "憲法マスター", minXP: 8000 }
+];
+
+// 拗音・促音対応のための定義
+const SMALL_KANA = ['ゃ','ゅ','ょ','ぁ','ぃ','ぅ','ぇ','ぉ'];
+// ローマ字マップ（組み合わせ対応）
+const ROMAJI_MAP = {
+    // 基本
+    'あ':['a'], 'い':['i','yi'], 'う':['u','wu'], 'え':['e'], 'お':['o'],
+    'か':['ka','ca'], 'き':['ki'], 'く':['ku','cu','qu'], 'け':['ke'], 'こ':['ko','co'],
+    'さ':['sa'], 'し':['shi','si','ci'], 'す':['su'], 'せ':['se','ce'], 'そ':['so'],
+    'た':['ta'], 'ち':['chi','ti'], 'つ':['tsu','tu'], 'て':['te'], 'と':['to'],
+    'な':['na'], 'に':['ni'], 'ぬ':['nu'], 'ね':['ne'], 'の':['no'],
+    'は':['ha'], 'ひ':['hi'], 'ふ':['fu','hu'], 'へ':['he'], 'ほ':['ho'],
+    'ま':['ma'], 'み':['mi'], 'む':['mu'], 'め':['me'], 'も':['mo'],
+    'や':['ya'], 'ゆ':['yu'], 'よ':['yo'],
+    'ら':['ra'], 'り':['ri'], 'る':['ru'], 'れ':['re'], 'ろ':['ro'],
+    'わ':['wa'], 'を':['wo'], 'ん':['nn'], // nn強制
+    'が':['ga'], 'ぎ':['gi'], 'ぐ':['gu'], 'げ':['ge'], 'ご':['go'],
+    'ざ':['za'], 'じ':['ji','zi'], 'ず':['zu'], 'ぜ':['ze'], 'ぞ':['zo'],
+    'だ':['da'], 'ぢ':['ji','di'], 'づ':['zu','du'], 'で':['de'], 'ど':['do'],
+    'ば':['ba'], 'び':['bi'], 'ぶ':['bu'], 'べ':['be'], 'ぼ':['bo'],
+    'ぱ':['pa'], 'ぴ':['pi'], 'ぷ':['pu'], 'ぺ':['pe'], 'ぽ':['po'],
+    // 記号
+    '、':[','], '。':['.'],
+    // 拗音（2文字セット用）
+    'きゃ':['kya'], 'きゅ':['kyu'], 'きょ':['kyo'],
+    'しゃ':['sha','sya'], 'しゅ':['shu','syu'], 'しょ':['sho','syo'],
+    'ちゃ':['cha','tya'], 'ちゅ':['chu','tyu'], 'ちょ':['cho','tyo'],
+    'にゃ':['nya'], 'にゅ':['nyu'], 'にょ':['nyo'],
+    'ひゃ':['hya'], 'ひゅ':['hyu'], 'ひょ':['hyo'],
+    'みゃ':['mya'], 'みゅ':['myu'], 'みょ':['myo'],
+    'りゃ':['rya'], 'りゅ':['ryu'], 'りょ':['ryo'],
+    'ぎゃ':['gya'], 'ぎゅ':['gyu'], 'ぎょ':['gyo'],
+    'じゃ':['ja','jya','zya'], 'じゅ':['ju','jyu','zyu'], 'じょ':['jo','jyo','zyo'],
+    'びゃ':['bya'], 'びゅ':['byu'], 'びょ':['byo'],
+    'ぴゃ':['pya'], 'ぴゅ':['pyu'], 'ぴょ':['pyo'],
+    // 促音・小書き
+    'っ':['ltu','xtu'],
+    'ぁ':['la','xa'], 'ぃ':['li','xi'], 'ぅ':['lu','xu'], 'ぇ':['le','xe'], 'ぉ':['lo','xo'],
+    'ゃ':['lya','xya'], 'ゅ':['lyu','xyu'], 'ょ':['lyo','xyo']
+};
+
+/**
+ * サウンド管理 (AudioContext)
+ */
+class SoundManager {
+    constructor() {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = 0.3;
+        this.masterGain.connect(this.ctx.destination);
+    }
+
+    play(type, pitchMod = 0) {
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+
+        const now = this.ctx.currentTime;
+        
+        switch (type) {
+            case 'type': 
+                // ピッチ調整機能追加（コンボで音が高くなる）
+                osc.type = 'square';
+                const baseFreq = 600 + (pitchMod * 50); // コンボごとに50Hzアップ
+                const safeFreq = Math.min(baseFreq, 1200);
+                osc.frequency.setValueAtTime(safeFreq, now);
+                osc.frequency.exponentialRampToValueAtTime(safeFreq * 0.5, now + 0.08);
+                gain.gain.setValueAtTime(0.4, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                osc.start(now);
+                osc.stop(now + 0.08);
+                break;
+            case 'correct':
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                gain.gain.setValueAtTime(0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+                setTimeout(() => {
+                    const osc2 = this.ctx.createOscillator();
+                    const gain2 = this.ctx.createGain();
+                    osc2.connect(gain2);
+                    gain2.connect(this.masterGain);
+                    osc2.type = 'sine';
+                    osc2.frequency.setValueAtTime(1000, now);
+                    gain2.gain.setValueAtTime(0.5, now);
+                    gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                    osc2.start();
+                    osc2.stop(this.ctx.currentTime + 0.3);
+                }, 100);
+                break;
+            case 'wrong':
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.linearRampToValueAtTime(100, now + 0.3);
+                gain.gain.setValueAtTime(0.5, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+                break;
+            case 'click':
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(400, now);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+                break;
+            case 'fanfare':
+                this.playTone(523.25, 0, 0.2); // Do
+                this.playTone(659.25, 0.2, 0.2); // Mi
+                this.playTone(783.99, 0.4, 0.4); // So
+                this.playTone(1046.50, 0.6, 0.6); // Do(high)
+                break;
+        }
+    }
+    
+    playTone(freq, delay, dur) {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.3, this.ctx.currentTime + delay);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + delay + dur);
+        osc.start(this.ctx.currentTime + delay);
+        osc.stop(this.ctx.currentTime + delay + dur);
+    }
+}
+const sound = new SoundManager();
+
+/**
+ * ユーザーデータ管理
+ */
+let userData = { xp: 0, cleared: [] };
+
+function loadData() {
+    try {
+        const saved = localStorage.getItem('kenpou_master_save');
+        if (saved) userData = JSON.parse(saved);
+    } catch(e) { console.error("Save load failed", e); }
+    updateRankDisplay();
+}
+
+function saveData() {
+    try {
+        localStorage.setItem('kenpou_master_save', JSON.stringify(userData));
+    } catch(e) {}
+    updateRankDisplay();
+}
+
+function resetData() {
+    if(confirm("本当にデータを消しますか？")) {
+        localStorage.removeItem('kenpou_master_save');
+        location.reload();
+    }
+}
+
+function updateRankDisplay() {
+    let currentRank = RANKS[0];
+    let nextRank = null;
+    for (let i = 0; i < RANKS.length; i++) {
+        if (userData.xp >= RANKS[i].minXP) {
+            currentRank = RANKS[i];
+            nextRank = RANKS[i+1] || null;
+        }
+    }
+    document.getElementById('rank-display').textContent = currentRank.name;
+    if (nextRank) {
+        const needed = nextRank.minXP - userData.xp;
+        document.getElementById('xp-needed').textContent = needed;
+        const percent = ((userData.xp - currentRank.minXP) / (nextRank.minXP - currentRank.minXP)) * 100;
+        document.getElementById('xp-bar').style.width = Math.min(100, Math.max(0, percent)) + "%";
+    } else {
+        document.getElementById('xp-needed').textContent = "MAX";
+        document.getElementById('xp-bar').style.width = "100%";
+    }
+}
+
+function addXP(amount) {
+    userData.xp += amount;
+    saveData();
+    sound.play('fanfare');
+}
+
+/**
+ * ゲームロジック
+ */
+let currentMode = "";
+let currentData = null;
+let timer = null;
+let startTime = 0;
+
+function goHome() {
+    clearInterval(timer);
+    window.removeEventListener('keydown', handleTyping);
+    document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+    document.getElementById('title-screen').classList.add('active');
+    updateRankDisplay();
+}
+
+function startGame(mode) {
+    currentMode = mode;
+    sound.play('click');
+    const listEl = document.getElementById('article-list');
+    listEl.innerHTML = "";
+    CONSTITUTION_DATA.forEach(item => {
+        const btn = document.createElement('div');
+        btn.className = 'article-btn';
+        if (userData.cleared.includes(item.id)) btn.classList.add('cleared');
+        btn.innerHTML = `
+            <strong>${item.title}</strong> ${item.theme}
+            <div style="font-size:0.8rem; color:#777; margin-top:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.text}</div>
+            <div class="cleared-mark">💮</div>
+        `;
+        btn.onclick = () => {
+            currentData = item;
+            if (mode === 'typing') startTypingGame();
+            else startFlashCardGame();
+        };
+        listEl.appendChild(btn);
+    });
+    switchScreen('select-screen');
+}
+
+function switchScreen(id) {
+    document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+}
+
+// === タイピング機能 (強化版) ===
+
+let typeState = {
+    tokens: [],      // 解析済みのトークン配列
+    tokenIndex: 0,   // 現在のトークン位置
+    buffer: "",      // 入力バッファ
+    combo: 0         // コンボ数
+};
+
+// 文字列をトークンに分解（「しゃ」などを1つにまとめる）
+function tokenizeKana(kanaStr) {
+    let tokens = [];
+    let i = 0;
+    while(i < kanaStr.length) {
+        const char = kanaStr[i];
+        const nextChar = kanaStr[i+1];
+
+        // 拗音判定（次の文字が小書きカナの場合、結合する）
+        if (nextChar && SMALL_KANA.includes(nextChar) && char !== 'っ') {
+            const combined = char + nextChar;
+            tokens.push({ chars: combined, type: 'combo' });
+            i += 2;
+        } else {
+            // 通常文字（「っ」も一旦単独トークンにするが、後続判定で利用）
+            tokens.push({ chars: char, type: 'single' });
+            i++;
+        }
+    }
+    return tokens;
+}
+
+function startTypingGame() {
+    switchScreen('typing-screen');
+    const data = currentData;
+    
+    document.getElementById('typing-kanji-display').innerHTML = data.text;
+    
+    // トークン化
+    typeState.tokens = tokenizeKana(data.kana);
+    typeState.tokenIndex = 0;
+    typeState.buffer = "";
+    typeState.combo = 0;
+    updateComboDisplay();
+
+    // DOM生成
+    const kanaContainer = document.getElementById('typing-kana-display');
+    kanaContainer.innerHTML = "";
+    
+    typeState.tokens.forEach((token, idx) => {
+        const sp = document.createElement('span');
+        sp.className = 'token';
+        sp.textContent = token.chars;
+        sp.id = `token-${idx}`;
+        kanaContainer.appendChild(sp);
+    });
+    
+    updateTypingHighlight();
+
+    startTime = Date.now();
+    document.getElementById('typing-timer').textContent = "00:00";
+    timer = setInterval(() => {
+        const diff = Date.now() - startTime;
+        const sec = Math.floor(diff / 1000);
+        const m = Math.floor(sec / 60).toString().padStart(2, '0');
+        const s = (sec % 60).toString().padStart(2, '0');
+        document.getElementById('typing-timer').textContent = `${m}:${s}`;
+    }, 1000);
+
+    window.addEventListener('keydown', handleTyping);
+}
+
+function updateTypingHighlight() {
+    typeState.tokens.forEach((t, i) => {
+        const el = document.getElementById(`token-${i}`);
+        el.className = 'token';
+        if (i < typeState.tokenIndex) el.classList.add('done');
+        else if (i === typeState.tokenIndex) {
+            el.classList.add('target');
+            if (typeState.combo > 5) el.classList.add('combo-heat');
+        }
+    });
+}
+
+function updateComboDisplay() {
+    const el = document.getElementById('combo-display');
+    if (typeState.combo > 1) {
+        el.textContent = `COMBO ${typeState.combo}!`;
+        el.classList.add('active');
+        el.style.color = `hsl(${Math.min(typeState.combo * 10, 60)}, 100%, 50%)`; // 赤〜黄へ変化
+    } else {
+        el.classList.remove('active');
+    }
+}
+
+function handleTyping(e) {
+    if (e.key.length !== 1 || e.ctrlKey || e.altKey || e.metaKey) return;
+    
+    // 現在のターゲット
+    const token = typeState.tokens[typeState.tokenIndex];
+    if(!token) return;
+
+    const inputKey = e.key.toLowerCase();
+    
+    // === 判定ロジック ===
+    // ターゲットの文字列（例: "か" or "しゃ" or "っ"）
+    const targetStr = token.chars;
+    
+    // 有効なローマ字パターンを取得
+    let validPatterns = ROMAJI_MAP[targetStr] || [];
+
+    // 特殊処理: 「っ」の場合、次のトークンの子音も有効
+    if (targetStr === 'っ') {
+        const nextToken = typeState.tokens[typeState.tokenIndex + 1];
+        if (nextToken) {
+            // 次の文字の有効なローマ字リストを取得
+            const nextPatterns = ROMAJI_MAP[nextToken.chars] || [];
+            // それぞれの先頭文字（子音）を正解パターンに追加
+            nextPatterns.forEach(p => {
+                validPatterns.push(p[0]); 
+            });
+        }
+    }
+
+    // 結合文字（例: "しゃ"）だが、ユーザーが "shi" + "xya" と打つ場合への対応
+    // 今回は子供向けUXとして「ヘボン/訓令のまとまった入力」を推奨するが、
+    // 分割入力の最初の1文字が正解パターンに含まれるかどうかの判定で許容する。
+    // ただし、Mapに定義されている "sha", "sya" などが優先。
+    
+    const nextBuffer = typeState.buffer + inputKey;
+    
+    // 候補の中に、前方一致するものがあるか？
+    // 例: target="しゃ" (sha), input="s" -> shaに前方一致 -> OK
+    const match = validPatterns.find(p => p.startsWith(nextBuffer));
+
+    if (match) {
+        typeState.buffer = nextBuffer;
+        
+        // コンボに応じたピッチ変更
+        sound.play('type', Math.min(typeState.combo, 10)); 
+        createParticleEffect();
+        typeState.combo++;
+        updateComboDisplay();
+
+        // 完全一致（入力完了）
+        if (match === nextBuffer) {
+            typeState.tokenIndex++;
+            typeState.buffer = "";
+            updateTypingHighlight();
+            
+            if (typeState.tokenIndex >= typeState.tokens.length) {
+                finishTyping();
+            }
+        }
+    } else {
+        // ミス
+        sound.play('wrong');
+        typeState.combo = 0;
+        updateComboDisplay();
+        const el = document.getElementById(`token-${typeState.tokenIndex}`);
+        el.classList.add('error');
+        setTimeout(() => el.classList.remove('error'), 300);
+        // バッファはクリアしない（誤打のみ無視）
+    }
+}
+
+function createParticleEffect() {
+    const targetEl = document.querySelector('.token.target');
+    let rect = { left: window.innerWidth/2, top: window.innerHeight/2 };
+    if(targetEl) rect = targetEl.getBoundingClientRect();
+
+    const cnt = 5;
+    for(let i=0; i<cnt; i++) {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        const size = Math.random()*8 + 4;
+        p.style.width = size + 'px';
+        p.style.height = size + 'px';
+        p.style.left = (rect.left + rect.width/2) + 'px';
+        p.style.top = (rect.top + rect.height/2) + 'px';
+        
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 50 + Math.random()*50;
+        p.style.setProperty('--dx', Math.cos(angle)*dist + 'px');
+        p.style.setProperty('--dy', Math.sin(angle)*dist + 'px');
+        
+        document.body.appendChild(p);
+        setTimeout(() => p.remove(), 600);
+    }
+}
+
+function finishTyping() {
+    clearInterval(timer);
+    window.removeEventListener('keydown', handleTyping);
+    sound.play('correct');
+    
+    // コンボボーナス
+    const comboBonus = typeState.combo * 2;
+    addXP(50 + comboBonus);
+    if (!userData.cleared.includes(currentData.id)) {
+        userData.cleared.push(currentData.id);
+    }
+    saveData();
+    showResult(`クリアタイム: ${document.getElementById('typing-timer').textContent}`, 50 + comboBonus);
+    createConfetti();
+}
+
+
+// === フラッシュカード ===
+
+let flashList = [];
+let flashIndex = 0;
+
+function startFlashCardGame() {
+    switchScreen('flashcard-screen');
+    const data = currentData;
+    
+    flashList = data.text.split(/、|。/).filter(s => s.trim() !== "");
+    flashIndex = 0;
+    
+    document.getElementById('flash-title').textContent = data.title;
+    document.getElementById('flash-card').style.display = "flex";
+    document.getElementById('quiz-area').style.display = "none"; // CSSでflexに変更される
+    
+    updateFlashCard();
+}
+
+function updateFlashCard() {
+    const text = flashList[flashIndex];
+    document.getElementById('flash-text').textContent = text;
+    sound.play('click');
+}
+
+function nextCard() {
+    flashIndex++;
+    if (flashIndex < flashList.length) {
+        updateFlashCard();
+    } else {
+        startQuiz();
+    }
+}
+
+function startQuiz() {
+    document.getElementById('flash-card').style.display = "none";
+    const qArea = document.getElementById('quiz-area');
+    qArea.style.display = "flex"; // 中央寄せのためにFlex表示
+    
+    // ランダムに1問選択
+    const quizzes = currentData.quizzes;
+    const q = quizzes[Math.floor(Math.random() * quizzes.length)];
+    
+    // 問題文セット
+    document.getElementById('quiz-question').textContent = q.q;
+    
+    const choicesDiv = document.getElementById('quiz-choices');
+    choicesDiv.innerHTML = "";
+    
+    // シャッフル
+    const list = [...q.c].sort(() => Math.random() - 0.5);
+    
+    list.forEach(c => {
+        const btn = document.createElement('div');
+        btn.className = 'choice-item';
+        btn.textContent = c;
+        btn.onclick = () => checkQuiz(c, q.a);
+        choicesDiv.appendChild(btn);
+    });
+}
+
+function checkQuiz(ans, correctAns) {
+    if (ans === correctAns) {
+        sound.play('correct');
+        addXP(30);
+        showResult("正解！見事な法的思考力だ！", 30);
+        createConfetti();
+    } else {
+        sound.play('wrong');
+        alert("異議あり！不正解です。");
+        startFlashCardGame();
+    }
+}
+
+// === 共通結果 ===
+function showResult(msg, xp) {
+    switchScreen('result-screen');
+    document.getElementById('result-msg').textContent = msg;
+    document.getElementById('result-xp').textContent = xp;
+}
+
+// 紙吹雪エフェクト
+function createConfetti() {
+    for(let i=0; i<30; i++) {
+        const c = document.createElement('div');
+        c.className = 'confetti';
+        c.style.left = Math.random()*100 + 'vw';
+        c.style.top = -10 + 'px';
+        c.style.background = ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71'][Math.floor(Math.random()*4)];
+        c.style.animationDuration = (2 + Math.random()*3) + 's';
+        document.body.appendChild(c);
+        setTimeout(()=>c.remove(), 5000);
+    }
+}
+
+// 初期化
+loadData();
+
+</script>
+</body>
+</html>
