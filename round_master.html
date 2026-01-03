@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Round Master</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;900&family=Roboto+Mono:wght@500;700&display=swap');
+
+        :root {
+            --bg-color: #0f0f1a;
+            --panel-color: #1a1a2e;
+            --primary: #00f0ff; /* Cyber Cyan */
+            --primary-glow: rgba(0, 240, 255, 0.6);
+            --secondary: #ff0055; /* Cyber Pink */
+            --secondary-glow: rgba(255, 0, 85, 0.6);
+            --accent: #ffee00; /* Cyber Yellow */
+            --text-main: #ffffff;
+            --text-sub: #8892b0;
+            --font-main: 'M PLUS Rounded 1c', sans-serif;
+            --font-num: 'Roboto Mono', monospace;
+        }
+
+        * { box-sizing: border-box; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            margin: 0; padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: var(--font-main);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            -webkit-touch-callout: none;
+        }
+
+        #app {
+            width: 100%; max-width: 600px; height: 100%;
+            position: relative;
+            background: radial-gradient(circle at center, #23233a 0%, var(--bg-color) 120%);
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+
+        .screen {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+            padding: 20px;
+            pointer-events: none; opacity: 0; z-index: 0;
+            backdrop-filter: blur(5px);
+        }
+
+        .screen.active { opacity: 1; pointer-events: auto; z-index: 10; transform: scale(1); }
+        .screen.hidden { transform: scale(0.92); opacity: 0; }
+
+        /* --- Start Screen --- */
+        h1 {
+            font-size: 2.8rem; color: var(--primary);
+            text-shadow: 0 0 20px var(--primary-glow);
+            margin-bottom: 5px; text-align: center;
+            font-style: italic; letter-spacing: -2px;
+        }
+
+        .mode-scroll-area {
+            width: 100%; overflow-y: auto; padding: 10px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+
+        .mode-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 10px 0;
+            width: 95%;
+            transition: transform 0.2s, background 0.2s;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+        .mode-card:active { transform: scale(0.97); background: rgba(255,255,255,0.1); }
+        .mode-card::before {
+            content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 5px;
+            background: var(--text-sub);
+        }
+        .mode-card.m-sort::before { background: var(--primary); }
+        .mode-card.m-battle::before { background: var(--secondary); }
+        .mode-card.m-snipe::before { background: var(--accent); }
+
+        .mode-title { font-size: 1.4rem; font-weight: bold; margin-bottom: 8px; display: block; }
+        .mode-desc { font-size: 0.65rem; color: var(--text-sub); line-height: 1.5; white-space: normal; }
+
+        /* --- Sub Mode Screen --- */
+        .sub-btn-container { width: 100%; display: flex; flex-direction: column; gap: 20px; align-items: center; }
+        .sub-btn {
+            width: 80%; padding: 25px; border-radius: 50px; border: 2px solid var(--primary);
+            background: rgba(0, 240, 255, 0.1); color: white; font-size: 1.2rem; font-weight: bold;
+            cursor: pointer; transition: 0.2s;
+        }
+        .sub-btn:active { background: var(--primary); color: black; }
+        .sub-btn.tutorial { border-color: var(--text-sub); background: rgba(255,255,255,0.05); }
+
+        /* --- Game UI --- */
+        /* Container to shift up when keyboard opens */
+        .game-content {
+            width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: transform 0.3s ease;
+            flex-grow: 1;
+        }
+        .game-content.shift-up { transform: translateY(-15vh); }
+
+        .top-bar {
+            position: absolute; top: 0; left: 0; width: 100%;
+            padding: 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            z-index: 20;
+        }
+
+        .timer-display {
+            font-family: var(--font-num); font-size: 2rem; font-weight: bold;
+            color: var(--text-main); text-shadow: 0 0 10px rgba(255,255,255,0.3);
+            position: relative;
+        }
+        .timer-display.danger { color: var(--secondary); animation: pulse 0.5s infinite alternate; }
+
+        .penalty-text {
+            position: absolute; top: 100%; right: 0;
+            color: var(--secondary); font-weight: bold; font-size: 1.2rem;
+            opacity: 0; pointer-events: none;
+        }
+        .penalty-text.show { animation: floatUp 1s ease-out forwards; }
+
+        .score-display { font-family: var(--font-num); font-size: 1.5rem; color: var(--accent); }
+        .score-label { font-size: 0.8rem; color: var(--text-sub); margin-right: 5px; font-family: var(--font-main); }
+
+        .task-box {
+            background: linear-gradient(90deg, rgba(0,240,255,0.1) 0%, rgba(0,0,0,0) 100%);
+            padding: 20px; border-radius: 5px; margin-bottom: 30px;
+            text-align: center; width: 100%; border-left: 5px solid var(--primary);
+        }
+        .task-text { font-size: 1.4rem; margin: 0; font-weight: 700; }
+
+        .number-display {
+            font-family: var(--font-num); font-size: 4rem; font-weight: 700;
+            letter-spacing: 4px; display: flex; justify-content: center; align-items: flex-end;
+            margin-bottom: 40px; position: relative; height: 120px;
+        }
+
+        .digit {
+            position: relative; display: inline-block; padding: 10px 4px;
+            transition: color 0.2s; cursor: grab; user-select: none;
+        }
+        .digit:active { cursor: grabbing; }
+        .digit.dragging { color: var(--accent); text-shadow: 0 0 15px var(--accent); z-index: 100; }
+
+        /* Numpad */
+        .numpad-overlay {
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            background: rgba(30, 30, 47, 0.98);
+            padding: 15px; border-radius: 20px 20px 0 0;
+            transform: translateY(110%);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 100; border-top: 1px solid rgba(255,255,255,0.1);
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .numpad-overlay.show { transform: translateY(0); }
+
+        .input-display {
+            background: #000; color: var(--primary);
+            font-family: var(--font-num); font-size: 2.2rem;
+            width: 100%; padding: 15px; text-align: right;
+            border-radius: 8px; margin-bottom: 15px;
+            min-height: 70px; border: 1px solid var(--primary);
+            box-shadow: inset 0 0 10px rgba(0,240,255,0.2);
+            cursor: text;
+        }
+        /* Make placeholder-like text for empty state if needed */
+        .input-display:empty::before {
+            content: '数値を入力...'; color: #333; font-size: 1rem;
+        }
+
+        .numpad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; }
+
+        .num-btn {
+            background: rgba(255,255,255,0.08); color: white;
+            border: none; padding: 15px; font-size: 1.4rem;
+            border-radius: 10px; font-family: var(--font-num);
+            transition: background 0.1s;
+        }
+        .num-btn:active { background: rgba(255,255,255,0.25); transform: scale(0.95); }
+        .num-btn.enter { background: var(--primary); color: #000; font-weight: bold; grid-column: span 3; }
+        .num-btn.close-pad { background: var(--secondary); font-size: 1rem; padding: 10px; margin-top:10px; width:100%; }
+
+        /* Effects */
+        .feedback-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 50; display: flex;
+            justify-content: center; align-items: center;
+        }
+        .feedback-icon { font-size: 10rem; font-weight: 900; opacity: 0; transform: scale(0); }
+        .feedback-icon.correct { color: var(--primary); text-shadow: 0 0 50px var(--primary); }
+        .feedback-icon.wrong { color: var(--secondary); text-shadow: 0 0 50px var(--secondary); }
+
+        .guide-text {
+            width: 100%; text-align: center;
+            color: var(--accent); font-size: 1rem; margin-top: 10px;
+            background: rgba(0,0,0,0.5); padding: 5px; border-radius: 5px;
+        }
+
+        /* Countdown Overlay */
+        #countdown-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 200;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 8rem; font-family: var(--font-num); color: var(--primary);
+            pointer-events: none; opacity: 0; transition: opacity 0.2s;
+        }
+        #countdown-overlay.active { opacity: 1; }
+
+        /* Animations */
+        @keyframes popSuccess { 0% { transform: scale(0); opacity: 0; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
+        @keyframes shakeError { 0% { transform: translateX(0); opacity: 1; } 20% { transform: translateX(-20px); } 80% { transform: translateX(20px); } 100% { transform: translateX(0); opacity: 0; } }
+        @keyframes floatUp { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-30px); } }
+        @keyframes pulse { 0% { opacity: 1; } 100% { opacity: 0.5; } }
+        @keyframes countZoom { 0% { transform: scale(0.5); opacity: 0; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); opacity: 0; } }
+
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+<div id="app">
+    <!-- START SCREEN -->
+    <div id="screen-start" class="screen active">
+        <h1>Round Master</h1>
+        <p style="color:var(--text-sub); margin-bottom: 20px; font-family: var(--font-num);">四捨五入を極めよ</p>
+        
+        <div class="mode-scroll-area">
+            <div class="mode-card m-sort" onclick="game.selectMode('sorting')">
+                <span class="mode-title">仕分けモード</span>
+                <span class="mode-desc">指示された位を探し出し、切り上げ(上フリック)・切り捨て(下フリック)を素早く判断するモードです。</span>
+            </div>
+
+            <div class="mode-card m-battle" onclick="game.selectMode('battle')">
+                <span class="mode-title">バトルモード</span>
+                <span class="mode-desc">「〇の位まで」などのお題に従い、四捨五入の基準となる桁をフリック。その後、正しい計算結果を入力します。</span>
+            </div>
+
+            <div class="mode-card m-snipe" onclick="game.selectMode('sniping')">
+                <span class="mode-title">狙い撃ちモード</span>
+                <span class="mode-desc">「500にせよ」などのお題に対し、どの位を操作すればその数になるか逆算してフリックするパズルモードです。</span>
+            </div>
+        </div>
+        
+        <div style="margin-top:10px; font-size:0.8rem; color:#555;">切り上げ、切り捨ては「上・下フリック／上・下向きにドラッグ &ドロップ」</div>
+    </div>
+
+    <!-- SUB MODE SELECT -->
+    <div id="screen-submode" class="screen">
+        <h2 style="color:var(--text-main); margin-bottom: 40px;">遊び方を選択</h2>
+        <div class="sub-btn-container">
+            <button class="sub-btn tutorial" onclick="game.confirmStart('tutorial')">
+                確認モード<br><span style="font-size:0.8rem; font-weight:normal;">操作方法を確認 (1問のみ)</span>
+            </button>
+            <button class="sub-btn" onclick="game.confirmStart('timeAttack')">
+                タイムアタック<br><span style="font-size:0.8rem; font-weight:normal;">30秒で限界に挑戦</span>
+            </button>
+        </div>
+        <button class="btn" style="margin-top:30px; background:none; border:none; color:var(--text-sub);" onclick="game.toTitle()">戻る</button>
+    </div>
+
+    <!-- COUNTDOWN -->
+    <div id="countdown-overlay">3</div>
+
+    <!-- GAME SCREEN -->
+    <div id="screen-game" class="screen">
+        <div class="top-bar">
+            <div class="timer-display" id="timer-display">30.00 <div class="penalty-text" id="penalty-fx">-5s</div></div>
+            <div class="score-display"><span class="score-label">正解数</span><span id="current-score">0</span></div>
+        </div>
+        
+        <div class="game-content" id="game-content">
+            <div class="task-box">
+                <h3 class="task-text" id="task-text">Loading...</h3>
+            </div>
+
+            <div class="number-display" id="number-container">
+                <!-- Digits injected by JS -->
+            </div>
+            
+            <div class="guide-text" id="guide-text"></div>
+        </div>
+
+        <div class="feedback-overlay">
+            <div class="feedback-icon" id="feedback-icon"></div>
+        </div>
+
+        <!-- Numpad for Battle Mode -->
+        <div class="numpad-overlay" id="numpad">
+            <div class="input-display" id="battle-input" onclick="game.toggleNumpad(true)"></div>
+            <div class="numpad-grid">
+                <button class="num-btn" onclick="game.inputDigit(7)">7</button>
+                <button class="num-btn" onclick="game.inputDigit(8)">8</button>
+                <button class="num-btn" onclick="game.inputDigit(9)">9</button>
+                <button class="num-btn" onclick="game.inputDigit(4)">4</button>
+                <button class="num-btn" onclick="game.inputDigit(5)">5</button>
+                <button class="num-btn" onclick="game.inputDigit(6)">6</button>
+                <button class="num-btn" onclick="game.inputDigit(1)">1</button>
+                <button class="num-btn" onclick="game.inputDigit(2)">2</button>
+                <button class="num-btn" onclick="game.inputDigit(3)">3</button>
+                <button class="num-btn" onclick="game.inputDigit(0)">0</button>
+                <button class="num-btn" onclick="game.inputDigit('.')">.</button>
+                <button class="num-btn" onclick="game.backspace()">DEL</button>
+                <button class="num-btn enter" onclick="game.submitBattleAnswer()">ENTER</button>
+            </div>
+            <button class="num-btn close-pad" onclick="game.toggleNumpad(false)">閉じる</button>
+        </div>
+    </div>
+
+    <!-- RESULT SCREEN -->
+    <div id="screen-result" class="screen">
+        <h2 style="font-size:3rem; color:var(--text-main);">FINISH</h2>
+        <div style="font-size: 5rem; color: var(--primary); font-family: var(--font-num); text-shadow: 0 0 30px var(--primary);" id="final-score">0</div>
+        <p style="color: var(--text-sub);">正解数</p>
+        
+        <div style="margin: 30px 0; padding: 20px; background: rgba(255,255,255,0.05); border-radius: 10px; width: 80%; text-align:center;">
+            <p style="margin:0 0 10px 0; font-size:0.9rem; color:var(--text-sub);">これまでの最高記録（タイムアタック）</p>
+            <div id="high-score-display" style="font-size: 2rem; color: var(--accent); font-family: var(--font-num);">0</div>
+        </div>
+
+        <button class="sub-btn" style="width:200px; font-size:1rem; padding:15px;" onclick="game.toTitle()">タイトルへ戻る</button>
+    </div>
+</div>
+
+<script>
+/**
+ * Sound Manager
+ */
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+const Sound = {
+    playTone: (freq, type, duration, vol = 0.1) => {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    },
+    correct: () => { Sound.playTone(880, 'sine', 0.1, 0.1); setTimeout(() => Sound.playTone(1760, 'sine', 0.3, 0.1), 50); },
+    wrong: () => { Sound.playTone(150, 'sawtooth', 0.15, 0.15); setTimeout(() => Sound.playTone(100, 'sawtooth', 0.3, 0.15), 100); },
+    click: () => { Sound.playTone(400, 'triangle', 0.05, 0.05); },
+    swipe: () => { 
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.1);
+    }
+};
+
+/**
+ * Game Logic
+ */
+class RoundGame {
+    constructor() {
+        this.state = {
+            mode: null, // sorting, battle, sniping
+            subMode: null, // tutorial, timeAttack
+            correctCount: 0,
+            timeLeft: 30,
+            isPlaying: false,
+            currentProblem: null,
+            inputBuffer: "",
+            isNumpadOpen: false
+        };
+        
+        this.timerInterval = null;
+        this.dragState = { active: false, startY: 0, currentY: 0, targetEl: null, index: -1 };
+
+        this.elements = {
+            screens: {
+                start: document.getElementById('screen-start'),
+                sub: document.getElementById('screen-submode'),
+                game: document.getElementById('screen-game'),
+                result: document.getElementById('screen-result')
+            },
+            gameContent: document.getElementById('game-content'),
+            taskText: document.getElementById('task-text'),
+            numberContainer: document.getElementById('number-container'),
+            timerDisplay: document.getElementById('timer-display'),
+            penaltyFx: document.getElementById('penalty-fx'),
+            currentScore: document.getElementById('current-score'),
+            feedbackIcon: document.getElementById('feedback-icon'),
+            numpad: document.getElementById('numpad'),
+            battleInput: document.getElementById('battle-input'),
+            finalScore: document.getElementById('final-score'),
+            highScoreDisplay: document.getElementById('high-score-display'),
+            guideText: document.getElementById('guide-text'),
+            countdown: document.getElementById('countdown-overlay')
+        };
+
+        this.initHighScores();
+        this.setupGlobalEvents();
+    }
+
+    initHighScores() {
+        if (!localStorage.getItem('rm3_sort_rec')) localStorage.setItem('rm3_sort_rec', 0);
+        if (!localStorage.getItem('rm3_batt_rec')) localStorage.setItem('rm3_batt_rec', 0);
+        if (!localStorage.getItem('rm3_snip_rec')) localStorage.setItem('rm3_snip_rec', 0);
+    }
+
+    setupGlobalEvents() {
+        window.addEventListener('mouseup', () => this.endDrag());
+        window.addEventListener('touchend', () => this.endDrag());
+        window.addEventListener('mousemove', (e) => this.onDragMove(e.clientY));
+        window.addEventListener('touchmove', (e) => this.onDragMove(e.touches[0].clientY));
+        
+        // Keyboard Input for Battle Mode
+        window.addEventListener('keydown', (e) => {
+            if (!this.state.isPlaying) return;
+            if (this.state.mode === 'battle' && this.state.isNumpadOpen) {
+                if (e.key >= '0' && e.key <= '9') this.inputDigit(e.key);
+                if (e.key === '.') this.inputDigit('.');
+                if (e.key === 'Backspace' || e.key === 'Delete') this.backspace();
+                if (e.key === 'Enter') this.submitBattleAnswer();
+            }
+        });
+    }
+
+    switchScreen(screenName) {
+        Object.values(this.elements.screens).forEach(el => {
+            el.classList.remove('active');
+            el.classList.add('hidden');
+        });
+        const target = this.elements.screens[screenName];
+        target.classList.remove('hidden');
+        setTimeout(() => target.classList.add('active'), 50);
+    }
+
+    /* --- Flow Control --- */
+    selectMode(mode) {
+        Sound.click();
+        this.state.mode = mode;
+        this.switchScreen('sub');
+    }
+
+    confirmStart(subMode) {
+        Sound.click();
+        this.state.subMode = subMode;
+        this.startCountdown();
+    }
+
+    startCountdown() {
+        // Hide sub screen
+        Object.values(this.elements.screens).forEach(el => el.classList.remove('active'));
+        
+        const countEl = this.elements.countdown;
+        countEl.classList.add('active');
+        
+        let count = 3;
+        countEl.textContent = count;
+        countEl.style.animation = 'countZoom 0.8s';
+
+        const interval = setInterval(() => {
+            count--;
+            if (count > 0) {
+                countEl.textContent = count;
+                countEl.style.animation = 'none';
+                void countEl.offsetWidth;
+                countEl.style.animation = 'countZoom 0.8s';
+                Sound.click(); // Beep
+            } else {
+                clearInterval(interval);
+                countEl.textContent = "START";
+                Sound.playTone(880, 'square', 0.2, 0.2);
+                setTimeout(() => {
+                    countEl.classList.remove('active');
+                    this.startGame();
+                }, 800);
+            }
+        }, 1000);
+    }
+
+    startGame() {
+        this.state.correctCount = 0;
+        this.state.timeLeft = 30.00;
+        this.state.isPlaying = true;
+        
+        this.elements.currentScore.textContent = 0;
+        this.toggleNumpad(false);
+        this.elements.timerDisplay.classList.remove('danger');
+        
+        // Mode Specific Instruction
+        let guide = "";
+        if (this.state.mode === 'sorting') guide = "対象の位を探し、5以上なら上、4以下なら下にフリック！";
+        if (this.state.mode === 'battle') guide = "四捨五入する桁をフリックで決定後、答えを入力！";
+        if (this.state.mode === 'sniping') guide = "目標の数字になるように、操作する桁を逆算してフリック！";
+        
+        if (this.state.subMode === 'tutorial') {
+            this.state.timeLeft = "--.--";
+            this.elements.timerDisplay.textContent = "TUTORIAL";
+            guide = "【確認モード】" + guide;
+        }
+        
+        this.elements.guideText.textContent = guide;
+
+        this.switchScreen('game');
+        this.nextProblem();
+
+        if (this.state.subMode === 'timeAttack') {
+            this.startTimer();
+        }
+    }
+
+    startTimer() {
+        if (this.timerInterval) clearInterval(this.timerInterval);
+        this.timerInterval = setInterval(() => {
+            this.state.timeLeft -= 0.05;
+            if(this.state.timeLeft <= 5) this.elements.timerDisplay.classList.add('danger');
+            
+            if (this.state.timeLeft <= 0) {
+                this.state.timeLeft = 0;
+                this.updateTimerDisplay();
+                this.endGame();
+            } else {
+                this.updateTimerDisplay();
+            }
+        }, 50);
+    }
+
+    updateTimerDisplay() {
+        this.elements.timerDisplay.childNodes[0].nodeValue = this.state.timeLeft.toFixed(2) + " ";
+    }
+
+    endGame() {
+        clearInterval(this.timerInterval);
+        this.state.isPlaying = false;
+        
+        // Save Score only for Time Attack
+        let highScore = 0;
+        const keyMap = {'sorting': 'rm3_sort_rec', 'battle': 'rm3_batt_rec', 'sniping': 'rm3_snip_rec'};
+        
+        if (this.state.subMode === 'timeAttack') {
+            const key = keyMap[this.state.mode];
+            highScore = parseInt(localStorage.getItem(key) || 0);
+            if (this.state.correctCount > highScore) {
+                highScore = this.state.correctCount;
+                localStorage.setItem(key, highScore);
+            }
+        } else {
+            // Tutorial finish
+             highScore = parseInt(localStorage.getItem(keyMap[this.state.mode]) || 0);
+        }
+
+        this.elements.finalScore.textContent = this.state.correctCount;
+        this.elements.highScoreDisplay.textContent = highScore;
+        
+        setTimeout(() => {
+            this.switchScreen('result');
+        }, 500);
+    }
+
+    toTitle() {
+        this.switchScreen('start');
+    }
+
+    /* --- Problem Logic (Same as before) --- */
+    getRandomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+    
+    generateNumber() {
+        const type = Math.random();
+        if (type < 0.3) return this.getRandomInt(10, 9999).toString();
+        else if (type < 0.6) {
+            return `${this.getRandomInt(0, 999)}.${this.getRandomInt(1, 99)}`;
+        } else return this.getRandomInt(1000, 99999).toString();
+    }
+
+    getTargetPlace(numStr) {
+        const dotIndex = numStr.indexOf('.');
+        const intLen = dotIndex === -1 ? numStr.length : dotIndex;
+        const places = [];
+        if (intLen >= 4) places.push({ name: "千の位", offset: -4 });
+        if (intLen >= 3) places.push({ name: "百の位", offset: -3 });
+        if (intLen >= 2) places.push({ name: "十の位", offset: -2 });
+        if (intLen >= 1) places.push({ name: "一の位", offset: -1 });
+        if (dotIndex !== -1) {
+             if (numStr.length > dotIndex + 1) places.push({ name: "小数第一位", offset: 1 });
+             if (numStr.length > dotIndex + 2) places.push({ name: "小数第二位", offset: 2 });
+        }
+        if (places.length === 0) return null;
+        const choice = places[this.getRandomInt(0, places.length - 1)];
+        let targetIndex = choice.offset < 0 ? intLen + choice.offset : dotIndex + choice.offset;
+        return { name: choice.name, index: targetIndex };
+    }
+
+    nextProblem() {
+        if (!this.state.isPlaying) return;
+        this.elements.numberContainer.innerHTML = '';
+        this.toggleNumpad(false);
+        this.state.inputBuffer = "";
+        this.elements.battleInput.textContent = "";
+
+        const numStr = this.generateNumber();
+        this.state.currentProblem = { numStr: numStr };
+
+        if (this.state.mode === 'sorting') this.setupSorting(numStr);
+        else if (this.state.mode === 'battle') this.setupBattle(numStr);
+        else if (this.state.mode === 'sniping') this.setupSniping(numStr);
+    }
+
+    setupSorting(numStr) {
+        const target = this.getTargetPlace(numStr);
+        this.state.currentProblem.target = target;
+        this.elements.taskText.textContent = `${target.name}を四捨五入せよ`;
+        this.renderNumber(numStr);
+    }
+
+    setupBattle(numStr) {
+        const type = this.getRandomInt(1, 3);
+        const target = this.getTargetPlace(numStr);
+        let questionText = "", roundDigitIndex = -1;
+
+        if (type === 1) {
+            questionText = `${target.name}を四捨五入せよ`;
+            roundDigitIndex = target.index;
+        } else if (type === 2) {
+            let neighborIdx = target.index + 1;
+            if (numStr[neighborIdx] === '.') neighborIdx++;
+            if (neighborIdx >= numStr.length) return this.setupBattle(numStr);
+            questionText = `${target.name}までのがい数にせよ`;
+            roundDigitIndex = neighborIdx;
+        } else {
+            const digitsOnly = numStr.replace('.', '');
+            const n = this.getRandomInt(1, Math.min(3, digitsOnly.length - 1));
+            questionText = `上から${n}けたのがい数にせよ`;
+            let count = 0;
+            for(let i=0; i<numStr.length; i++){
+                if(numStr[i] !== '.') count++;
+                if(count === n + 1) { roundDigitIndex = i; break; }
+            }
+        }
+        this.state.currentProblem.roundIndex = roundDigitIndex;
+        this.state.currentProblem.correctAnswer = this.calculateRoundResult(numStr, roundDigitIndex);
+        this.elements.taskText.textContent = questionText;
+        this.renderNumber(numStr);
+    }
+
+    calculateRoundResult(numStr, roundIndex) {
+        const digit = parseInt(numStr[roundIndex]);
+        const isUp = digit >= 5;
+        let leftPart = numStr.substring(0, roundIndex);
+        if (leftPart.endsWith('.')) leftPart = leftPart.slice(0, -1);
+        
+        if (!isUp) {
+            const cutPos = roundIndex;
+            const dotPos = numStr.indexOf('.');
+            if (dotPos !== -1 && cutPos > dotPos) {
+                let res = numStr.substring(0, cutPos);
+                if (res.endsWith('.')) res = res.slice(0, -1);
+                return res;
+            } else {
+                const endInt = dotPos === -1 ? numStr.length : dotPos;
+                const zeros = endInt - cutPos;
+                let res = numStr.substring(0, cutPos) + "0".repeat(zeros);
+                return res === "" ? "0" : res;
+            }
+        } else {
+            let chars = leftPart.split('');
+            let i = chars.length - 1;
+            let carry = 1;
+            while(i >= 0 && carry > 0) {
+                if(chars[i] === '.') { i--; continue; }
+                let val = parseInt(chars[i]) + carry;
+                if (val === 10) { chars[i] = '0'; carry = 1; }
+                else { chars[i] = val.toString(); carry = 0; }
+                i--;
+            }
+            let prefix = chars.join('');
+            if (carry > 0) prefix = '1' + prefix;
+            
+            const dotPos = numStr.indexOf('.');
+            const cutPos = roundIndex;
+            if (dotPos === -1 || cutPos < dotPos) {
+                 const zerosNeeded = (dotPos === -1 ? numStr.length : dotPos) - cutPos;
+                 prefix = prefix + "0".repeat(zerosNeeded);
+            }
+            return prefix;
+        }
+    }
+
+    setupSniping(numStr) {
+        const candidates = [];
+        for (let i = 0; i < numStr.length; i++) {
+            if (numStr[i] === '.') continue;
+            const result = this.calculateRoundResult(numStr, i);
+            if (parseFloat(result) !== parseFloat(numStr)) {
+                candidates.push({ index: i, result: result });
+            }
+        }
+        if (candidates.length === 0) return this.setupSniping(this.generateNumber());
+        const choice = candidates[this.getRandomInt(0, candidates.length - 1)];
+        this.state.currentProblem.targetResult = choice.result;
+        this.elements.taskText.textContent = `${choice.result} にせよ`;
+        this.renderNumber(numStr);
+    }
+
+    /* --- Input & Rendering --- */
+    renderNumber(numStr) {
+        this.elements.numberContainer.innerHTML = '';
+        numStr.split('').forEach((char, index) => {
+            const span = document.createElement('span');
+            span.textContent = char;
+            span.classList.add('digit');
+            if (char !== '.') {
+                span.addEventListener('mousedown', (e) => this.startDrag(e, index, e.clientY));
+                span.addEventListener('touchstart', (e) => this.startDrag(e, index, e.touches[0].clientY), {passive:false});
+            }
+            this.elements.numberContainer.appendChild(span);
+        });
+    }
+
+    startDrag(e, index, y) {
+        if (!this.state.isPlaying) return;
+        this.dragState.active = true;
+        this.dragState.startY = y;
+        this.dragState.currentY = y;
+        this.dragState.index = index;
+        this.dragState.targetEl = e.target;
+        e.target.classList.add('dragging');
+        Sound.swipe();
+    }
+
+    onDragMove(y) {
+        if (!this.dragState.active || !this.dragState.targetEl) return;
+        const diff = y - this.dragState.startY;
+        this.dragState.targetEl.style.transform = `translateY(${diff}px) scale(1.1)`;
+    }
+
+    endDrag() {
+        if (!this.dragState.active) return;
+        const el = this.dragState.targetEl;
+        const diffY = new WebKitCSSMatrix(window.getComputedStyle(el).transform).m42;
+        el.style.transform = '';
+        el.classList.remove('dragging');
+        this.dragState.active = false;
+
+        if (Math.abs(diffY) > 20) {
+            const direction = diffY < 0 ? 'up' : 'down';
+            this.handleInput(this.dragState.index, direction);
+        }
+    }
+
+    handleInput(index, direction) {
+        if (!this.state.isPlaying) return;
+        if (this.state.isNumpadOpen) return; // Block swipe during battle input phase
+
+        const numStr = this.state.currentProblem.numStr;
+        const digit = parseInt(numStr[index]);
+        const isUp = direction === 'up';
+        let isCorrect = false;
+
+        if (this.state.mode === 'sorting') {
+            const targetIdx = this.state.currentProblem.target.index;
+            if (index === targetIdx) {
+                if ((isUp && digit >= 5) || (!isUp && digit <= 4)) isCorrect = true;
+            }
+        }
+        else if (this.state.mode === 'battle') {
+            const targetIdx = this.state.currentProblem.roundIndex;
+            if (index === targetIdx) {
+                const shouldBeUp = digit >= 5;
+                if ((isUp && shouldBeUp) || (!isUp && !shouldBeUp)) {
+                    Sound.click();
+                    this.toggleNumpad(true);
+                    // Focus for PC keyboard implies just state listening
+                    return; 
+                }
+            }
+        }
+        else if (this.state.mode === 'sniping') {
+            if (!((isUp && digit < 5) || (!isUp && digit >= 5))) {
+                const calcResult = this.calculateRoundResult(numStr, index);
+                if (parseFloat(calcResult) === parseFloat(this.state.currentProblem.targetResult)) {
+                    isCorrect = true;
+                }
+            }
+        }
+
+        if (isCorrect) {
+            this.processCorrect();
+        } else {
+            this.triggerPenalty();
+        }
+    }
+
+    processCorrect() {
+        Sound.correct();
+        this.showFeedback('correct');
+        this.state.correctCount++;
+        this.elements.currentScore.textContent = this.state.correctCount;
+        
+        if (this.state.subMode === 'tutorial') {
+            setTimeout(() => this.endGame(), 1000);
+        } else {
+            this.nextProblem();
+        }
+    }
+
+    triggerPenalty() {
+        Sound.wrong();
+        this.showFeedback('wrong');
+        if (this.state.subMode === 'timeAttack') {
+            this.state.timeLeft -= 5;
+            const pFx = this.elements.penaltyFx;
+            pFx.classList.remove('show');
+            void pFx.offsetWidth;
+            pFx.classList.add('show');
+        }
+    }
+
+    toggleNumpad(show) {
+        this.state.isNumpadOpen = show;
+        if (show) {
+            this.elements.numpad.classList.add('show');
+            this.elements.gameContent.classList.add('shift-up');
+            // If on battle mode start, auto clear
+            this.state.inputBuffer = "";
+            this.elements.battleInput.textContent = "";
+        } else {
+            this.elements.numpad.classList.remove('show');
+            this.elements.gameContent.classList.remove('shift-up');
+        }
+    }
+
+    /* --- Battle Input --- */
+    inputDigit(val) {
+        Sound.click();
+        if (this.state.inputBuffer.length > 10) return;
+        this.state.inputBuffer += val;
+        this.elements.battleInput.textContent = this.state.inputBuffer;
+    }
+    backspace() {
+        Sound.click();
+        this.state.inputBuffer = this.state.inputBuffer.slice(0, -1);
+        this.elements.battleInput.textContent = this.state.inputBuffer;
+    }
+    submitBattleAnswer() {
+        if (this.state.inputBuffer === "") return;
+        const correct = this.state.currentProblem.correctAnswer;
+        if (parseFloat(this.state.inputBuffer) === parseFloat(correct)) {
+            this.processCorrect();
+            this.toggleNumpad(false);
+        } else {
+            this.state.inputBuffer = "";
+            this.elements.battleInput.textContent = "";
+            this.triggerPenalty();
+        }
+    }
+
+    showFeedback(type) {
+        const el = this.elements.feedbackIcon;
+        el.className = `feedback-icon ${type}`;
+        el.textContent = type === 'correct' ? '◯' : '✕';
+        el.style.animation = 'none';
+        void el.offsetWidth;
+        el.style.animation = type === 'correct' ? 'popSuccess 0.6s ease-out' : 'shakeError 0.5s ease-in-out';
+    }
+}
+
+const game = new RoundGame();
+</script>
+</body>
+</html>
