@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>漢字の極み - 昇段の道</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #2b2523; /* 濃墨 */
+            --accent: #bf242a; /* 深紅 */
+            --sub-accent: #d4a03e; /* 金茶 */
+            --paper: #fcfaf2;
+            --paper-shadow: #e0dcd0;
+            --font-main: 'Klee One', "Yu Mincho", serif;
+            --font-serif: 'Noto Serif JP', serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--paper);
+            font-family: var(--font-main);
+            color: var(--primary);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-image: 
+                radial-gradient(var(--paper-shadow) 1px, transparent 1px),
+                url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBvcGFjaXR5PSIwLjAzIj48ZmlsdGVyIGlkPSJ4Ij48ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iMC41IiAvPjwvZmlsdGVyPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbHRlcj0idXJsKCN4KSIvPjwvc3ZnPg==');
+            background-size: 20px 20px, cover;
+        }
+
+        /* 画面共通 */
+        .screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            position: absolute;
+            top: 0; left: 0;
+            z-index: 1;
+        }
+
+        .screen.active {
+            display: flex;
+            opacity: 1;
+            z-index: 10;
+        }
+
+        h1 {
+            font-family: var(--font-serif);
+            font-size: 3rem;
+            margin-bottom: 0.2rem;
+            color: var(--primary);
+            text-shadow: 2px 2px 0px rgba(0,0,0,0.1);
+            letter-spacing: 0.2rem;
+        }
+
+        h2 {
+            font-family: var(--font-serif);
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 5px;
+            margin-bottom: 20px;
+        }
+
+        .rules-box {
+            font-size: 0.8rem;
+            color: #555;
+            background: rgba(255,255,255,0.6);
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            max-width: 90%;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+        .formula {
+            font-family: "Times New Roman", serif;
+            font-style: italic;
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        /* ボタンデザイン */
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 1.1rem;
+            border-radius: 4px;
+            margin: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 0px #1a1615;
+            transition: transform 0.1s, box-shadow 0.1s;
+            font-family: var(--font-serif);
+            min-width: 180px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 transparent;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+            box-shadow: 0 4px 0px rgba(0,0,0,0.1);
+        }
+
+        .btn-accent {
+            background: var(--accent);
+            box-shadow: 0 4px 0px #8a1a1e;
+        }
+
+        /* 難易度トグル */
+        .difficulty-selector {
+            background: white;
+            border: 2px solid var(--primary);
+            border-radius: 30px;
+            display: flex;
+            overflow: hidden;
+            margin: 10px 0 20px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .diff-opt {
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: background 0.3s, color 0.3s;
+            font-weight: bold;
+        }
+
+        .diff-opt.selected {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* ゲームエリア */
+        .question-box {
+            background: white;
+            padding: 15px 25px;
+            border-radius: 2px;
+            box-shadow: 3px 3px 0 rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+            width: 100%;
+            max-width: 400px;
+            border-left: 5px solid var(--accent);
+        }
+
+        .sentence { font-size: 1.3rem; margin: 10px 0; line-height: 1.5; }
+        .target-slot { color: var(--accent); font-weight: bold; border-bottom: 2px solid var(--accent); display:inline-block; min-width: 1em; text-align: center;}
+        .reading { font-size: 0.9rem; color: #555; }
+
+        /* キャンバス */
+        .canvas-wrapper {
+            position: relative;
+            width: 300px;
+            height: 300px;
+            background: white;
+            border: 4px solid var(--primary);
+            box-shadow: 5px 5px 0 rgba(0,0,0,0.15);
+            margin-bottom: 15px;
+            cursor: crosshair;
+        }
+
+        canvas { display: block; touch-action: none; }
+
+        .guide-line {
+            position: absolute;
+            top: 50%; left: 10px; right: 10px;
+            border-top: 1px dashed #ccc;
+            pointer-events: none;
+        }
+        .guide-line.vertical {
+            top: 10px; bottom: 10px; left: 50%; right: auto;
+            border-top: none;
+            border-left: 1px dashed #ccc;
+        }
+
+        /* 対戦結果比較 */
+        .vs-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            width: 100%;
+            max-width: 600px;
+            flex-wrap: wrap;
+        }
+
+        .vs-card {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            text-align: center;
+            flex: 1;
+            min-width: 140px;
+            position: relative;
+        }
+
+        .vs-card img {
+            width: 100%;
+            height: auto;
+            border: 1px solid #eee;
+            background: #fafafa;
+        }
+
+        .result-score {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--accent);
+            margin: 5px 0;
+            font-family: var(--font-serif);
+        }
+
+        .win-badge {
+            position: absolute;
+            top: -10px; right: -10px;
+            background: var(--sub-accent);
+            color: white;
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            animation: pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        /* 幕間（ターン交代） */
+        .interim-message {
+            font-size: 1.5rem;
+            margin-bottom: 30px;
+            line-height: 2;
+        }
+        .interim-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            color: var(--accent);
+        }
+
+        @keyframes pop {
+            0% { transform: scale(0); }
+            100% { transform: scale(1); }
+        }
+
+        /* パーティクル用 */
+        #particles {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 20;
+        }
+        
+        /* 称号表示 */
+        .title-display {
+            background: var(--primary);
+            color: var(--sub-accent);
+            padding: 5px 15px;
+            border-radius: 4px;
+            font-family: var(--font-serif);
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .new-title-alert {
+            color: var(--accent);
+            font-weight: bold;
+            animation: flash 1s infinite alternate;
+        }
+        @keyframes flash { from {opacity:0.6;} to {opacity:1;} }
+
+    </style>
+</head>
+<body>
+
+    <!-- タイトル画面 -->
+    <div id="screen-title" class="screen active">
+        <div style="font-size:4rem; color:var(--accent); margin-bottom:-10px;">❖</div>
+        <h1>漢字の極み</h1>
+        <div class="rules-box">
+            <p style="margin:0 0 5px 0;">お題の漢字を書き、その形の正確さを競います。<br>一致率はあくまで参考程度に…</p>
+            <p style="margin:0;">一致率 <span class="formula">= (重なり) ÷ (正解 + 描画 - 重なり)</span></p>
+        </div>
+
+        <div class="difficulty-selector">
+            <div class="diff-opt selected" onclick="Game.setDifficulty('strict', this)">厳しめ</div>
+            <div class="diff-opt" onclick="Game.setDifficulty('easy', this)">優しめ</div>
+        </div>
+
+        <button class="btn" onclick="Game.setupSingle()">ひとりで特訓</button>
+        <button class="btn btn-secondary" onclick="Game.setupVersus()">ふたりで対戦</button>
+        
+        <div id="player-title" class="title-display" style="margin-top:20px;">称号: 読み込み中...</div>
+    </div>
+
+    <!-- レベル選択（一人用） -->
+    <div id="screen-level" class="screen">
+        <h2>挑戦する級を選ぶ</h2>
+        <p style="font-size:0.9rem; margin-top:-10px;">全５問</p>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <button class="btn btn-secondary" onclick="Game.startSingle(1)">初級 (小1-2)</button>
+            <button class="btn btn-secondary" onclick="Game.startSingle(2)">中級 (小3-4)</button>
+            <button class="btn btn-secondary" onclick="Game.startSingle(3)">上級 (小5-6)</button>
+            <button class="btn btn-secondary" onclick="Game.startSingle(4)">特級 (中1-2)</button>
+            <button class="btn btn-secondary" onclick="Game.startSingle(5)">師範 (中3+)</button>
+        </div>
+        <button class="btn" style="margin-top:20px" onclick="UI.show('screen-title')">戻る</button>
+    </div>
+
+    <!-- 対戦設定 -->
+    <div id="screen-vs-setup" class="screen">
+        <h2>対戦の設定</h2>
+        <p>出題レベルを選んでください</p>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <button class="btn btn-secondary" onclick="Game.initVersus(1)">初級</button>
+            <button class="btn btn-secondary" onclick="Game.initVersus(3)">上級</button>
+            <button class="btn btn-secondary" onclick="Game.initVersus(5)">師範</button>
+            <button class="btn btn-secondary" onclick="Game.initVersus('random')">無差別級</button>
+        </div>
+        <button class="btn" style="margin-top:20px" onclick="UI.show('screen-title')">戻る</button>
+    </div>
+
+    <!-- 幕間（プレイヤー確認用） -->
+    <div id="screen-interim" class="screen" style="background:var(--primary); color:white;">
+        <div class="interim-icon">❖</div>
+        <div class="interim-message" id="interim-text">
+            準備はいいですか？
+        </div>
+        <button class="btn btn-accent" id="interim-btn" onclick="">筆を取る</button>
+    </div>
+
+    <!-- ゲームプレイ画面 -->
+    <div id="screen-game" class="screen">
+        <div style="width:100%; display:flex; justify-content:space-between; max-width:400px; margin-bottom:5px; font-size:0.9rem; color:#666;">
+            <span id="game-mode-lbl">一人特訓</span>
+            <span id="game-progress-lbl">1/5</span>
+        </div>
+
+        <div class="question-box">
+            <div class="reading" id="q-reading">よみかた</div>
+            <div class="sentence" id="q-sentence">ここに例文が出ます</div>
+        </div>
+
+        <div class="canvas-wrapper" id="canvas-wrapper">
+            <div class="guide-line"></div>
+            <div class="guide-line vertical"></div>
+            <canvas id="main-canvas" width="300" height="300"></canvas>
+        </div>
+
+        <div id="action-area">
+            <button class="btn btn-secondary" onclick="Drawing.clear(); Sound.play('tap');">書き直し</button>
+            <button class="btn btn-accent" onclick="Game.submit()">判定</button>
+        </div>
+    </div>
+
+    <!-- 対戦結果 -->
+    <div id="screen-vs-result" class="screen">
+        <h2 style="border:none;">勝負あり！</h2>
+        <div style="font-size:3rem; font-family:var(--font-serif); margin-bottom:20px;">
+            正解: <span id="vs-ans-kanji"></span>
+        </div>
+        
+        <div class="vs-container">
+            <div class="vs-card" id="p1-card">
+                <div>プレイヤー１</div>
+                <img id="p1-img" src="">
+                <div class="result-score" id="p1-score"></div>
+            </div>
+            <div class="vs-card" id="p2-card">
+                <div>プレイヤー２</div>
+                <img id="p2-img" src="">
+                <div class="result-score" id="p2-score"></div>
+            </div>
+        </div>
+
+        <button class="btn btn-accent" style="margin-top:30px;" onclick="Game.nextVsRound()">次の勝負へ</button>
+    </div>
+
+    <!-- 一人用結果（1問ごと） -->
+    <div id="screen-single-result" class="screen">
+        <h2 id="single-res-title">判定</h2>
+        <div class="canvas-wrapper" style="pointer-events:none; border-color:var(--accent);">
+            <canvas id="feedback-canvas" width="300" height="300"></canvas>
+        </div>
+        <div class="result-score" style="font-size:2rem;" id="single-score-val">95%</div>
+        <div id="single-comment" style="margin-bottom:20px;"></div>
+        <button class="btn btn-accent" onclick="Game.nextSingleRound()">次へ</button>
+    </div>
+
+    <!-- 最終結果 -->
+    <div id="screen-final" class="screen">
+        <h2>修練終了</h2>
+        <div id="final-stats"></div>
+        <div id="exp-gain" style="margin-top:20px; font-weight:bold; color:var(--accent);"></div>
+        <div id="title-update" style="margin-top:10px; font-family:var(--font-serif);"></div>
+        <button class="btn" style="margin-top:30px;" onclick="UI.show('screen-title')">タイトルへ戻る</button>
+    </div>
+
+    <canvas id="particles"></canvas>
+
+<script>
+/**
+ * 簡易和風サウンドエンジン
+ */
+const Sound = {
+    ctx: null,
+    init() {
+        if (!this.ctx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioContext();
+        }
+        if (this.ctx.state === 'suspended') {
+            this.ctx.resume();
+        }
+    },
+    play(type) {
+        if (!this.ctx) this.init();
+        const t = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        switch (type) {
+            case 'tap': 
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(800, t);
+                osc.frequency.exponentialRampToValueAtTime(100, t + 0.1);
+                gain.gain.setValueAtTime(0.5, t);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+                osc.start(t); osc.stop(t + 0.1);
+                break;
+            case 'start':
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(150, t);
+                osc.frequency.exponentialRampToValueAtTime(80, t + 0.3);
+                gain.gain.setValueAtTime(1, t);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
+                osc.start(t); osc.stop(t + 0.5);
+                break;
+            case 'win':
+                this.playTone(440, 0); this.playTone(554, 0.1); this.playTone(659, 0.2); this.playTone(880, 0.4);
+                break;
+            case 'high-score':
+                this.playTone(523, 0); this.playTone(659, 0.1); this.playTone(784, 0.2); this.playTone(1046, 0.4); 
+                break;
+        }
+    },
+    playTone(freq, delay) {
+        const t = this.ctx.currentTime + delay;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.3, t + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 1.0);
+        osc.start(t); osc.stop(t + 1.0);
+    }
+};
+
+/**
+ * 称号・経験値システム
+ */
+const TitleSystem = {
+    exp: 0,
+    titles: [
+        {p:0, t:"筆の弟子"}, {p:500, t:"見習い書生"}, {p:1000, t:"村の字書き"},
+        {p:2000, t:"街の代書屋"}, {p:3500, t:"寺小屋の長"}, {p:5000, t:"初段 筆使い"},
+        {p:7000, t:"二段 墨染め"}, {p:10000, t:"三段 楷書の鬼"}, {p:14000, t:"四段 行書の風"},
+        {p:19000, t:"五段 草書の雲"}, {p:25000, t:"師範代"}, {p:32000, t:"道場主"},
+        {p:40000, t:"免許皆伝"}, {p:50000, t:"筆聖"}, {p:65000, t:"墨神の使徒"},
+        {p:80000, t:"漢字の化身"}, {p:100000, t:"伝説の筆"}
+    ],
+    load() {
+        const saved = localStorage.getItem('kanji_master_exp');
+        this.exp = saved ? parseInt(saved, 10) : 0;
+        this.updateDisplay();
+    },
+    addExp(amount) {
+        const oldTitle = this.getCurrentTitle();
+        this.exp += amount;
+        localStorage.setItem('kanji_master_exp', this.exp);
+        const newTitle = this.getCurrentTitle();
+        this.updateDisplay();
+        return { leveledUp: oldTitle !== newTitle, newTitle: newTitle };
+    },
+    getCurrentTitle() {
+        for(let i = this.titles.length - 1; i >= 0; i--) {
+            if(this.exp >= this.titles[i].p) return this.titles[i].t;
+        }
+        return "筆の弟子";
+    },
+    updateDisplay() {
+        const el = document.getElementById('player-title');
+        if(el) el.textContent = `称号: ${this.getCurrentTitle()}`;
+    }
+};
+
+/**
+ * データセット
+ */
+const KanjiData = [
+  { "k":"一","r":"いち","s":"イチから始める。","l":1 },
+  { "k":"二","r":"に","s":"二つでニ人だ。","l":1 },
+  { "k":"三","r":"さん","s":"サン回読む。","l":1 },
+  { "k":"四","r":"よん","s":"ヨン月になる。","l":1 },
+  { "k":"五","r":"ご","s":"ゴ人集まる。","l":1 },
+  { "k":"六","r":"ろく","s":"ロク時に起きる。","l":1 },
+  { "k":"七","r":"なな","s":"ナナ色の虹。","l":1 },
+  { "k":"八","r":"はち","s":"ハチ本の木。","l":1 },
+  { "k":"九","r":"きゅう","s":"キュウ回練習する。","l":1 },
+  { "k":"十","r":"じゅう","s":"ジュウ分休む。","l":1 },
+  { "k":"人","r":"ひと","s":"ヒトが集まる。","l":1 },
+  { "k":"子","r":"こ","s":"コどもが遊ぶ。","l":1 },
+  { "k":"女","r":"おんな","s":"オンナの子。","l":1 },
+  { "k":"男","r":"おとこ","s":"オトコの人。","l":1 },
+  { "k":"大","r":"おお","s":"オオきな家。","l":1 },
+  { "k":"小","r":"ちい","s":"チイさい犬。","l":1 },
+  { "k":"中","r":"なか","s":"ナカに入る。","l":1 },
+  { "k":"上","r":"うえ","s":"ウエを見る。","l":1 },
+  { "k":"下","r":"した","s":"シタに置く。","l":1 },
+  { "k":"左","r":"ひだり","s":"ヒダリへ行く。","l":1 },
+  { "k":"右","r":"みぎ","s":"ミギを見る。","l":1 },
+  { "k":"山","r":"やま","s":"ヤマに登る。","l":1 },
+  { "k":"川","r":"かわ","s":"カワで遊ぶ。","l":1 },
+  { "k":"田","r":"た","s":"タに水を入れる。","l":1 },
+  { "k":"天","r":"てん","s":"テン気がいい。","l":1 },
+  { "k":"日","r":"ひ","s":"ヒがのぼる。","l":1 },
+  { "k":"月","r":"つき","s":"ツキが出る。","l":1 },
+  { "k":"火","r":"ひ","s":"ヒを使う。","l":1 },
+  { "k":"水","r":"みず","s":"ミズを飲む。","l":1 },
+  { "k":"木","r":"き","s":"キの下で休む。","l":1 },
+  { "k":"金","r":"きん","s":"キン色の星。","l":1 },
+  { "k":"土","r":"つち","s":"ツチをさわる。","l":1 },
+  { "k":"本","r":"ほん","s":"ホンを読む。","l":1 },
+  { "k":"休","r":"やす","s":"ヤスむ時間。","l":1 },
+  { "k":"先","r":"さき","s":"サキに行く。","l":1 },
+  { "k":"生","r":"い","s":"イきもの。","l":1 },
+  { "k":"学","r":"がく","s":"ガクぶ。","l":1 },
+  { "k":"校","r":"こう","s":"コウに行く。","l":1 },
+  { "k":"年","r":"とし","s":"トシを重ねる。","l":1 },
+  { "k":"早","r":"はや","s":"ハヤく起きる。","l":1 },
+  { "k":"気","r":"き","s":"キをつける。","l":1 },
+  { "k":"空","r":"そら","s":"ソラを見る。","l":1 },
+  { "k":"見","r":"み","s":"ミる。","l":1 },
+  { "k":"行","r":"い","s":"イく。","l":1 },
+  { "k":"来","r":"く","s":"クる。","l":1 },
+  { "k":"入","r":"はい","s":"ハイる。","l":1 },
+  { "k":"出","r":"で","s":"デる。","l":1 },
+
+  { "k":"安","r":"やす","s":"アン心する。","l":2 },
+  { "k":"意","r":"い","s":"イ見を言う。","l":2 },
+  { "k":"育","r":"そだ","s":"ソダてる。","l":2 },
+  { "k":"員","r":"いん","s":"イン数を数える。","l":2 },
+  { "k":"飲","r":"の","s":"ノむ。","l":2 },
+  { "k":"運","r":"うん","s":"ウン動する。","l":2 },
+  { "k":"駅","r":"えき","s":"エキに着く。","l":2 },
+  { "k":"温","r":"あたた","s":"アタタかい。","l":2 },
+  { "k":"化","r":"か","s":"ヘン化する。","l":2 },
+  { "k":"荷","r":"に","s":"ニ物を運ぶ。","l":2 },
+  { "k":"開","r":"ひら","s":"ヒラく。","l":2 },
+  { "k":"界","r":"かい","s":"セカイが広い。","l":2 },
+  { "k":"決","r":"き","s":"キめる。","l":2 },
+  { "k":"君","r":"きみ","s":"キミの番。","l":2 },
+  { "k":"具","r":"ぐ","s":"ドウグを使う。","l":2 },
+  { "k":"庫","r":"こ","s":"ソウコに入れる。","l":2 },
+  { "k":"坂","r":"さか","s":"サカを上る。","l":2 },
+  { "k":"指","r":"ゆび","s":"ユビをさす。","l":2 },
+  { "k":"死","r":"し","s":"シについて学ぶ。","l":2 },
+  { "k":"事","r":"こと","s":"コトが起きる。","l":2 },
+  { "k":"実","r":"じつ","s":"ジツを言う。","l":2 },
+  { "k":"写","r":"うつ","s":"ウツす。","l":2 },
+  { "k":"者","r":"もの","s":"ワカモノ。","l":2 },
+  { "k":"主","r":"ぬし","s":"シュ人公。","l":2 },
+  { "k":"取","r":"と","s":"トる。","l":2 },
+  { "k":"使","r":"つか","s":"ツカう。","l":2 },
+  { "k":"始","r":"はじ","s":"ハジまる。","l":2 },
+  { "k":"終","r":"お","s":"オわる。","l":2 },
+  { "k":"表","r":"ひょう","s":"ヒョウにまとめる。","l":2 },
+  { "k":"秒","r":"びょう","s":"ビョウで測る。","l":2 },
+  { "k":"勝","r":"か","s":"カつ。","l":2 },
+  { "k":"商","r":"しょう","s":"ショウ店街。","l":2 },
+  { "k":"乗","r":"の","s":"ノる。","l":2 },
+  { "k":"進","r":"すす","s":"ススむ。","l":2 },
+  { "k":"深","r":"ふか","s":"フカい。","l":2 },
+  { "k":"真","r":"しん","s":"シン実。","l":2 },
+  { "k":"世","r":"よ","s":"ヨの中。","l":2 },
+  { "k":"全","r":"ぜん","s":"ゼン部。","l":2 },
+  { "k":"相","r":"あい","s":"アイ手。","l":2 },
+  { "k":"送","r":"おく","s":"オクる。","l":2 },
+  { "k":"想","r":"そう","s":"ソウ像する。","l":2 },
+  { "k":"速","r":"はや","s":"ハヤい。","l":2 },
+  { "k":"打","r":"う","s":"ウつ。","l":2 },
+  { "k":"待","r":"ま","s":"マつ。","l":2 },
+  { "k":"第","r":"だい","s":"ダイ一位。","l":2 },
+  { "k":"題","r":"だい","s":"ダイ名。","l":2 },
+  { "k":"度","r":"ど","s":"ド合い。","l":2 },
+  { "k":"動","r":"うご","s":"ウゴく。","l":2 },
+
+  { "k":"圧","r":"あつ","s":"アツ力を感じる。","l":3 },
+  { "k":"因","r":"いん","s":"インとなる理由。","l":3 },
+  { "k":"永","r":"えい","s":"エイ遠に続く。","l":3 },
+  { "k":"営","r":"えい","s":"エイ業を続ける。","l":3 },
+  { "k":"衛","r":"えい","s":"エイ生を守る。","l":3 },
+  { "k":"易","r":"やす","s":"ヤスしい問題。","l":3 },
+  { "k":"可","r":"か","s":"カ能だ。","l":3 },
+  { "k":"仮","r":"かり","s":"カリの話。","l":3 },
+  { "k":"価","r":"か","s":"カ値が高い。","l":3 },
+  { "k":"河","r":"かわ","s":"大きなカワ。","l":3 },
+  { "k":"過","r":"す","s":"スぎ去る。","l":3 },
+  { "k":"構","r":"こう","s":"コウ成を考える。","l":3 },
+  { "k":"興","r":"きょう","s":"キョウ味を持つ。","l":3 },
+  { "k":"災","r":"さい","s":"サイ害に備える。","l":3 },
+  { "k":"裁","r":"さい","s":"サイ判を行う。","l":3 },
+  { "k":"志","r":"こころざし","s":"ココロザシを立てる。","l":3 },
+  { "k":"支","r":"ささ","s":"ササえる。","l":3 },
+  { "k":"質","r":"しつ","s":"シツ問する。","l":3 },
+  { "k":"条","r":"じょう","s":"ジョウ件を決める。","l":3 },
+  { "k":"状","r":"じょう","s":"ジョウ況を知る。","l":3 },
+  { "k":"職","r":"しょく","s":"ショク業を選ぶ。","l":3 },
+  { "k":"制","r":"せい","s":"セイ度を作る。","l":3 },
+  { "k":"性","r":"せい","s":"セイ格。","l":3 },
+  { "k":"責","r":"せき","s":"セキ任を持つ。","l":3 },
+  { "k":"接","r":"せっ","s":"セッ続する。","l":3 },
+  { "k":"絶","r":"た","s":"タえる。","l":3 },
+  { "k":"程","r":"ほど","s":"ホドほどにする。","l":3 },
+  { "k":"適","r":"てき","s":"テキ切だ。","l":3 },
+  { "k":"技","r":"ぎ","s":"ギ術を学ぶ。","l":3 },
+  { "k":"識","r":"しき","s":"シキ別する。","l":3 },
+  { "k":"精","r":"せい","s":"セイ神。","l":3 },
+  { "k":"増","r":"ふ","s":"フえる。","l":3 },
+  { "k":"減","r":"へ","s":"ヘる。","l":3 },
+  { "k":"総","r":"そう","s":"ソウ合的。","l":3 },
+  { "k":"像","r":"ぞう","s":"ゾウを思い浮かべる。","l":3 },
+  { "k":"態","r":"たい","s":"タイ度。","l":3 },
+  { "k":"団","r":"だん","s":"ダン体。","l":3 },
+  { "k":"断","r":"だん","s":"ダン定する。","l":3 },
+  { "k":"提","r":"てい","s":"テイ案する。","l":3 },
+  { "k":"税","r":"ぜい","s":"ゼイ金。","l":3 },
+  { "k":"判","r":"はん","s":"ハン断する。","l":3 },
+  { "k":"比","r":"くら","s":"クラべる。","l":3 },
+  { "k":"評","r":"ひょう","s":"ヒョウ価する。","l":3 },
+  { "k":"率","r":"りつ","s":"リツを出す。","l":3 },
+
+  { "k":"異","r":"い","s":"イなる意見。","l":4 },
+  { "k":"遺","r":"い","s":"イ産を残す。","l":4 },
+  { "k":"印","r":"いん","s":"イン象に残る。","l":4 },
+  { "k":"援","r":"えん","s":"エン助する。","l":4 },
+  { "k":"演","r":"えん","s":"エン説する。","l":4 },
+  { "k":"応","r":"おう","s":"オウ答する。","l":4 },
+  { "k":"確","r":"かく","s":"カク実だ。","l":4 },
+  { "k":"慣","r":"な","s":"ナれる。","l":4 },
+  { "k":"観","r":"かん","s":"カン察する。","l":4 },
+  { "k":"議","r":"ぎ","s":"ギ論する。","l":4 },
+  { "k":"逆","r":"ぎゃく","s":"ギャクになる。","l":4 },
+  { "k":"吸","r":"す","s":"スう。","l":4 },
+  { "k":"禁","r":"きん","s":"キン止される。","l":4 },
+  { "k":"群","r":"ぐん","s":"グン集。","l":4 },
+  { "k":"経","r":"けい","s":"ケイ験する。","l":4 },
+  { "k":"権","r":"けん","s":"ケン利。","l":4 },
+  { "k":"検","r":"けん","s":"ケン査する。","l":4 },
+  { "k":"混","r":"こん","s":"コン乱する。","l":4 },
+  { "k":"資","r":"し","s":"シ料。","l":4 },
+  { "k":"証","r":"しょう","s":"ショウ明する。","l":4 },
+  { "k":"属","r":"ぞく","s":"ゾクする。","l":4 },
+  { "k":"割","r":"わり","s":"ワリ合。","l":4 },
+  { "k":"拡","r":"かく","s":"カク大する。","l":4 },
+  { "k":"革","r":"かく","s":"カク新する。","l":4 },
+  { "k":"基","r":"き","s":"キ本。","l":4 },
+  { "k":"境","r":"きょう","s":"キョウ界。","l":4 },
+  { "k":"機","r":"き","s":"キ会。","l":4 },
+  { "k":"規","r":"き","s":"キ則。","l":4 },
+  { "k":"許","r":"きょ","s":"キョ可。","l":4 },
+  { "k":"限","r":"かぎ","s":"カギる。","l":4 },
+  { "k":"効","r":"こう","s":"コウ果。","l":4 },
+  { "k":"互","r":"たが","s":"タガいに。","l":4 },
+  { "k":"改","r":"あらた","s":"アラためる。","l":4 },
+  { "k":"確","r":"たし","s":"タシかだ。","l":4 },
+  { "k":"選","r":"えら","s":"エラぶ。","l":4 },
+  { "k":"判","r":"はん","s":"ハン断。","l":4 },
+
+  { "k":"概","r":"がい","s":"ガイ要。","l":5 },
+  { "k":"確立","r":"かくりつ","s":"カクリツする。","l":5 },
+  { "k":"規範","r":"きはん","s":"キハンとなる。","l":5 },
+  { "k":"機構","r":"きこう","s":"キコウを理解する。","l":5 },
+  { "k":"帰結","r":"きけつ","s":"キケツに至る。","l":5 },
+  { "k":"義務","r":"ぎむ","s":"ギムを果たす。","l":5 },
+  { "k":"均衡","r":"きんこう","s":"キンコウを保つ。","l":5 },
+  { "k":"緊張","r":"きんちょう","s":"キンチョウする。","l":5 },
+  { "k":"検証","r":"けんしょう","s":"ケンショウする。","l":5 },
+  { "k":"交渉","r":"こうしょう","s":"コウショウする。","l":5 },
+  { "k":"公正","r":"こうせい","s":"コウセイだ。","l":5 },
+  { "k":"克服","r":"こくふく","s":"コクフクする。","l":5 },
+  { "k":"構想","r":"こうそう","s":"コウソウを練る。","l":5 },
+  { "k":"裁量","r":"さいりょう","s":"サイリョウに任せる。","l":5 },
+  { "k":"資本","r":"しほん","s":"シホンを集める。","l":5 },
+  { "k":"主体","r":"しゅたい","s":"シュタイ的。","l":5 },
+  { "k":"思考","r":"しこう","s":"シコウする。","l":5 },
+  { "k":"指標","r":"しひょう","s":"シヒョウとなる。","l":5 },
+  { "k":"視点","r":"してん","s":"シテンを変える。","l":5 },
+  { "k":"実証","r":"じっしょう","s":"ジッショウする。","l":5 },
+  { "k":"収束","r":"しゅうそく","s":"シュウソクする。","l":5 },
+  { "k":"修正","r":"しゅうせい","s":"シュウセイする。","l":5 },
+  { "k":"象徴","r":"しょうちょう","s":"ショウチョウ的。","l":5 },
+  { "k":"相対","r":"そうたい","s":"ソウタイ的。","l":5 },
+  { "k":"達成","r":"たっせい","s":"タッセイする。","l":5 },
+  { "k":"抽象","r":"ちゅうしょう","s":"チュウショウ的。","l":5 },
+  { "k":"前提","r":"ぜんてい","s":"ゼンテイとする。","l":5 },
+  { "k":"理念","r":"りねん","s":"リネンを持つ。","l":5 },
+  { "k":"倫理","r":"りんり","s":"リンリを守る。","l":5 },
+  { "k":"普遍","r":"ふへん","s":"フヘン的。","l":5 },
+  { "k":"本質","r":"ほんしつ","s":"ホンシツを探る。","l":5 },
+  { "k":"仮定","r":"かてい","s":"カテイする。","l":5 },
+  { "k":"妥当","r":"だとう","s":"ダトウだ。","l":5 },
+  { "k":"批評","r":"ひひょう","s":"ヒヒョウする。","l":5 },
+  { "k":"体系","r":"たいけい","s":"タイケイ化する。","l":5 },
+  { "k":"多様","r":"たよう","s":"タヨウだ。","l":5 },
+  { "k":"必然","r":"ひつぜん","s":"ヒツゼンだ。","l":5 },
+  { "k":"矛盾","r":"むじゅん","s":"ムジュンがある。","l":5 },
+  { "k":"要因","r":"よういん","s":"ヨウインとなる。","l":5 },
+  { "k":"論証","r":"ろんしょう","s":"ロンショウする。","l":5 }
+];
+// ダミーデータ増幅
+for(let i=0; i<3; i++) KanjiData.push(...KanjiData);
+
+/**
+ * 描画クラス
+ */
+const Drawing = {
+    canvas: null, ctx: null, isDrawing: false, last: {x:0, y:0},
+    init() {
+        this.canvas = document.getElementById('main-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+        this.ctx.lineWidth = 14; 
+        this.ctx.strokeStyle = '#2b2523';
+        
+        const start = (e) => {
+            e.preventDefault();
+            this.isDrawing = true;
+            const p = this.getPos(e);
+            this.last = p;
+            this.ctx.beginPath();
+            this.ctx.arc(p.x, p.y, this.ctx.lineWidth/2, 0, Math.PI*2);
+            this.ctx.fillStyle = this.ctx.strokeStyle;
+            this.ctx.fill();
+        };
+        const move = (e) => {
+            if(!this.isDrawing) return;
+            e.preventDefault();
+            const p = this.getPos(e);
+            this.ctx.beginPath();
+            this.ctx.moveTo(this.last.x, this.last.y);
+            this.ctx.lineTo(p.x, p.y);
+            this.ctx.stroke();
+            this.last = p;
+        };
+        const end = () => this.isDrawing = false;
+
+        this.canvas.addEventListener('mousedown', start);
+        this.canvas.addEventListener('mousemove', move);
+        window.addEventListener('mouseup', end);
+        this.canvas.addEventListener('touchstart', start, {passive:false});
+        this.canvas.addEventListener('touchmove', move, {passive:false});
+        window.addEventListener('touchend', end);
+    },
+    getPos(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+        const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+        return {
+            x: (clientX - rect.left) * (this.canvas.width / rect.width),
+            y: (clientY - rect.top) * (this.canvas.height / rect.height)
+        };
+    },
+    clear() {
+        this.ctx.clearRect(0,0,this.canvas.width, this.canvas.height);
+    },
+    getImageData() {
+        return this.ctx.getImageData(0,0,this.canvas.width, this.canvas.height);
+    },
+    toDataURL() {
+        return this.canvas.toDataURL();
+    }
+};
+
+/**
+ * 判定ロジック (IoU)
+ */
+const Judge = {
+    evaluate(userImgData, kanjiChar, difficulty) {
+        const w = 300, h = 300;
+        const gCanvas = document.createElement('canvas');
+        gCanvas.width = w; gCanvas.height = h;
+        const gCtx = gCanvas.getContext('2d');
+        
+        gCtx.font = "bold 220px 'Noto Serif JP', serif";
+        gCtx.textAlign = "center";
+        gCtx.textBaseline = "middle";
+        gCtx.fillStyle = "black";
+        
+        // 中心合わせ修正: h/2 でほぼ中心に来る
+        gCtx.fillText(kanjiChar, w/2, h/2);
+        
+        gCtx.lineWidth = (difficulty === 'easy') ? 50 : 25;
+        gCtx.lineJoin = 'round';
+        gCtx.strokeStyle = 'black';
+        gCtx.strokeText(kanjiChar, w/2, h/2);
+        
+        const targetData = gCtx.getImageData(0,0,w,h).data;
+        const userData = userImgData.data;
+        
+        let intersection = 0;
+        let union = 0;
+        let userArea = 0;
+        
+        for(let i=0; i<targetData.length; i+=4) {
+            const isUser = userData[i+3] > 64; 
+            const isTarget = targetData[i+3] > 64; 
+            
+            if (isUser) userArea++;
+            if (isUser || isTarget) union++;
+            if (isUser && isTarget) intersection++;
+        }
+        
+        if (userArea < 50) return { score: 0, isEmpty: true }; 
+        const iou = intersection / union;
+        const score = Math.floor(iou * 100);
+        return { score, isEmpty: false };
+    },
+    
+    drawFeedback(canvasId, kanji) {
+        const c = document.getElementById(canvasId);
+        const ctx = c.getContext('2d');
+        ctx.save();
+        ctx.globalAlpha = 0.3;
+        ctx.font = "bold 220px 'Noto Serif JP', serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "red";
+        // 中心位置修正
+        ctx.fillText(kanji, 150, 150);
+        ctx.restore();
+    }
+};
+
+const UI = {
+    show(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        const el = document.getElementById(id);
+        setTimeout(()=>el.classList.add('active'), 50);
+        Particles.stop();
+    },
+    showInterim(playerNum, callback) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        const el = document.getElementById('screen-interim');
+        const msg = document.getElementById('interim-text');
+        const btn = document.getElementById('interim-btn');
+        
+        // 相手に見えないようにする確認画面
+        if (playerNum === 1) {
+            msg.innerHTML = `これより対戦を始めます。<br>プレイヤー１は筆を取ってください。<br><span style="font-size:1rem; color:#ccc">（プレイヤー２は画面を見ないでください）</span>`;
+            btn.textContent = "いざ、開始";
+        } else {
+             msg.innerHTML = `プレイヤー１の筆が終わりました。<br>プレイヤー２に交代してください。<br><span style="font-size:1rem; color:#ccc">（プレイヤー１は画面を見ないでください）</span>`;
+             btn.textContent = "いざ、勝負";
+        }
+        
+        btn.onclick = () => {
+            Sound.play('start');
+            callback();
+        };
+        
+        setTimeout(()=>el.classList.add('active'), 50);
+    }
+};
+
+const Game = {
+    mode: 'single', 
+    difficulty: 'strict',
+    questions: [],
+    qIndex: 0,
+    scores: [],
+    p1Data: null,
+    p2Data: null,
+    
+    init() {
+        Drawing.init();
+        TitleSystem.load();
+    },
+    
+    setDifficulty(diff, el) {
+        this.difficulty = diff;
+        document.querySelectorAll('.diff-opt').forEach(e => e.classList.remove('selected'));
+        el.classList.add('selected');
+        Sound.play('tap');
+    },
+
+    // --- Single Mode ---
+    setupSingle() {
+        Sound.play('tap');
+        UI.show('screen-level');
+    },
+    startSingle(lvl) {
+        this.mode = 'single';
+        Sound.play('start');
+        let pool = KanjiData.filter(d => d.l === lvl);
+        if(pool.length === 0) pool = KanjiData;
+        // 5問に変更
+        this.questions = pool.sort(()=>0.5-Math.random()).slice(0, 5);
+        this.qIndex = 0;
+        this.scores = [];
+        this.startTurn(1);
+    },
+    
+    // --- Versus Mode ---
+    setupVersus() {
+        Sound.play('tap');
+        UI.show('screen-vs-setup');
+    },
+    initVersus(lvl) {
+        this.mode = 'versus';
+        let pool = KanjiData;
+        if (lvl !== 'random') pool = KanjiData.filter(d => d.l === lvl);
+        if(pool.length === 0) pool = KanjiData;
+        this.questions = pool.sort(()=>0.5-Math.random()).slice(0, 5); // 対戦も5ラウンド
+        this.qIndex = 0;
+        
+        // P1開始前の確認画面へ
+        UI.showInterim(1, () => this.startTurn(1));
+    },
+
+    startTurn(playerNum) {
+        Drawing.clear();
+        const q = this.questions[this.qIndex];
+        const k = q.hint ? q.hint : q.k; 
+        
+        document.getElementById('q-reading').textContent = q.r;
+        document.getElementById('q-sentence').innerHTML = q.s.replace(/([ァ-ンー]+)/g, '<span class="target-slot">$1</span>');
+        
+        if (this.mode === 'single') {
+            document.getElementById('game-mode-lbl').textContent = `Lv.${q.l} 一人特訓`;
+            document.getElementById('game-progress-lbl').textContent = `${this.qIndex+1} / 5`;
+        } else {
+            // 対戦
+            document.getElementById('game-mode-lbl').textContent = `第${this.qIndex+1}戦`;
+            document.getElementById('game-progress-lbl').textContent = `Player ${playerNum}`;
+        }
+        UI.show('screen-game');
+    },
+    
+    submit() {
+        Sound.play('tap');
+        const q = this.questions[this.qIndex];
+        const kanji = q.hint || q.k;
+        const imgData = Drawing.getImageData();
+        const result = Judge.evaluate(imgData, kanji, this.difficulty);
+        
+        if (result.isEmpty) {
+            alert("文字を書いてください");
+            return;
+        }
+
+        if (this.mode === 'single') {
+            const fCanvas = document.getElementById('feedback-canvas');
+            const fCtx = fCanvas.getContext('2d');
+            fCtx.putImageData(imgData, 0, 0);
+            Judge.drawFeedback('feedback-canvas', kanji);
+            
+            document.getElementById('single-score-val').textContent = `一致率 ${result.score}%`;
+            let comment = "まだまだ！";
+            if(result.score > 80) { comment = "見事！"; Sound.play('high-score'); Particles.start(); }
+            else if(result.score > 60) { comment = "あともう少し！"; Sound.play('win'); }
+            else { comment = "精進あるのみ"; }
+            
+            document.getElementById('single-comment').textContent = comment;
+            this.scores.push(result.score);
+            UI.show('screen-single-result');
+        } 
+        else {
+            // Versus
+            const dataURL = Drawing.toDataURL();
+            if (!this.p1Data) {
+                // P1終了 -> P2への交代画面へ
+                this.p1Data = { score: result.score, img: dataURL };
+                UI.showInterim(2, () => this.startTurn(2));
+            } else {
+                // P2終了 -> 結果へ
+                this.p2Data = { score: result.score, img: dataURL };
+                this.showVsResult();
+            }
+        }
+    },
+    
+    nextSingleRound() {
+        this.qIndex++;
+        if (this.qIndex >= 5) { // 5問で終了
+            this.showFinal();
+        } else {
+            this.startTurn(1);
+        }
+    },
+    
+    showVsResult() {
+        Sound.play('win');
+        Particles.start();
+        const q = this.questions[this.qIndex];
+        const kanji = q.hint || q.k;
+        
+        document.getElementById('vs-ans-kanji').textContent = kanji;
+        document.getElementById('p1-img').src = this.p1Data.img;
+        document.getElementById('p1-score').textContent = `${this.p1Data.score}%`;
+        document.getElementById('p2-img').src = this.p2Data.img;
+        document.getElementById('p2-score').textContent = `${this.p2Data.score}%`;
+        
+        const p1Card = document.getElementById('p1-card');
+        const p2Card = document.getElementById('p2-card');
+        p1Card.querySelectorAll('.win-badge').forEach(e=>e.remove());
+        p2Card.querySelectorAll('.win-badge').forEach(e=>e.remove());
+        p1Card.style.border = "none"; p2Card.style.border = "none";
+
+        if (this.p1Data.score > this.p2Data.score) {
+            p1Card.innerHTML += `<div class="win-badge">勝者</div>`;
+            p1Card.style.border = "3px solid var(--sub-accent)";
+        } else if (this.p2Data.score > this.p1Data.score) {
+            p2Card.innerHTML += `<div class="win-badge">勝者</div>`;
+            p2Card.style.border = "3px solid var(--sub-accent)";
+        }
+
+        UI.show('screen-vs-result');
+    },
+    
+    nextVsRound() {
+        this.p1Data = null;
+        this.p2Data = null;
+        this.qIndex++;
+        
+        if (this.qIndex >= 5) {
+            alert("全問終了！素晴らしい勝負でした。");
+            UI.show('screen-title');
+        } else {
+            // 次のラウンドもP1確認から
+            UI.showInterim(1, () => this.startTurn(1));
+        }
+    },
+
+    showFinal() {
+        Sound.play('win');
+        const totalScore = this.scores.reduce((a,b)=>a+b,0);
+        const avg = Math.floor(totalScore/this.scores.length);
+        
+        let rank = "門下生";
+        if(avg >= 90) rank = "免許皆伝";
+        else if(avg >= 80) rank = "師範代";
+        else if(avg >= 60) rank = "熟練者";
+        
+        const html = `
+            <div style="font-size:4rem; color:var(--accent); margin-bottom:10px;">${avg}<span style="font-size:2rem">%</span></div>
+            <h3>今回の評価：${rank}</h3>
+        `;
+        document.getElementById('final-stats').innerHTML = html;
+        
+        // 経験値加算処理
+        const result = TitleSystem.addExp(totalScore);
+        document.getElementById('exp-gain').textContent = `獲得経験値: +${totalScore}`;
+        
+        if (result.leveledUp) {
+            document.getElementById('title-update').innerHTML = 
+                `<span class="new-title-alert">昇格！</span> 新たな称号「${result.newTitle}」を獲得`;
+            Sound.play('high-score');
+        } else {
+            document.getElementById('title-update').textContent = 
+                `現在の称号: ${result.newTitle} (次の昇格まであと少し)`;
+        }
+
+        UI.show('screen-final');
+    }
+};
+
+const Particles = {
+    canvas: null, ctx: null, list: [], active: false,
+    init() {
+        this.canvas = document.getElementById('particles');
+        this.ctx = this.canvas.getContext('2d');
+        this.resize();
+        window.addEventListener('resize', ()=>this.resize());
+    },
+    resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+    },
+    start() {
+        this.active = true;
+        this.list = [];
+        for(let i=0; i<30; i++) this.add();
+        this.loop();
+    },
+    stop() {
+        this.active = false;
+        if(this.ctx) this.ctx.clearRect(0,0,this.canvas.width, this.canvas.height);
+    },
+    add() {
+        this.list.push({
+            x: Math.random() * this.canvas.width,
+            y: -20, s: Math.random() * 10 + 5, v: Math.random() * 2 + 1, a: Math.random() * Math.PI * 2
+        });
+    },
+    loop() {
+        if(!this.active) return;
+        this.ctx.clearRect(0,0,this.canvas.width, this.canvas.height);
+        this.ctx.fillStyle = "rgba(255, 192, 203, 0.6)";
+        for(let i=0; i<this.list.length; i++) {
+            const p = this.list[i];
+            p.y += p.v; p.x += Math.sin(p.y/50); p.a += 0.05;
+            this.ctx.save();
+            this.ctx.translate(p.x, p.y); this.ctx.rotate(p.a);
+            this.ctx.beginPath();
+            this.ctx.moveTo(0,0);
+            this.ctx.bezierCurveTo(p.s/2, -p.s/2, p.s, 0, 0, p.s);
+            this.ctx.bezierCurveTo(-p.s, 0, -p.s/2, -p.s/2, 0, 0);
+            this.ctx.fill();
+            this.ctx.restore();
+            if(p.y > this.canvas.height) this.list[i] = { x: Math.random()*this.canvas.width, y:-20, s:p.s, v:p.v, a:p.a };
+        }
+        requestAnimationFrame(()=>this.loop());
+    }
+};
+
+window.onload = () => {
+    Game.init();
+    Particles.init();
+};
+</script>
+</body>
+</html>
