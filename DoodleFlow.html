@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DoodleFlow: 没入型暗記学習</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;700&family=Zen+Maru+Gothic:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #fcfbf9;
+            --text-color: #2c2c2c;
+            --sub-text: #666;
+            --accent-color: #a84a32; /* 朱色 */
+            --highlight-color: #e8ded4;
+            --panel-border: #e0e0e0;
+            --paper-grain: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSc0JyBoZWlnaHQ9JzQnPgo8cmVjdCB3aWR0aD0nNCcgaGVpZ2h0PSc0JyBmaWxsPScjZmNmYmY5Jy8+CjxyZWN0IHdpZHRoPScxJyBoZWlnaHQ9JzEnIGZpbGw9JyNjY2MnIG9wYWNpdHk9JzAuMScvPgo8L3N2Zz4=');
+        }
+
+        * { box-sizing: border-box; touch-action: none; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            margin: 0; padding: 0;
+            height: 100vh; width: 100vw;
+            overflow: hidden;
+            font-family: 'Shippori Mincho', serif;
+            background-color: var(--bg-color);
+            background-image: var(--paper-grain);
+            color: var(--text-color);
+        }
+
+        /* --- Common UI Components --- */
+        .btn {
+            background: transparent;
+            border: 1px solid var(--text-color);
+            padding: 12px 24px;
+            font-family: inherit;
+            font-size: 1rem;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            display: inline-block;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn-primary {
+            background-color: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
+            box-shadow: 0 4px 6px rgba(168, 74, 50, 0.2);
+        }
+        .btn-text { border: none; text-decoration: underline; color: var(--sub-text); }
+
+        .screen {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+            z-index: 10;
+            background: var(--bg-color);
+            overflow-y: auto;
+        }
+
+        .screen.active {
+            opacity: 1;
+            pointer-events: auto;
+            z-index: 20;
+        }
+
+        /* --- Start Screen --- */
+        #screen-start {
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 2rem;
+        }
+        .hero-title { font-size: 3rem; margin-bottom: 0.5rem; letter-spacing: 0.1em; }
+        .hero-subtitle { font-size: 1.2rem; color: var(--sub-text); margin-bottom: 3rem; }
+        .concept-box {
+            max-width: 600px;
+            background: rgba(255,255,255,0.6);
+            padding: 2rem;
+            border-radius: 8px;
+            margin-bottom: 3rem;
+            line-height: 1.8;
+            border: 1px solid var(--panel-border);
+        }
+        .note { font-size: 0.8rem; color: #888; margin-top: 1rem; }
+
+        /* --- Menu Screen --- */
+        #screen-menu { padding: 4rem 2rem; align-items: center; }
+        .menu-title { font-size: 1.5rem; margin-bottom: 2rem; border-bottom: 2px solid var(--accent-color); padding-bottom: 0.5rem; }
+        .book-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            width: 100%;
+            max-width: 1000px;
+            padding-bottom: 4rem;
+        }
+        .book-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 1px solid transparent;
+            text-align: left;
+        }
+        .book-card:hover { transform: translateY(-4px); box-shadow: 0 6px 12px rgba(0,0,0,0.1); }
+        .book-card:active { transform: scale(0.98); background-color: #f8f8f8; }
+        .book-title { font-size: 1.4rem; font-weight: bold; margin-bottom: 0.5rem; }
+        .book-author { font-size: 0.9rem; color: var(--sub-text); font-family: 'Zen Maru Gothic', sans-serif; }
+
+        /* --- Intro Modal (Overlay) --- */
+        #screen-intro {
+            justify-content: center;
+            align-items: center;
+            background: rgba(252, 251, 249, 0.95);
+        }
+        .intro-content {
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            padding: 2rem;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .intro-meta { color: var(--sub-text); margin-bottom: 1rem; font-family: 'Zen Maru Gothic', sans-serif;}
+        .intro-desc { text-align: left; line-height: 1.8; margin: 2rem 0; font-size: 0.95rem; }
+
+        /* --- Study Screen (Split Layout) --- */
+        #screen-study {
+            flex-direction: row;
+            overflow: hidden;
+        }
+        
+        .card-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-right: 1px solid var(--panel-border);
+            padding: 2rem;
+            position: relative;
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.2s;
+        }
+        .card-panel:active { background-color: #f4f4f0; }
+
+        .progress-bar-container {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 4px; background: #eee;
+        }
+        .progress-bar {
+            height: 100%; background-color: var(--accent-color); width: 0%; transition: width 0.3s ease;
+        }
+
+        .card-text {
+            font-size: 2rem;
+            /* ルビが入っても崩れないよう行間を広めに確保 */
+            line-height: 2.2;
+            text-align: center;
+            white-space: normal;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.4s ease;
+            max-width: 650px;
+        }
+        .card-text.visible { opacity: 1; transform: translateY(0); }
+        
+        /* Ruby Styling */
+        ruby { font-family: inherit; }
+        rt { font-size: 0.5em; color: var(--accent-color); opacity: 0.8; user-select: none; }
+
+        .card-info { position: absolute; bottom: 20px; font-size: 0.8rem; color: #999; }
+        
+        .canvas-panel {
+            flex: 1;
+            position: relative;
+            background-color: #fff;
+            background-image: radial-gradient(#ddd 1px, transparent 1px);
+            background-size: 20px 20px;
+            cursor: crosshair;
+            overflow: hidden;
+        }
+        canvas { display: block; width: 100%; height: 100%; }
+
+        .palette {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 12px; background: rgba(255,255,255,0.9);
+            padding: 8px 16px; border-radius: 30px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            pointer-events: auto;
+        }
+        .swatch {
+            width: 32px; height: 32px; border-radius: 50%; border: 2px solid transparent; cursor: pointer;
+        }
+        .swatch.active { transform: scale(1.15); border-color: #333; }
+
+        /* --- Review Screen --- */
+        #screen-review {
+            justify-content: center;
+            align-items: center;
+            background: rgba(255,255,255,0.98);
+        }
+        .review-box { text-align: center; max-width: 500px; padding: 20px; }
+        .slider-container { margin: 2rem 0; }
+        input[type=range] { width: 100%; accent-color: var(--accent-color); margin-top: 10px; cursor: pointer;}
+        .action-buttons { display: flex; gap: 1rem; justify-content: center; margin-top: 2rem; }
+
+        /* Mobile Optimization */
+        @media (max-width: 768px) {
+            #screen-study { flex-direction: column; }
+            .card-panel { flex: 0 0 45%; border-right: none; border-bottom: 1px solid var(--panel-border); padding: 1.5rem; }
+            .canvas-panel { flex: 1; }
+            .card-text { font-size: 1.3rem; line-height: 2.0; }
+            .hero-title { font-size: 2rem; }
+            .palette { bottom: 10px; padding: 6px 12px; }
+            .swatch { width: 28px; height: 28px; }
+            .book-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 1. Start Screen -->
+    <div id="screen-start" class="screen active">
+        <h1 class="hero-title">DoodleFlow</h1>
+        <div class="hero-subtitle">右脳を遊ばせ、左脳に刻む。</div>
+        
+        <div class="concept-box">
+            <p><strong>【Doodling勉強法】</strong><br>
+            手を動かし続けることで脳の覚醒状態を維持し、記憶効率がきっと最大化されるといいなと願うメソッドです。</p>
+            <p style="margin-top:1rem;">
+            画面左側を見て暗記し、右側のキャンバスには<br>
+            ただひたすらに「落書き（線や図形）」をしてください。<br>
+            書いた線はすぐに薄くなり、やがて消えていきます。</p>
+            <p class="note">※ 難しい漢字には読み仮名を振っています。<br>※ 現代仮名遣いで表示されます。</p>
+        </div>
+        
+        <button class="btn btn-primary" onclick="app.gotoMenu()">学習をはじめる</button>
+    </div>
+
+    <!-- 2. Menu Screen -->
+    <div id="screen-menu" class="screen">
+        <div class="menu-title">学習する作品を選んでください</div>
+        <div class="book-grid" id="book-grid">
+            <!-- JSにより生成 -->
+        </div>
+    </div>
+
+    <!-- 3. Intro Modal -->
+    <div id="screen-intro" class="screen">
+        <div class="intro-content">
+            <h2 id="intro-title" style="margin-bottom:0.5rem; font-size:1.8rem;">タイトル</h2>
+            <div id="intro-meta" class="intro-meta">著者 / 年代</div>
+            <div id="intro-desc" class="intro-desc">概要</div>
+            
+            <div style="display:flex; gap:10px; justify-content:center;">
+                <button class="btn" onclick="app.gotoMenu()">戻る</button>
+                <button class="btn btn-primary" onclick="app.startStudy()">開始する</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Study Screen -->
+    <div id="screen-study" class="screen">
+        <div class="card-panel" id="card-area">
+            <div class="progress-bar-container"><div id="progress-bar" class="progress-bar"></div></div>
+            <div id="card-text" class="card-text">Text here</div>
+            <div id="card-info" class="card-info">1 / 10</div>
+        </div>
+
+        <div class="canvas-panel" id="canvas-area">
+            <canvas id="doodle-canvas"></canvas>
+            <div class="palette">
+                <div class="swatch active" style="background:#2c2c2c" data-c="#2c2c2c"></div>
+                <div class="swatch" style="background:#a84a32" data-c="#a84a32"></div>
+                <div class="swatch" style="background:#2c5ea8" data-c="#2c5ea8"></div>
+                <div class="swatch" style="background:#3fa82c" data-c="#3fa82c"></div>
+                <div class="swatch" style="background:#a82c91" data-c="#a82c91"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Review Screen -->
+    <div id="screen-review" class="screen">
+        <div class="review-box">
+            <h2>学習完了</h2>
+            <p>画面から目を離し、<br>今覚えた内容を空で唱えてみましょう。</p>
+            
+            <div class="slider-container">
+                <label>自己評価: <span id="score-val" style="font-weight:bold; font-size:1.5rem; color:var(--accent-color);">80</span>%</label>
+                <input type="range" id="score-range" min="0" max="100" value="80">
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn" onclick="app.gotoMenu()">メニューへ</button>
+                <button class="btn btn-primary" onclick="app.retry()">もう一回読む</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+/**
+ * Content Database with HTML Ruby support
+ */
+const LIBRARY = [
+    {
+        id: 'ame',
+        title: '雨ニモマケズ',
+        author: '宮沢賢治',
+        year: '没後発表 (1934年頃)',
+        desc: '賢治が病床で手帳に書き記した詩。自己犠牲と利他精神を素朴な言葉で綴り、日本人の精神性に深く根付いている。',
+        text: [
+            "雨にも負けず<br>風にも負けず",
+            "雪にも夏の暑さにも負けぬ<br>丈夫な体を持ち",
+            "<ruby>慾<rt>よく</rt></ruby>はなく<br>決して<ruby>瞋<rt>いか</rt></ruby>らず",
+            "いつも静かに笑っている",
+            "一日に玄米四合と<br>味噌と少しの野菜を食べ",
+            "あらゆることを<br>自分を勘定に入れずに",
+            "よく見聞きし分かり<br>そして忘れず",
+            "野原の松の林の<ruby>陰<rt>かげ</rt></ruby>の<br>小さな<ruby>萱<rt>かや</rt></ruby>ぶきの小屋にいて",
+            "東に病気の子供あれば<br>行って看病してやり",
+            "西に疲れた母あれば<br>行ってその稲の束を<ruby>負<rt>お</rt></ruby>い",
+            "南に死にそうな人あれば<br>行って怖がらなくてもいいと言い",
+            "北に<ruby>喧嘩<rt>けんか</rt></ruby>や<ruby>訴訟<rt>そしょう</rt></ruby>があれば<br>つまらないからやめろと言い",
+            "<ruby>日照<rt>ひで</rt></ruby>りの時は涙を流し<br>寒さの夏はおろおろ歩き",
+            "みんなにデクノボーと呼ばれ<br>褒められもせず<br>苦にもされず",
+            "そういうものに<br>私はなりたい"
+        ]
+    },
+    {
+        id: 'gakumon',
+        title: '学問のすゝめ',
+        author: '福沢諭吉',
+        year: '1872年',
+        desc: '明治維新期の啓蒙書。「天は人の上に人を造らず」の言葉で、人間の平等と実学の重要性を説いたベストセラー。',
+        text: [
+            "天は人の上に人を造らず<br>人の下に人を造らずと言えり",
+            "されば天より人を生ずるには<br>万人は万人みな同じ位にして",
+            "生まれながら<ruby>貴賤<rt>きせん</rt></ruby>上下の差別なく<br>万物の<ruby>霊<rt>れい</rt></ruby>たる身と心との働きをもって",
+            "天地の間にあるよろずの物を<ruby>資<rt>と</rt></ruby>り<br>もって衣食住の用を達し",
+            "自由自在、互いに人の妨げをなさずして<br>各々安楽にこの世を渡らしめ給うの<ruby>趣意<rt>しゅい</rt></ruby>なり",
+            "されども今、広くこの人間世界を見渡すに<br>賢き人あり、愚かなる人あり",
+            "貧しきもあり、富めるもあり<br>貴人もあり、下人もありて",
+            "その有様、雲と泥との相違あるは<br>なんぞや",
+            "その理由は甚だ明らかにして<br><ruby>実語教<rt>じつごきょう</rt></ruby>に「人学ばざれば<ruby>智<rt>ち</rt></ruby>なし、<ruby>智<rt>ち</rt></ruby>なき者は愚人なり」とあり",
+            "されば賢人と愚人との別は<br>学ぶと学ばざるとによりてできるものなり"
+        ]
+    },
+    {
+        id: 'kusamakura',
+        title: '草枕',
+        author: '夏目漱石',
+        year: '1906年',
+        desc: '「非人情」の世界を描いた実験的小説。冒頭の一節は、芸術家としての苦悩と悟りを美しく表現している。',
+        text: [
+            "山路を登りながら<br>こう考えた。",
+            "<ruby>智<rt>ち</rt></ruby>に働けば角が立つ。<br>情に<ruby>棹<rt>さお</rt></ruby>させば流される。",
+            "意地を通せば<ruby>窮屈<rt>きゅうくつ</rt></ruby>だ。<br>とかくに人の世は住みにくい。",
+            "住みにくさが高じると<br>安い所へ引き越したくなる。",
+            "どこへ越しても住みにくいと<ruby>悟<rt>さと</rt></ruby>った時<br>詩が生まれて、<ruby>画<rt>え</rt></ruby>ができる。",
+            "人の世を作ったものは神でもなければ鬼でもない。<br>やはり向こう三軒両隣にちらちらするただの人である。",
+            "ただの人が作った人の世が住みにくいからとて<br>越す国はあるまい。",
+            "あれば人でなしの国へ行くばかりだ。<br>人でなしの国は人の世よりもなお住みにくかろう。"
+        ]
+    },
+    {
+        id: 'lemon',
+        title: '檸檬',
+        author: '梶井基次郎',
+        year: '1925年',
+        desc: '得体の知れない不安に苛まれる主人公が、果物屋で見つけた檸檬に爆弾のような想像を託す短編小説。',
+        text: [
+            "えたいの知れない不吉な<ruby>塊<rt>かたまり</rt></ruby>が<br>私の心を始終<ruby>圧<rt>お</rt></ruby>さえつけていた。",
+            "<ruby>焦燥<rt>しょうそう</rt></ruby>と言おうか、嫌悪と言おうか",
+            "酒を飲んだあとに<ruby>宿酔<rt>ふつかよい</rt></ruby>があるように<br>酒を毎日飲んでいると<ruby>宿酔<rt>ふつかよい</rt></ruby>に相当した時期がやって来る。",
+            "それが来たのだ。<br>これはちょっといけなかった。",
+            "結果した<ruby>肺尖<rt>はいせん</rt></ruby>カタルや<ruby>神経衰弱<rt>しんけいすいじゃく</rt></ruby>がいけないのではない。<br>また背を焼くような借金などがいけないのではない。",
+            "いけないのはその不吉な<ruby>塊<rt>かたまり</rt></ruby>だ。<br>以前私を喜ばせたどんな美しい音楽も、どんな美しい詩の一節も",
+            "辛抱がならなくなった。<br>蓄音器を聴かせてもらいにわざわざ出かけて行っても",
+            "最初の二三小節で不意に立ち上がってしまいたくなる。",
+            "何かが私を<ruby>居堪<rt>いたたま</rt></ruby>らずさせるのだ。<br>それで始終私は街から街へ<ruby>浮浪<rt>ふろう</rt></ruby>し続けていた。"
+        ]
+    },
+    {
+        id: 'taketori',
+        title: '竹取物語',
+        author: '不詳',
+        year: '平安時代初期',
+        desc: '日本最古の物語といわれる。竹から生まれたかぐや姫の数奇な運命を描く。',
+        text: [
+            "今は昔、<ruby>竹取<rt>たけとり</rt></ruby>の<ruby>翁<rt>おきな</rt></ruby>といふものありけり。",
+            "野山にまじりて竹を取りつつ<br>よろづのことに使ひけり。",
+            "名をば、さぬきの<ruby>造<rt>みやつこ</rt></ruby>となむいひける。",
+            "その竹の中に、もと光る竹なむ一<ruby>筋<rt>すじ</rt></ruby>ありける。<br><ruby>怪<rt>あや</rt></ruby>しがりて、寄りて見るに",
+            "<ruby>筒<rt>つつ</rt></ruby>の中光りたり。<br>それを見れば、三寸ばかりなる人、いと美しうて<ruby>ゐ<rt>い</rt></ruby>たり。",
+            "<ruby>翁<rt>おきな</rt></ruby>言ふよう、「我、朝ごと夕ごとに見る竹の中におはするにて知りぬ。",
+            "子になり給ふべき人なめり」とて<br>手にうち入れて家へ持ちて来ぬ。",
+            "妻の<ruby>嫗<rt>おうな</rt></ruby>に預けて<ruby>養<rt>やしな</rt></ruby>はす。<br>美しきこと限りなし。<br>いと幼ければ<ruby>籠<rt>こ</rt></ruby>に入れて<ruby>養<rt>やしな</rt></ruby>ふ。"
+        ]
+    },
+    {
+        id: 'makura',
+        title: '枕草子',
+        author: '清少納言',
+        year: '平安時代中期',
+        desc: '四季の美しさや宮廷生活の観察を鋭い感性で記した随筆。「をかし」の文学の代表作。',
+        text: [
+            "春はあけぼの。<br>やうやう白くなりゆく<ruby>山際<rt>やまぎわ</rt></ruby>、",
+            "少し明かりて、紫だちたる雲の<br>細くたなびきたる。",
+            "夏は夜。<br>月のころはさらなり。",
+            "<ruby>闇<rt>やみ</rt></ruby>もなほ、<ruby>蛍<rt>ほたる</rt></ruby>の多く飛びちがひたる。<br>また、ただ一つ二つなど、ほのかにうち光りて行くもをかし。<br>雨など降るもをかし。",
+            "秋は夕暮れ。<br>夕日の差して山の端いと近うなりたるに",
+            "<ruby>烏<rt>からす</rt></ruby>の寝床へ行くとて、三つ四つ、二つ三つなど<br>飛び急ぐさへあはれなり。",
+            "まいて<ruby>雁<rt>かり</rt></ruby>などの連ねたるが、いと小さく見ゆるは、いとをかし。<br>日入り果てて、風の音、虫の音など、はた言ふべきにあらず。",
+            "冬はつとめて。<br>雪の降りたるは言ふべきにあらず。",
+            "霜のいと白きも、またさらでもいと寒きに<br><ruby>火桶<rt>ひおけ</rt></ruby>の火など急ぎおこして、炭持て渡るも、いとつきづきし。",
+            "昼になりて、ぬるくゆるびもていけば<br><ruby>火桶<rt>ひおけ</rt></ruby>の火も、白き灰がちになりてわろし。"
+        ]
+    },
+    {
+        id: 'heike',
+        title: '平家物語',
+        author: '不詳',
+        year: '鎌倉時代',
+        desc: '平家の栄華と没落を描いた軍記物語。琵琶法師によって語り継がれた無常観の文学。',
+        text: [
+            "<ruby>祇園精舎<rt>ぎおんしょうじゃ</rt></ruby>の鐘の声<br><ruby>諸行無常<rt>しょぎょうむじょう</rt></ruby>の響きあり。",
+            "<ruby>沙羅双樹<rt>さらそうじゅ</rt></ruby>の花の色<br><ruby>盛者必衰<rt>じょうしゃひっすい</rt></ruby>の理をあらわす。",
+            "おごれる人も久しからず<br>ただ春の夜の夢のごとし。",
+            "たけき者も遂にはほろびぬ<br>ひとへに風の前の<ruby>塵<rt>ちり</rt></ruby>に同じ。",
+            "遠く<ruby>異朝<rt>いちょう</rt></ruby>をとぶらへば<br>秦の趙高、漢の王莽、梁の周伊、唐の<ruby>禄山<rt>ろくざん</rt></ruby>",
+            "これらは皆、旧主先皇の政にも従はず<br>楽しみを極め、<ruby>諌<rt>いさ</rt></ruby>めをも思ひ入れず",
+            "天下の乱れんことを悟らずして<br>民間の憂ふるところを知らざりしかば",
+            "久しからずして、亡じにし者どもなり。"
+        ]
+    },
+    {
+        id: 'oku',
+        title: '奥の細道',
+        author: '松尾芭蕉',
+        year: '1702年',
+        desc: '江戸から東北、北陸を巡った紀行文。旅を人生そのものと捉える俳諧精神が流れている。',
+        text: [
+            "月日は<ruby>百代<rt>はくたい</rt></ruby>の<ruby>過客<rt>かかく</rt></ruby>にして<br>行きかふ年もまた旅人なり。",
+            "舟の上に生涯を浮かべ<br>馬の口とらえて老いを迎ふる者は",
+            "日々旅にして旅を<ruby>栖<rt>すみか</rt></ruby>とす。",
+            "古人も多く旅に死せるあり。",
+            "予もいづれの年よりか、片雲の風に誘はれて<br><ruby>漂泊<rt>ひょうはく</rt></ruby>の思ひやまず",
+            "海浜にさすらへて、去年の秋<br><ruby>江上<rt>こうじょう</rt></ruby>の<ruby>破屋<rt>はおく</rt></ruby>に蜘蛛の古巣を払ひて",
+            "やや年も暮れ、春立てる霞の空に<br>白河の関越えんと、そぞろ神の物につきて心を狂はせ",
+            "道祖神の招きにあひて、取るもの手につかず。",
+            "ももひきの破れを<ruby>綴<rt>つづ</rt></ruby>り、笠の緒付けかへて<br>三里に灸すゆるより",
+            "松島の月まづ心にかかりて<br>住める方は人に譲り、<ruby>杉風<rt>さんぷう</rt></ruby>が<ruby>別墅<rt>べっしょ</rt></ruby>に移るに"
+        ]
+    },
+    {
+        id: 'hojoki',
+        title: '方丈記',
+        author: '鴨長明',
+        year: '1212年',
+        desc: '世の無常と隠遁生活の閑寂を綴った随筆。災害や飢饉の描写も克明で、日本三大随筆の一つ。',
+        text: [
+            "行く川の流れは絶えずして<br>しかももとの水にあらず。",
+            "よどみに浮かぶ<ruby>泡沫<rt>うたかた</rt></ruby>は<br>かつ消えかつ結びて、久しくとどまりたるためしなし。",
+            "世の中にある人と<ruby>栖<rt>すみか</rt></ruby>と<br>またかくのごとし。",
+            "たましきの都のうちに<br>棟を並べ、<ruby>甍<rt>いらか</rt></ruby>を争へる",
+            "高き、卑しき、人の住まひは<br>世々経て尽きせぬものなれど",
+            "これをまことかと尋ぬれば<br>昔ありし家は<ruby>稀<rt>まれ</rt></ruby>なり。",
+            "あるいは去年焼けて今年作れり。<br>あるいは大家滅びて小家となる。",
+            "住む人もこれに同じ。<br>所も変はらず、人も多かれど",
+            "いにしへ見し人は<br>二、三十人が中に、わづかに一人二人なり。",
+            "朝に死に、夕べに生るるならひ<br>ただ水の泡にぞ似たりける。"
+        ]
+    }
+];
+
+class App {
+    constructor() {
+        this.currentScreen = 'screen-start';
+        this.selectedContent = null;
+        this.cardIndex = 0;
+        
+        // Canvas Props
+        this.canvas = document.getElementById('doodle-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.isDrawing = false;
+        this.lastX = 0; 
+        this.lastY = 0;
+        this.currentColor = '#2c2c2c';
+        
+        this.bindEvents();
+        this.initMenu();
+        this.startFadeLoop(); // Canvas fade loop always runs
+    }
+
+    /* --- Navigation --- */
+    switchScreen(id) {
+        document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        this.currentScreen = id;
+        
+        if(id === 'screen-study') {
+            this.resizeCanvas();
+        }
+    }
+
+    gotoMenu() {
+        this.switchScreen('screen-menu');
+    }
+
+    /* --- Menu Logic --- */
+    initMenu() {
+        const container = document.getElementById('book-grid');
+        LIBRARY.forEach(book => {
+            const card = document.createElement('div');
+            card.className = 'book-card';
+            card.innerHTML = `
+                <div class="book-title">${book.title}</div>
+                <div class="book-author">${book.author}</div>
+            `;
+            card.onclick = () => this.showIntro(book);
+            container.appendChild(card);
+        });
+    }
+
+    showIntro(book) {
+        this.selectedContent = book;
+        document.getElementById('intro-title').textContent = book.title;
+        document.getElementById('intro-meta').textContent = `${book.author} / ${book.year}`;
+        document.getElementById('intro-desc').textContent = book.desc;
+        this.switchScreen('screen-intro');
+    }
+
+    /* --- Study Logic --- */
+    startStudy() {
+        this.cardIndex = 0;
+        this.switchScreen('screen-study');
+        this.updateCard(false); // Immediate update without delay
+        this.clearCanvas();
+    }
+
+    updateCard(withDelay = true) {
+        const textEl = document.getElementById('card-text');
+        const infoEl = document.getElementById('card-info');
+        const progressEl = document.getElementById('progress-bar');
+        const currentText = this.selectedContent.text[this.cardIndex];
+        const total = this.selectedContent.text.length;
+
+        // Reset state
+        textEl.classList.remove('visible');
+        
+        const updateDOM = () => {
+            textEl.innerHTML = currentText; // Use innerHTML for ruby support
+            textEl.classList.add('visible');
+            infoEl.textContent = `${this.cardIndex + 1} / ${total}`;
+            progressEl.style.width = `${((this.cardIndex + 1) / total) * 100}%`;
+        };
+
+        if (withDelay) {
+            setTimeout(updateDOM, 200);
+        } else {
+            updateDOM();
+        }
+    }
+
+    nextCard() {
+        if (this.cardIndex < this.selectedContent.text.length - 1) {
+            this.cardIndex++;
+            this.updateCard();
+        } else {
+            this.finishStudy();
+        }
+    }
+
+    finishStudy() {
+        // Show review screen
+        document.getElementById('score-val').textContent = '80'; // reset default
+        document.getElementById('score-range').value = 80;
+        this.switchScreen('screen-review');
+    }
+
+    retry() {
+        this.startStudy();
+    }
+
+    /* --- Canvas Logic --- */
+    bindEvents() {
+        // Card click
+        document.getElementById('card-area').addEventListener('click', () => this.nextCard());
+
+        // Review Slider
+        document.getElementById('score-range').addEventListener('input', (e) => {
+            document.getElementById('score-val').textContent = e.target.value;
+        });
+
+        // Canvas Drawing
+        const canvasPanel = document.getElementById('canvas-area');
+        
+        // Resize observer for robustness
+        window.addEventListener('resize', () => {
+            if (this.currentScreen === 'screen-study') this.resizeCanvas();
+        });
+
+        // Pointer Events for Canvas
+        this.canvas.addEventListener('pointerdown', (e) => {
+            e.preventDefault(); // Stop text selection
+            this.isDrawing = true;
+            const pos = this.getPos(e);
+            this.lastX = pos.x;
+            this.lastY = pos.y;
+        });
+        
+        window.addEventListener('pointerup', () => this.isDrawing = false);
+        
+        this.canvas.addEventListener('pointermove', (e) => {
+            if (!this.isDrawing) return;
+            e.preventDefault(); 
+            this.draw(e);
+        });
+
+        // Palette
+        document.querySelectorAll('.swatch').forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.stopPropagation(); // prevent canvas click
+                document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+                el.classList.add('active');
+                this.currentColor = el.dataset.c;
+            });
+        });
+    }
+
+    resizeCanvas() {
+        const container = document.getElementById('canvas-area');
+        const rect = container.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+
+        if (this.canvas.width !== rect.width * dpr || this.canvas.height !== rect.height * dpr) {
+            this.canvas.width = rect.width * dpr;
+            this.canvas.height = rect.height * dpr;
+            this.ctx.scale(dpr, dpr);
+            this.canvas.style.width = '100%';
+            this.canvas.style.height = '100%';
+            this.ctx.lineCap = 'round';
+            this.ctx.lineJoin = 'round';
+        }
+    }
+
+    clearCanvas() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+
+    getPos(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        return {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        };
+    }
+
+    draw(e) {
+        const pos = this.getPos(e);
+        this.ctx.lineWidth = 3;
+        this.ctx.strokeStyle = this.currentColor;
+        
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.lastX, this.lastY);
+        this.ctx.quadraticCurveTo(this.lastX, this.lastY, (this.lastX + pos.x)/2, (this.lastY + pos.y)/2);
+        this.ctx.stroke();
+        
+        this.ctx.beginPath();
+        this.ctx.moveTo((this.lastX + pos.x)/2, (this.lastY + pos.y)/2);
+        this.ctx.lineTo(pos.x, pos.y);
+        this.ctx.stroke();
+
+        this.lastX = pos.x;
+        this.lastY = pos.y;
+    }
+
+    /**
+     * Fade Loop Logic:
+     * 0.05のアルファ値で白を重ね続けることで、
+     * 「濃い -> 薄い -> 消える」の流れを約3秒程度で完了させます。
+     */
+    startFadeLoop() {
+        const fade = () => {
+            if (!this.isDrawing && this.currentScreen === 'screen-study') {
+                this.ctx.save();
+                this.ctx.globalCompositeOperation = 'source-over';
+                // 0.05 means each frame covers 5% opacity white.
+                // It creates a smooth fading effect that completely clears over a few seconds.
+                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                this.ctx.fillRect(0, 0, this.canvas.width / (window.devicePixelRatio||1), this.canvas.height / (window.devicePixelRatio||1));
+                this.ctx.restore();
+            }
+            requestAnimationFrame(fade);
+        };
+        fade();
+    }
+}
+
+// Init App
+const app = new App();
+
+</script>
+</body>
+</html>
