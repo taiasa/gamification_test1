@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>わり算筆算道場</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #f0f9ff;
+            --accent-color: #007aff;
+            --secondary-color: #5ac8fa;
+            --success-color: #34c759;
+            --error-color: #ff3b30;
+            --text-color: #1d1d1f;
+            --cell-size: 50px;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none; /* 子供の誤操作防止 */
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        body {
+            font-family: 'Zen Maru Gothic', sans-serif;
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            color: var(--text-color);
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        /* スタート画面 */
+        #start-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #e0f7fa 0%, #ffffff 100%);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        h1 {
+            color: var(--accent-color);
+            font-size: 2rem;
+            margin-bottom: 2rem;
+            text-shadow: 0 2px 0 rgba(0,0,0,0.1);
+        }
+
+        .mode-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .mode-btn {
+            background: white;
+            color: var(--text-color);
+            padding: 20px;
+            border-radius: 20px;
+            border: 3px solid #e0e0e0;
+            font-size: 1.2rem;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #d0d0d0;
+            transition: all 0.1s;
+            text-align: left;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mode-btn:active {
+            transform: translateY(4px);
+            box-shadow: none;
+            border-color: var(--accent-color);
+        }
+
+        .mode-btn strong {
+            display: block;
+            color: var(--accent-color);
+            font-size: 1.3rem;
+        }
+        
+        .mode-btn small {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        /* ゲーム画面 */
+        #game-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 600px;
+            padding-bottom: 40px;
+        }
+
+        #header-area {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 0 10px;
+        }
+
+        button.back-btn {
+            background: #f0f0f0;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            color: #666;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        #message-box {
+            background: white;
+            padding: 12px 25px;
+            border-radius: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--accent-color);
+            margin-bottom: 20px;
+            min-height: 3.5em; /* 2行分確保 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            width: 100%;
+        }
+
+        /* 筆算エリア */
+        #calc-container {
+            display: inline-grid;
+            grid-auto-rows: var(--cell-size);
+            gap: 0;
+            background: white;
+            padding: 20px 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            position: relative;
+            width: var(--cell-size);
+            height: var(--cell-size);
+            font-family: 'Zen Maru Gothic', monospace; /* 等幅に近いフォント設定 */
+        }
+
+        /* 筆算記号 */
+        .symbol-curve {
+            border-right: 3px solid #333;
+            border-top-right-radius: 50%;
+            border-bottom-right-radius: 50%;
+            height: 120%;
+            width: 50%;
+            position: absolute;
+            top: -10%;
+            right: 4px;
+        }
+        
+        .has-top-border {
+            border-top: 3px solid #333;
+        }
+        
+        /* 引き算の線（桁数に合わせて伸びる） */
+        .border-bottom::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background-color: #333;
+        }
+
+        /* 入力ボックス */
+        input.input-digit {
+            width: 90%;
+            height: 90%;
+            border: 2px solid #e0f7fa;
+            text-align: center;
+            font-size: 1.8rem;
+            font-family: inherit;
+            background-color: #f5fcff;
+            color: var(--accent-color);
+            border-radius: 8px;
+            outline: none;
+            caret-color: transparent;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        input.input-digit:focus {
+            background-color: #fff;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 4px rgba(0,122,255,0.2);
+            transform: scale(1.1);
+            z-index: 10;
+        }
+
+        /* 正解時のアニメーション（花丸） */
+        #hanamaru {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            width: 250px;
+            height: 250px;
+            pointer-events: none;
+            z-index: 50;
+        }
+        
+        .circle-svg path {
+            fill: none;
+            stroke: #ff3b30;
+            stroke-width: 8;
+            stroke-linecap: round;
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+        }
+        
+        .pop-animation {
+            animation: pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes pop {
+            0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+
+        /* エラー時の揺れ */
+        .shake {
+            animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+            background-color: #ffe5e5 !important;
+            border-color: #ff3b30 !important;
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        /* テンキー */
+        #numpad {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+            width: 100%;
+            max-width: 450px;
+        }
+        .num-btn {
+            height: 55px;
+            font-size: 1.5rem;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            box-shadow: 0 4px 0 #e0e0e0;
+            cursor: pointer;
+            color: var(--text-color);
+            font-family: inherit;
+            font-weight: bold;
+        }
+        .num-btn:active {
+            transform: translateY(4px);
+            box-shadow: none;
+        }
+
+        /* 次へボタン */
+        #next-btn-container {
+            margin-top: 20px;
+            height: 50px; /* 固定高さ確保 */
+        }
+        #next-btn {
+            background-color: var(--success-color);
+            color: white;
+            font-size: 1.2rem;
+            padding: 12px 40px;
+            border: none;
+            border-radius: 30px;
+            box-shadow: 0 5px 0 #248a3d;
+            cursor: pointer;
+            font-weight: bold;
+            display: none; /* 初期は非表示 */
+            animation: pulse 1.5s infinite;
+        }
+        #next-btn:active {
+            transform: translateY(5px);
+            box-shadow: none;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        /* スマホ調整 */
+        @media (max-width: 600px) {
+            :root { --cell-size: 40px; }
+            h1 { font-size: 1.5rem; }
+            #message-box { font-size: 0.95rem; }
+            .num-btn { height: 45px; font-size: 1.2rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- サウンド生成用の隠し要素は不要（AudioContext使用） -->
+
+    <!-- スタート画面 -->
+    <div id="start-screen">
+        <h1>✨ わり算筆算道場 ✨</h1>
+        <p>なれてきたらノートで練習じゃ！</p>
+        <div class="mode-container">
+            <button class="mode-btn" onclick="startGame(1)">
+                <strong>① 整数 ÷ 整数</strong>
+                <small>わる数は1けた（わりきれる）</small>
+            </button>
+            <button class="mode-btn" onclick="startGame(2)">
+                <strong>② 整数 ÷ 整数</strong>
+                <small>わる数は2けた（わりきれる）</small>
+            </button>
+            <button class="mode-btn" onclick="startGame(3)">
+                <strong>③ 整数 ÷ 整数</strong>
+                <small>商は整数まで（あまりあり）</small>
+            </button>
+        </div>
+    </div>
+
+    <!-- ゲーム画面 -->
+    <div id="game-screen">
+        <div id="header-area">
+            <button class="back-btn" onclick="showStartScreen()">メニューへ</button>
+            <div style="font-size:0.9rem; color:#888;">Enterキーでつぎへ</div>
+        </div>
+
+        <div id="message-box">じゅんび中...</div>
+
+        <div id="calc-container">
+            <!-- Grid generated by JS -->
+            <div id="hanamaru">
+                <!-- SVG Circle Animation -->
+                <svg class="circle-svg" viewBox="0 0 100 100" width="100%" height="100%">
+                    <path d="M 50 50 m -40 0 a 40 40 0 1 0 80 0 a 40 40 0 1 0 -80 0" id="circle-path"></path>
+                </svg>
+            </div>
+        </div>
+
+        <div id="numpad">
+            <button class="num-btn" onclick="inputChar('1')">1</button>
+            <button class="num-btn" onclick="inputChar('2')">2</button>
+            <button class="num-btn" onclick="inputChar('3')">3</button>
+            <button class="num-btn" onclick="inputChar('4')">4</button>
+            <button class="num-btn" onclick="inputChar('5')">5</button>
+            <button class="num-btn" onclick="inputChar('6')">6</button>
+            <button class="num-btn" onclick="inputChar('7')">7</button>
+            <button class="num-btn" onclick="inputChar('8')">8</button>
+            <button class="num-btn" onclick="inputChar('9')">9</button>
+            <button class="num-btn" onclick="inputChar('0')">0</button>
+            <!-- 小数点ボタンは必要な場合のみ表示しても良いが、レイアウト統一のため配置 -->
+            <!-- 今回のモードは整数メインだが、汎用性のため残す -->
+        </div>
+
+        <div id="next-btn-container">
+            <button id="next-btn" onclick="initRound()">つぎのもんだい</button>
+        </div>
+    </div>
+
+<script>
+    /* --- Audio Context (効果音) --- */
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playSound(type) {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        if (type === 'correct') {
+            // ピンポン！ (High C -> E)
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(660, audioCtx.currentTime); // Mi
+            osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1); // La
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.4);
+        } else if (type === 'wrong') {
+            // ブブー (Low Sawtooth)
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.3);
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+        } else if (type === 'finish') {
+            // クリア音 (Arpeggio)
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+            osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1);
+            osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2);
+            osc.frequency.setValueAtTime(1046.50, audioCtx.currentTime + 0.3);
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.8);
+        }
+    }
+
+    /* --- アプリ状態 --- */
+    const container = document.getElementById('calc-container');
+    const messageBox = document.getElementById('message-box');
+    const nextBtn = document.getElementById('next-btn');
+    const startScreen = document.getElementById('start-screen');
+    const gameScreen = document.getElementById('game-screen');
+    const hanamaru = document.getElementById('hanamaru');
+    const hanamaruPath = document.getElementById('circle-path');
+
+    let currentMode = 1;
+    let state = {
+        steps: [],
+        currentStepIndex: 0,
+        gridData: [],
+        gridRows: 0,
+        gridCols: 0,
+        isFinished: false
+    };
+
+    let activeInput = null;
+
+    /* --- 画面遷移 --- */
+    function showStartScreen() {
+        startScreen.style.display = 'flex';
+        gameScreen.style.display = 'none';
+        document.removeEventListener('keydown', handleGlobalKey);
+    }
+
+    function startGame(mode) {
+        currentMode = mode;
+        startScreen.style.display = 'none';
+        gameScreen.style.display = 'flex';
+        document.addEventListener('keydown', handleGlobalKey);
+        initRound();
+    }
+
+    /* --- 問題生成 --- */
+    function initRound() {
+        // UIリセット
+        nextBtn.style.display = 'none';
+        hanamaru.classList.remove('pop-animation');
+        hanamaruPath.style.strokeDashoffset = 1000; // 線を隠す
+        
+        state.isFinished = false;
+        container.innerHTML = '';
+        container.appendChild(hanamaru); // 花丸要素を再追加
+        messageBox.textContent = "もんだいをつくっています...";
+
+        let divisor, dividend;
+        let limitDecimal = false, stopAtInteger = false;
+
+        // モード別ロジック
+        switch(currentMode) {
+            case 1: // Int / Int (1桁, 割り切れ)
+                // 商が2桁以上になるように調整
+                divisor = rInt(2, 9);
+                let q1 = rInt(11, 50);
+                dividend = divisor * q1;
+                break;
+            case 2: // Int / Int (2桁, 割り切れ)
+                // わる数が11~99
+                divisor = rInt(11, 50); // 少し手加減して50まで
+                // 商もそこそこ大きく
+                let q2 = rInt(11, 30);
+                dividend = divisor * q2;
+                break;
+            case 3: // Int / Int (あまりあり)
+                stopAtInteger = true;
+                divisor = rInt(3, 9);
+                let q3 = rInt(11, 40);
+                let rem3 = rInt(1, divisor - 1);
+                dividend = divisor * q3 + rem3;
+                break;
+        }
+
+        calculateSteps(divisor, dividend, stopAtInteger);
+        renderGrid(divisor, dividend);
+        processNextStep();
+    }
+
+    /* --- 筆算ステップ計算 --- */
+    function calculateSteps(divisor, dividend, stopAtInteger) {
+        state.steps = [];
+        let divStr = dividend.toString();
+        
+        // Grid設定
+        let startCol = 2; // [Div][Symbol][Digits...]
+        let totalCols = startCol + divStr.length + 3; 
+        state.gridCols = totalCols;
+        
+        let currentRem = 0;
+        let currentRow = 2;
+        let dividendCursor = 0; // 現在処理中のdividendのindex
+        let dChars = divStr.split('');
+
+        // シミュレーションループ
+        // 桁がある限り、または余りが処理しきれるまで
+        let safety = 0;
+        while(safety < 30) {
+            safety++;
+            
+            // --- おろすフェーズ ---
+            // カーソルが範囲内ならその数字を使う
+            // 範囲外で、割り切れモードなら0をおろす（今回はInt生成なので基本ないがロジックとして持つ）
+            if(dividendCursor >= dChars.length && currentRem === 0) break;
+            if(stopAtInteger && dividendCursor >= dChars.length) break;
+
+            let char = (dividendCursor < dChars.length) ? dChars[dividendCursor] : '0';
+            
+            // 小数点が来たらスキップして商に点を打つフラグ管理をするが、今回はInt問題なので省略
+            // もし「割られる数に小数がある」場合は、ここで商のドット打ち処理を入れる
+            // 修正：指示通り「一の位の商を立て、計算した後」にドットを打つ
+            
+            let digit = parseInt(char);
+
+            // 前のステップからの遷移でおろすアニメーション用ステップ追加
+            // 初回(cursor=0)は「おろす」動作なし（最初からそこにある）
+            if (dividendCursor > 0) {
+                // ここは「計算の準備」としてのステップは作らず、
+                // 次の計算(quotient)の前に数字を確認させる
+            }
+
+            let currentVal = currentRem * 10 + digit;
+            let q = Math.floor(currentVal / divisor);
+
+            // 商が0の場合（05 ÷ 3 = 1...2 のような先頭の0、または途中の0）
+            // 先頭の0は書かない
+            let isLeadingZero = (state.steps.filter(s => s.type === 'quotient').length === 0);
+            
+            if (q === 0 && isLeadingZero) {
+                // スキップして次へ
+                currentRem = currentVal;
+                dividendCursor++;
+                continue;
+            }
+
+            // 1. 商をたてる
+            let targetCol = startCol + dividendCursor;
+            state.steps.push({
+                row: 0,
+                col: targetCol,
+                val: q,
+                type: 'quotient',
+                msg: `① たてる： ${currentVal} ÷ ${divisor} ＝ ${q} ...`
+            });
+
+            // 2. かける
+            let product = q * divisor;
+            let prodStr = product.toString();
+            // 右詰め
+            for(let k=0; k<prodStr.length; k++) {
+                let pCol = targetCol - (prodStr.length - 1) + k;
+                state.steps.push({
+                    row: currentRow,
+                    col: pCol,
+                    val: parseInt(prodStr[k]),
+                    type: 'product',
+                    msg: `② かける： ${q} × ${divisor} ＝ ?`
+                });
+            }
+
+            // 3. ひく
+            let remainder = currentVal - product;
+            let remStr = remainder.toString();
+            // 引き算の下線範囲
+            let ulStart = targetCol - (prodStr.length - 1);
+            let ulEnd = targetCol;
+
+            // 最後の計算（割り切れor整数止め）かどうか
+            let isLast = (dividendCursor >= dChars.length - 1 && remainder === 0) || (stopAtInteger && dividendCursor >= dChars.length -1);
+
+            if (remainder === 0 && !isLast) {
+                // 途中の0は書かない
+            } else {
+                for(let k=0; k<remStr.length; k++) {
+                    let rCol = targetCol - (remStr.length - 1) + k;
+                    state.steps.push({
+                        row: currentRow + 1,
+                        col: rCol,
+                        val: parseInt(remStr[k]),
+                        type: 'subtraction',
+                        msg: `③ ひく： ${currentVal} - ${product} ＝ ?`,
+                        ulStart: (k===0) ? ulStart : null,
+                        ulEnd: (k===0) ? ulEnd : null
+                    });
+                }
+            }
+
+            // 4. おろす（次の桁がある場合）
+            if (dividendCursor + 1 < dChars.length) {
+                let nextChar = dChars[dividendCursor + 1];
+                // もし次がドットなら、それを超えて数字をおろす必要があるが、
+                // 今回はInt前提。
+                // *要望対応*: もし小数が含まれる場合、商の計算後におろしてから、ドットを打つ
+                
+                state.steps.push({
+                    row: currentRow + 1, // 余りの横
+                    col: startCol + dividendCursor + 1,
+                    val: parseInt(nextChar),
+                    type: 'bringDown',
+                    msg: `④ おろす： つぎの ${nextChar} をおろそう`
+                });
+            }
+
+            currentRem = remainder;
+            currentRow += 2;
+            dividendCursor++;
+        }
+        
+        state.gridRows = currentRow + 2; // 少し余裕を
+        state.currentStepIndex = 0;
+    }
+
+    /* --- 描画 --- */
+    function renderGrid(divisor, divVal) {
+        container.style.gridTemplateColumns = `repeat(${state.gridCols}, var(--cell-size))`;
+        
+        // HTML生成
+        // 花丸以外のセルをクリアするために一度innerHTMLリセットしたいが花丸消えるので注意
+        // 毎回再生成するアプローチ
+        container.innerHTML = '';
+        container.appendChild(hanamaru);
+
+        for(let r=0; r<state.gridRows; r++) {
+            for(let c=0; c<state.gridCols; c++) {
+                let cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.dataset.r = r;
+                cell.dataset.c = c;
+                container.appendChild(cell);
+            }
+        }
+
+        // 固定表示
+        // わる数
+        let dStr = divisor.toString();
+        // DivisorはCol 0に置く。桁数が多い(2桁)場合、Col 0 内に収めるか、Colを増やすか。
+        // シンプルにCol 0 は右寄せでflex表示
+        let divCell = getCell(1, 0);
+        divCell.textContent = dStr;
+        divCell.style.justifyContent = 'flex-end';
+        divCell.style.paddingRight = '8px';
+        divCell.style.fontWeight = 'bold';
+
+        // 記号 )
+        let symCell = getCell(1, 1);
+        let curve = document.createElement('div');
+        curve.className = 'symbol-curve';
+        symCell.appendChild(curve);
+
+        // わられる数
+        let vStr = divVal.toString();
+        for(let i=0; i<vStr.length; i++) {
+            let cell = getCell(1, 2+i);
+            cell.textContent = vStr[i];
+            cell.classList.add('has-top-border');
+            cell.style.fontWeight = 'bold';
+        }
+        // わられる数の残りの線（桁数分）
+        // 既にclass追加済み
+    }
+
+    function getCell(r, c) {
+        return document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+    }
+
+    /* --- ゲーム進行 --- */
+    function processNextStep() {
+        if (state.currentStepIndex >= state.steps.length) {
+            finishGame();
+            return;
+        }
+
+        const step = state.steps[state.currentStepIndex];
+        messageBox.textContent = step.msg;
+
+        // セル取得
+        const cell = getCell(step.row, step.col);
+        if(!cell) return;
+
+        // 線を引く処理
+        if(step.type === 'subtraction' && step.ulStart !== null) {
+            for(let c=step.ulStart; c<=step.ulEnd; c++) {
+                let lc = getCell(step.row - 1, c);
+                if(lc) lc.classList.add('border-bottom');
+            }
+        }
+
+        // 入力欄作成
+        cell.innerHTML = '';
+        const input = document.createElement('input');
+        input.className = 'input-digit';
+        input.readOnly = true; // ソフトウェアキーボード & Global Key対応のため
+        cell.appendChild(input);
+        
+        activeInput = input;
+        input.focus();
+    }
+
+    function inputChar(char) {
+        if(!activeInput) return;
+        
+        const step = state.steps[state.currentStepIndex];
+        const expected = step.val.toString();
+
+        if(char === expected) {
+            // 正解
+            playSound('correct');
+            activeInput.value = char;
+            activeInput.style.backgroundColor = 'transparent';
+            activeInput.style.border = 'none';
+            activeInput.style.color = '#333';
+            
+            activeInput = null;
+            state.currentStepIndex++;
+            setTimeout(processNextStep, 200); // すぐ次へ
+        } else {
+            // 不正解
+            playSound('wrong');
+            activeInput.classList.add('shake');
+            setTimeout(() => activeInput.classList.remove('shake'), 400);
+        }
+    }
+
+    function finishGame() {
+        state.isFinished = true;
+        messageBox.textContent = "✨ かんぺき！ おめでとう！ ✨";
+        playSound('finish');
+        
+        // 花丸アニメーション
+        hanamaru.classList.add('pop-animation');
+        // SVGアニメーション（線を描く）
+        let path = hanamaru.querySelector('path');
+        path.style.transition = 'stroke-dashoffset 1s ease-in-out';
+        path.style.strokeDashoffset = '0';
+
+        nextBtn.style.display = 'block';
+        nextBtn.focus();
+    }
+
+    /* --- キー操作 --- */
+    function handleGlobalKey(e) {
+        if(e.key === 'Enter') {
+            if(state.isFinished) {
+                initRound();
+                e.preventDefault();
+            }
+            return;
+        }
+
+        if(state.isFinished) return;
+
+        if((e.key >= '0' && e.key <= '9')) {
+            inputChar(e.key);
+            e.preventDefault();
+        }
+        if(e.key === 'Backspace') {
+            // 今回は1文字判定なので不要だがUI音として
+        }
+    }
+
+    function rInt(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+</script>
+</body>
+</html>
