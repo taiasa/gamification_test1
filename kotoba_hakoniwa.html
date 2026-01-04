@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>コトバの箱庭 - 成長する日記</title>
+    <style>
+        /*
+         * 【先生方へ：デザイン設定】
+         * 日記帳のような温かみのあるデザインです。
+         * 初期化ボタンは誤操作防止のため、控えめなデザインにしています。
+         */
+        :root {
+            --bg-color: #FDFBF7; /* 生成りの紙のような色 */
+            --accent-green: #88D8B0;
+            --accent-pink: #FFB7B2;
+            --accent-blue: #AEC6CF;
+            --text-main: #4A4A4A;
+            --text-light: #888888;
+            --card-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            --font-base: "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-base);
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            background-image: radial-gradient(#E0E0E0 1px, transparent 1px);
+            background-size: 20px 20px; /* 方眼紙風の背景 */
+        }
+
+        .container {
+            width: 100%;
+            max-width: 700px;
+            position: relative;
+        }
+
+        /* 共通ボタンデザイン */
+        .btn {
+            border: none;
+            border-radius: 50px;
+            padding: 12px 24px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-weight: bold;
+            color: white;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.1);
+        }
+        .btn:active { transform: translateY(4px); box-shadow: none; }
+        .btn-am { background-color: var(--accent-blue); }
+        .btn-pm { background-color: var(--accent-pink); }
+        .btn-save { background-color: var(--accent-green); width: 100%; opacity: 0.5; pointer-events: none; }
+        .btn-save.ready { opacity: 1; pointer-events: auto; }
+
+        /* リセットボタン（控えめなデザイン） */
+        .btn-reset {
+            background: transparent;
+            color: #BBB;
+            border: 1px solid #EEE;
+            font-size: 0.9rem;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+        .btn-reset:hover {
+            background: #FFF0F0;
+            color: #FF8888;
+            border-color: #FFcccc;
+        }
+
+        /* 画面切り替え用 */
+        .screen {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+        .screen.active { display: block; }
+
+        /* --- スタート画面 --- */
+        .start-card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: var(--card-shadow);
+            border: 2px solid #EEE;
+        }
+        .app-title {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: var(--text-main);
+        }
+        .app-desc {
+            margin-bottom: 30px;
+            line-height: 1.6;
+            color: var(--text-light);
+        }
+        .mode-select {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+        }
+        .mode-btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+        .reset-area {
+            border-top: 2px dashed #F0F0F0;
+            padding-top: 20px;
+            margin-top: 20px;
+        }
+
+        /* --- メイン日記画面 --- */
+        .diary-card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .question-section { text-align: center; margin-bottom: 25px; }
+        .question-text { font-size: 1.4rem; margin-bottom: 15px; font-weight: bold; }
+        
+        .tags-area {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .tag-chip {
+            background: #F0F0F0;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+        .tag-chip:hover { background: #E0E0E0; }
+        .tag-chip.selected {
+            background: #FFF;
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+            font-weight: bold;
+            transform: scale(1.05);
+        }
+
+        /* 植物と入力エリア */
+        .input-section {
+            display: flex;
+            gap: 15px;
+            align-items: flex-start;
+        }
+        .plant-viewer {
+            width: 80px;
+            height: 80px;
+            background: #F9F9F9;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 3rem;
+            flex-shrink: 0;
+            border: 2px dashed #DDD;
+            transition: all 0.5s ease;
+        }
+        .plant-viewer.bloomed {
+            border-color: var(--accent-pink);
+            background: #FFF0F0;
+            animation: bounce 1s infinite;
+        }
+
+        .text-area-wrapper {
+            flex: 1;
+            position: relative;
+        }
+        textarea {
+            width: 100%;
+            height: 100px;
+            border: 2px solid #DDD;
+            border-radius: 12px;
+            padding: 15px;
+            font-size: 1.1rem;
+            resize: none;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.3s;
+            line-height: 1.6;
+        }
+        textarea:focus { border-color: var(--accent-green); }
+        textarea:disabled { background: #F5F5F5; }
+
+        .char-counter {
+            text-align: right;
+            font-size: 0.9rem;
+            color: var(--text-light);
+            margin-top: 5px;
+        }
+        .feedback-text {
+            text-align: center;
+            min-height: 1.5em;
+            color: var(--accent-green);
+            font-weight: bold;
+            margin: 15px 0;
+        }
+
+        /* --- 履歴エリア --- */
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .history-item {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            border-left: 5px solid #DDD;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            animation: fadeIn 0.5s ease;
+        }
+        .history-item.am { border-left-color: var(--accent-blue); }
+        .history-item.pm { border-left-color: var(--accent-pink); }
+        
+        .history-icon { font-size: 2rem; }
+        .history-body { flex: 1; }
+        .history-meta { font-size: 0.8rem; color: #999; margin-top: 5px; }
+
+        /* アニメーション */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes bounce { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+        @keyframes pop { 0% { transform: scale(0.5); opacity: 0; } 70% { transform: scale(1.2); } 100% { transform: scale(1); opacity: 1; } }
+
+        .pop-in { animation: pop 0.4s ease forwards; }
+
+        /* レスポンシブ */
+        @media (max-width: 600px) {
+            .input-section { flex-direction: column; align-items: center; }
+            .mode-select { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- 1. スタート画面 -->
+    <div id="startScreen" class="screen active">
+        <div class="start-card">
+            <h1 class="app-title">📖 コトバの箱庭</h1>
+            <p class="app-desc">
+                少しの時間で、こころを整理する日記アプリです。<br>
+                競争ではありません。あなたのペースで、<br>
+                言葉の種をまいて、花を咲かせましょう。
+            </p>
+            <div class="mode-select">
+                <div class="mode-btn-group">
+                    <span>☀️ 朝の時間に</span>
+                    <button class="btn btn-am" onclick="startApp('am')">今日の記録（午前）</button>
+                </div>
+                <div class="mode-btn-group">
+                    <span>🌙 帰りの会などで</span>
+                    <button class="btn btn-pm" onclick="startApp('pm')">今日の記録（午後）</button>
+                </div>
+            </div>
+
+            <!-- 初期化エリア -->
+            <div class="reset-area">
+                <button class="btn-reset" onclick="resetDiary()">すべての記録を消して、はじめからにする</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. メイン画面 -->
+    <div id="mainScreen" class="screen">
+        <header style="margin-bottom: 10px; text-align: center;">
+            <button onclick="goHome()" style="background:none; border:none; color:#888; cursor:pointer;">← 最初の画面にもどる</button>
+        </header>
+
+        <div class="diary-card">
+            <!-- 質問表示エリア -->
+            <div class="question-section">
+                <div class="question-text" id="questionText">質問を読み込んでいます...</div>
+                <div class="tags-area" id="tagsArea">
+                    <!-- タグがここに生成されます -->
+                </div>
+            </div>
+
+            <!-- 入力エリア -->
+            <div class="input-section">
+                <div class="plant-viewer" id="plantViewer">🌱</div>
+                <div class="text-area-wrapper">
+                    <textarea id="diaryInput" placeholder="上の言葉を選んでから、続きを書いてみよう..." disabled></textarea>
+                    <div class="char-counter">現在: <span id="charCount">0</span>文字 / 目標: <span id="targetCount">10</span>文字</div>
+                </div>
+            </div>
+
+            <div class="feedback-text" id="feedbackText">まずは上のボタンから選んでみてね</div>
+
+            <button class="btn btn-save" id="saveBtn">日記を記録する</button>
+        </div>
+
+        <!-- 履歴エリア -->
+        <div style="margin-bottom: 10px; font-weight: bold; color: var(--text-light);">これまでの記録</div>
+        <div class="history-list" id="historyList">
+            <!-- 履歴アイテム -->
+        </div>
+    </div>
+</div>
+
+<script>
+    /* 
+     * 【先生方へ：プログラム設定】
+     * データの保存先は端末のブラウザ内（LocalStorage）です。
+     * 「初期化」を行うと、この端末のデータのみが消えます。
+     */
+
+    // --- データ定義 ---
+    const QUESTIONS_AM = [
+        { text: "朝ごはんは どうだった？", tags: ["おいしかった", "おなかいっぱい", "ねむかった", "急いで食べた", "食べていない", "あてはまらない"] },
+        { text: "今の気分は？", tags: ["元気いっぱい", "ちょっとねむい", "わくわく", "おちついている", "ふつう", "あてはまらない"] },
+        { text: "学校に来る時、なにか見つけた？", tags: ["きれいな花", "虫", "ともだち", "青い空", "なにもなし", "あてはまらない"] },
+        {"text":"学校に着いた今の気分は？","tags":["元気","落ち着いている","やる気がある","わくわく","いつも通り","あてはまらない"]},
+        {"text":"登校して最初にしたことは？","tags":["あいさつした","席に着いた","準備をした","友だちと話した","静かに過ごした","あてはまらない"]},
+        {"text":"教室の雰囲気はどう感じた？","tags":["明るい","落ち着いている","にぎやか","安心する","集中できそう","あてはまらない"]},
+        {"text":"朝の自分の様子に近いのは？","tags":["元気","マイペース","前向き","落ち着いている","切り替えられた","あてはまらない"]},
+        {"text":"登校中に印象に残ったことは？","tags":["天気","友だち","道の様子","安全に来られた","特にない","あてはまらない"]},
+        {"text":"今、授業への気持ちは？","tags":["楽しみ","がんばれそう","集中したい","いつも通り","少し期待","あてはまらない"]},
+        {"text":"朝の準備はどうだった？","tags":["しっかりできた","だいたいできた","落ち着いてできた","早めにできた","問題なかった","あてはまらない"]},
+        {"text":"今の体の調子は？","tags":["元気","調子がいい","動きやすい","リラックスしている","いつも通り","あてはまらない"]},
+        {"text":"朝にできてよかったことは？","tags":["時間を守れた","忘れ物なし","あいさつ","準備","登校","あてはまらない"]},
+        {"text":"今日の午前中に向けた気持ちは？","tags":["前向き","がんばりたい","落ち着いて過ごしたい","楽しみ","一つずつやる","あてはまらない"]},
+        {"text":"今いる場所で目に入ったものは？","tags":["黒板","窓の外","友だち","自分の席","掲示物","あてはまらない"]},
+        {"text":"教室に入って感じたことは？","tags":["安心","落ち着く","集中できそう","明るい","いつも通り","あてはまらない"]},
+        {"text":"朝のあいさつはどうだった？","tags":["気持ちよくできた","自分からできた","声を出せた","聞けた","いつも通り","あてはまらない"]},
+        {"text":"今の自分の姿勢や様子は？","tags":["落ち着いている","準備ができている","前を向いている","リラックス","整っている","あてはまらない"]},
+        {"text":"朝の時間をどう使えている？","tags":["準備","確認","待ち時間","静かに過ごす","考えごと","あてはまらない"]},
+        {"text":"今、頭に浮かんでいることは？","tags":["今日の予定","授業","友だち","やること","楽しみなこと","あてはまらない"]},
+        {"text":"今日の午前中に大切にしたいことは？","tags":["集中","ていねい","話を聞く","挑戦","マイペース","あてはまらない"]},
+        {"text":"朝の自分をほめるとしたら？","tags":["来られた","準備した","切り替えた","座れた","がんばっている","あてはまらない"]},
+        {"text":"これから最初にやることは？","tags":["授業の準備","ノートを出す","話を聞く","黒板を見る","静かに待つ","あてはまらない"]},
+        {"text":"今日をどんな一日にしたい？","tags":["落ち着いた日","学びのある日","楽しい日","やりきる日","いつも通りの日","あてはまらない"]}
+
+    ];
+
+    const QUESTIONS_PM = [
+        { text: "今日の給食は どうだった？", tags: ["おいしかった", "すきなメニュー", "にがてだった", "おかわりした", "残してしまった", "あてはまらない"] },
+        { text: "家に帰ったら 何をする？", tags: ["宿題をする", "あそびに行く", "ゲームをする", "本を読む", "習い事", "あてはまらない"] },
+        { text: "今日の授業で楽しかったのは？", tags: ["国語", "算数", "体育", "図工", "音楽", "休み時間", "あてはまらない"] },
+        {"text":"午後が始まった今の気分は？","tags":["落ち着いている","切り替えられた","前向き","元気","いつも通り","あてはまらない"]},
+        {"text":"昼休みのあと、最初にしたことは？","tags":["準備をした","席に着いた","話を聞いた","気持ちを切り替えた","静かに過ごした","あてはまらない"]},
+        {"text":"午後の教室の雰囲気はどう？","tags":["落ち着いている","集中できそう","にぎやか","安心する","いつも通り","あてはまらない"]},
+        {"text":"午後の授業への気持ちは？","tags":["がんばれそう","集中したい","楽しみ","一つずつやる","前向き","あてはまらない"]},
+        {"text":"今の体の様子に近いのは？","tags":["元気","動きやすい","リラックス","落ち着いている","いつも通り","あてはまらない"]},
+        {"text":"午後に大切にしたいことは？","tags":["集中","ていねい","最後まで","話を聞く","マイペース","あてはまらない"]},
+        {"text":"午後にできそうだと思うことは？","tags":["授業","作業","発表","話を聞く","ノートを書く","あてはまらない"]},
+        {"text":"午後の自分の様子はどれに近い？","tags":["前向き","落ち着いている","切り替えできている","がんばりモード","自然体","あてはまらない"]},
+        {"text":"午後に楽しみにしていることは？","tags":["授業","活動","友だち","下校","一日のまとめ","あてはまらない"]},
+        {"text":"午後の時間の使い方は？","tags":["集中する","ゆっくり進める","一つずつ","話を聞く","流れにのる","あてはまらない"]},
+        {"text":"午後に意識したい自分の行動は？","tags":["姿勢","あいさつ","聞く","手を動かす","最後まで","あてはまらない"]},
+        {"text":"午後の今、自分に声をかけるなら？","tags":["このままでいい","一つずつ","大丈夫","がんばろう","落ち着いて","あてはまらない"]},
+        {"text":"今日の後半で目標にしたいことは？","tags":["やりきる","集中","学ぶ","落ち着く","楽しむ","あてはまらない"]},
+        {"text":"午後の学校生活を一言で表すと？","tags":["落ち着き","集中","前向き","充実","いつも通り","あてはまらない"]},
+        {"text":"下校に向けて今の気持ちは？","tags":["やりきりたい","このまま続けたい","落ち着いている","前向き","一日をまとめたい","あてはまらない"]}
+    ];
+
+    const STORAGE_KEY = 'kotoba_garden_diary_v2';
+
+    // --- 状態管理 ---
+    let currentMode = 'am'; // 'am' or 'pm'
+    let currentQuestion = null;
+    let selectedTag = null;
+    let recordHigh = 10; // 過去の最高文字数（初期値）
+
+    // --- DOM要素 ---
+    const startScreen = document.getElementById('startScreen');
+    const mainScreen = document.getElementById('mainScreen');
+    const questionText = document.getElementById('questionText');
+    const tagsArea = document.getElementById('tagsArea');
+    const diaryInput = document.getElementById('diaryInput');
+    const plantViewer = document.getElementById('plantViewer');
+    const charCountEl = document.getElementById('charCount');
+    const targetCountEl = document.getElementById('targetCount');
+    const feedbackText = document.getElementById('feedbackText');
+    const saveBtn = document.getElementById('saveBtn');
+    const historyList = document.getElementById('historyList');
+
+    // --- 初期化 ---
+    function init() {
+        updateRecordHigh();
+        renderHistory();
+    }
+
+    // 過去の最高記録を更新
+    function updateRecordHigh() {
+        const data = loadData();
+        if (data.length > 0) {
+            // 過去のログから最大文字数を探す
+            const max = Math.max(...data.map(d => d.count));
+            recordHigh = max > 10 ? max : 10;
+        } else {
+            recordHigh = 10; // データがない場合はリセット
+        }
+    }
+
+    // データ初期化（リセット）
+    window.resetDiary = function() {
+        if(confirm("これまでの日記がすべて消えます。\n本当によろしいですか？")) {
+            localStorage.removeItem(STORAGE_KEY);
+            alert("記録をリセットしました。");
+            init(); // 画面を更新
+        }
+    };
+
+    // --- アプリ開始フロー ---
+    window.startApp = function(mode) {
+        currentMode = mode;
+        startScreen.classList.remove('active');
+        mainScreen.classList.add('active');
+        
+        // 質問をセット
+        const qList = mode === 'am' ? QUESTIONS_AM : QUESTIONS_PM;
+        currentQuestion = qList[Math.floor(Math.random() * qList.length)];
+        
+        renderQuestion();
+        resetInput();
+        
+        // 目標設定（前回の記録 + ちょっと）
+        targetCountEl.textContent = recordHigh;
+    };
+
+    window.goHome = function() {
+        mainScreen.classList.remove('active');
+        startScreen.classList.add('active');
+    };
+
+    function renderQuestion() {
+        questionText.textContent = currentQuestion.text;
+        tagsArea.innerHTML = '';
+        
+        currentQuestion.tags.forEach(tag => {
+            const btn = document.createElement('div');
+            btn.className = 'tag-chip';
+            btn.textContent = tag;
+            btn.onclick = () => selectTag(btn, tag);
+            tagsArea.appendChild(btn);
+        });
+    }
+
+    function resetInput() {
+        selectedTag = null;
+        diaryInput.value = '';
+        diaryInput.disabled = true; // タグ選択まで無効化
+        plantViewer.textContent = '🌱';
+        plantViewer.className = 'plant-viewer'; // クラスリセット
+        charCountEl.textContent = '0';
+        feedbackText.textContent = 'まずは上のボタンから選んでみてね';
+        saveBtn.classList.remove('ready');
+    }
+
+    // --- インタラクション ---
+    function selectTag(element, tag) {
+        // 見た目の更新
+        document.querySelectorAll('.tag-chip').forEach(el => el.classList.remove('selected'));
+        element.classList.add('selected');
+        
+        selectedTag = tag;
+        diaryInput.disabled = false;
+        diaryInput.focus();
+        
+        if (tag === 'あてはまらない') {
+            feedbackText.textContent = 'どんな気持ちか、自由に書いてみよう';
+            diaryInput.placeholder = 'ここをクリックして入力...';
+        } else {
+            feedbackText.textContent = `「${tag}」なんだね。くわしく教えて？`;
+            diaryInput.placeholder = `「${tag}」と思ったのはどうしてかな...`;
+        }
+
+        updatePlant(0); // リセットではなく現状維持確認
+        checkSaveReady();
+    }
+
+    diaryInput.addEventListener('input', () => {
+        const len = diaryInput.value.length;
+        charCountEl.textContent = len;
+        updatePlant(len);
+        checkSaveReady();
+    });
+
+    // 植物の成長ロジック
+    function updatePlant(len) {
+        // ステージ計算: 現在文字数 / 目標文字数
+        const progress = len / recordHigh;
+        let icon = '🌱'; // 種
+        let isBloomed = false;
+
+        if (len === 0) icon = '🌱';
+        else if (len < 3) icon = '🌿'; // 芽（書き始め）
+        else if (progress < 0.5) icon = '🍃'; // ツル（伸びてきた）
+        else if (progress < 1.0) icon = '🌷'; // つぼみ（もうすぐ）
+        else if (progress >= 1.0) {
+            icon = '🌸'; // 開花（目標達成！）
+            isBloomed = true;
+        }
+        
+        // 過去最高を大きく超えた場合の特別演出（満開）
+        if (len > recordHigh * 1.2) {
+            icon = '💐';
+        }
+
+        // アイコンが変わった時だけアニメーション
+        if (plantViewer.textContent !== icon) {
+            plantViewer.textContent = icon;
+            plantViewer.classList.remove('pop-in');
+            void plantViewer.offsetWidth; // リフロー
+            plantViewer.classList.add('pop-in');
+        }
+
+        // 満開エフェクト
+        if (isBloomed) {
+            plantViewer.classList.add('bloomed');
+            feedbackText.textContent = len > recordHigh * 1.2 
+                ? 'すごい！ 今までの自分を超えたね！' 
+                : '目標達成！ きれいな花が咲いたよ';
+            feedbackText.style.color = '#E91E63'; // ピンク色で強調
+        } else if (len > 0) {
+            feedbackText.textContent = 'その調子、もっと育ててみよう';
+            feedbackText.style.color = 'var(--accent-green)';
+        }
+    }
+
+    function checkSaveReady() {
+        const hasText = diaryInput.value.trim().length > 0;
+        if (selectedTag && hasText) {
+            saveBtn.classList.add('ready');
+        } else {
+            saveBtn.classList.remove('ready');
+        }
+    }
+
+    // --- 保存処理 ---
+    saveBtn.addEventListener('click', () => {
+        const text = diaryInput.value;
+        const count = text.length;
+        
+        const entry = {
+            id: Date.now(),
+            date: new Date().toLocaleDateString('ja-JP') + ' ' + (currentMode === 'am' ? '午前' : '午後'),
+            mode: currentMode,
+            tag: selectedTag,
+            text: text,
+            count: count
+        };
+
+        const data = loadData();
+        data.unshift(entry);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+
+        // 完了演出
+        alert(`記録しました！\n文字数: ${count}文字\nお花が育ちましたね🌸`);
+        
+        // 状態更新
+        updateRecordHigh();
+        renderHistory();
+        goHome();
+    });
+
+    // --- 履歴表示 ---
+    function loadData() {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    }
+
+    function renderHistory() {
+        const data = loadData();
+        historyList.innerHTML = '';
+        
+        if (data.length === 0) {
+            historyList.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">まだ記録はありません。<br>最初の日記を書いてみよう！</div>';
+            return;
+        }
+
+        data.forEach(item => {
+            const div = document.createElement('div');
+            div.className = `history-item ${item.mode}`; // am or pm
+            
+            // アイコン決定（文字数に応じて）
+            let icon = '🌱';
+            if (item.count > 20) icon = '💐';
+            else if (item.count > 10) icon = '🌸';
+            else if (item.count > 5) icon = '🌷';
+            else icon = '🌿';
+
+            div.innerHTML = `
+                <div class="history-icon">${icon}</div>
+                <div class="history-body">
+                    <div style="font-weight:bold; color:var(--text-main);">
+                        ${item.tag} <span style="font-weight:normal; font-size:0.9em;">(${item.count}文字)</span>
+                    </div>
+                    <div style="margin-top:5px;">${item.text}</div>
+                    <div class="history-meta">${item.date}</div>
+                </div>
+            `;
+            historyList.appendChild(div);
+        });
+    }
+
+    // 起動時
+    init();
+
+</script>
+</body>
+</html>
