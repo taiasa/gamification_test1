@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>クロノ・スクロール：時空の編纂者</title>
+    <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;700;800&family=Zen+Maru+Gothic:wght@700&family=DotGothic16&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f0f13;
+            --accent-gold: #eebb44;
+            --accent-red: #ff4757;
+            --accent-blue: #2ed573;
+            --card-bg: #fdf5e6;
+            --card-border: #4a3b32;
+            --text-main: #f1f2f6;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Shippori Mincho', serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            background-image: radial-gradient(circle at center, #1e1e24 0%, #000 100%);
+        }
+
+        /* --- Header --- */
+        header {
+            padding: 10px 20px;
+            background: rgba(0,0,0,0.85);
+            border-bottom: 2px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            height: 60px;
+            flex-shrink: 0;
+        }
+        .logo {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--accent-gold);
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
+        .home-btn {
+            background: none;
+            border: 1px solid #555;
+            color: #aaa;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .home-btn:hover { background: #333; color: #fff; }
+
+        /* --- Main Area --- */
+        #game-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* --- Hand (Cards) --- */
+        .hand-wrapper {
+            height: 360px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            perspective: 1000px;
+            margin-bottom: 10px;
+            padding-bottom: 20px;
+        }
+
+        .card {
+            width: 130px;
+            height: 200px;
+            background: var(--card-bg);
+            border-radius: 10px;
+            border: 4px solid var(--card-border); 
+            position: relative;
+            margin: 0 -10px;
+            cursor: pointer;
+            transition: transform 0.3s ease, border-color 0.3s, filter 0.3s;
+            display: flex;
+            flex-direction: column;
+            color: #333;
+            box-shadow: -5px 5px 15px rgba(0,0,0,0.5);
+            transform-origin: center bottom;
+            background-image: linear-gradient(rgba(0,0,0,0.05) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(0,0,0,0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .card:hover { z-index: 50; transform: translateY(-30px) scale(1.1) !important; }
+
+        .card.selected {
+            transform: translateY(-50px) !important;
+            border-color: var(--accent-red);
+            box-shadow: 0 0 20px var(--accent-red);
+            z-index: 60;
+        }
+        .card.selected::after {
+            content: "交換";
+            position: absolute;
+            top: -24px; left: 50%;
+            transform: translateX(-50%);
+            background: var(--accent-red);
+            color: white;
+            padding: 2px 8px;
+            font-size: 0.7rem;
+            border-radius: 4px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .card.matched {
+            z-index: 100;
+            transform: translateY(-70px) scale(1.15) !important;
+            animation: pulseGold 2s infinite;
+        }
+        .card.dimmed {
+            filter: brightness(0.3) grayscale(0.8);
+            transform: scale(0.9) translateY(20px) !important;
+            z-index: 1;
+        }
+
+        .card-inner {
+            padding: 8px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        .c-icon { font-size: 2.2rem; margin: 5px 0; color: #5d4037; }
+        .c-text { 
+            font-size: 0.85rem; 
+            font-weight: bold; 
+            line-height: 1.3; 
+            flex: 1; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            width: 100%;
+            word-break: break-all;
+        }
+        .c-footer { font-size: 0.6rem; color: #888; border-top:1px solid #ccc; width:100%; padding-top:4px; margin-top:4px; }
+
+        /* --- Controls --- */
+        .control-panel {
+            width: 95%;
+            max-width: 500px;
+            background: rgba(30, 30, 40, 0.95);
+            border-radius: 16px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border: 1px solid #444;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            margin-bottom: 20px;
+        }
+
+        .status-text {
+            color: var(--accent-gold);
+            font-family: 'DotGothic16', sans-serif;
+            font-size: 1rem;
+            margin-bottom: 10px;
+            text-shadow: 0 0 5px rgba(238, 187, 68, 0.5);
+        }
+
+        .btn-group { display: flex; gap: 15px; width: 100%; justify-content: center; }
+
+        .btn {
+            padding: 12px 0;
+            width: 140px;
+            border-radius: 50px;
+            border: none;
+            font-weight: bold;
+            font-family: 'Zen Maru Gothic', sans-serif;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+            font-size: 1rem;
+            white-space: nowrap;
+        }
+        .btn-swap { background: #333; color: #ddd; border: 1px solid #555; }
+        .btn-swap:hover:not(:disabled) { background: #444; color: #fff; }
+        .btn-swap.active {
+            background: var(--accent-blue);
+            color: #000;
+            box-shadow: 0 0 15px var(--accent-blue);
+            animation: pulseBtn 2s infinite;
+        }
+        @keyframes pulseBtn {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+            100% { transform: scale(1); }
+        }
+
+        .btn-judge {
+            background: linear-gradient(135deg, var(--accent-gold), #b8860b);
+            color: #000;
+            box-shadow: 0 4px 15px rgba(184, 134, 11, 0.4);
+        }
+        .btn-judge:hover { transform: scale(1.05); filter: brightness(1.1); }
+        .btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none !important; box-shadow: none !important; animation: none;}
+
+        .btn-sub { background: transparent; border: 2px solid #555; color: #ccc; }
+        .btn-sub:hover { border-color: #888; color: #fff; background: rgba(255,255,255,0.05); }
+
+        /* --- Overlays --- */
+        .overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(10, 12, 16, 0.98);
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s;
+            padding: 20px;
+        }
+        .hidden { opacity: 0; pointer-events: none; }
+
+        /* Start Screen Details */
+        .start-desc {
+            font-size: 0.75rem;
+            color: #888;
+            margin-top: 5px;
+            text-align: center;
+        }
+
+        /* Result */
+        .result-box {
+            background: #fff;
+            color: #333;
+            padding: 25px;
+            border-radius: 8px;
+            text-align: center;
+            max-width: 90%;
+            width: 420px;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 6px double #333;
+            box-shadow: 0 0 50px rgba(255, 215, 0, 0.3);
+            transform: scale(0.9);
+            opacity: 0;
+            transition: all 0.5s ease;
+            display: flex;
+            flex-direction: column;
+        }
+        .result-box.show { transform: scale(1); opacity: 1; }
+        
+        .rank-stamp {
+            font-size: 4rem;
+            font-weight: 900;
+            color: var(--accent-red);
+            border: 4px solid var(--accent-red);
+            display: inline-block;
+            padding: 0px 20px;
+            transform: rotate(-10deg);
+            margin: 10px auto;
+            line-height: 1.2;
+        }
+
+        /* Review List */
+        .review-container {
+            margin: 10px 0 20px 0;
+            padding: 10px;
+            background: #f8f8f8;
+            border-radius: 8px;
+            text-align: left;
+            font-size: 0.85rem;
+            border: 1px solid #ddd;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.05);
+        }
+        .review-list { list-style: none; padding: 0; margin: 0; }
+        .review-item { padding: 4px 0; border-bottom: 1px dashed #eee; line-height: 1.4; }
+        .review-item:last-child { border-bottom: none; }
+
+        /* Animations */
+        @keyframes dealCard {
+            0% { transform: translateY(120%) rotate(10deg) scale(0.5); opacity: 0; }
+            100% { transform: translateY(0) rotate(0) scale(1); opacity: 1; }
+        }
+        @keyframes discardUp {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-300px) rotate(-10deg) scale(0.8); opacity: 0; }
+        }
+        @keyframes drawIn {
+            0% { transform: translateY(-80px) scale(1.1); opacity: 0; }
+            100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        @keyframes heartbeat {
+            0% { transform: scale(1); box-shadow: inset 0 0 50px rgba(0,0,0,0.8); }
+            15% { transform: scale(1.02); box-shadow: inset 0 0 100px rgba(255, 71, 87, 0.3); }
+            30% { transform: scale(1); box-shadow: inset 0 0 50px rgba(0,0,0,0.8); }
+            45% { transform: scale(1.02); box-shadow: inset 0 0 100px rgba(255, 71, 87, 0.3); }
+            100% { transform: scale(1); box-shadow: inset 0 0 50px rgba(0,0,0,0.8); }
+        }
+        @keyframes flashWin {
+            0% { background-color: rgba(238, 187, 68, 0); }
+            50% { background-color: rgba(238, 187, 68, 0.8); }
+            100% { background-color: rgba(238, 187, 68, 0); }
+        }
+        @keyframes pulseGold {
+            0% { box-shadow: 0 0 20px var(--accent-gold); border-color: var(--accent-gold); }
+            50% { box-shadow: 0 0 60px var(--accent-gold), 0 0 10px #fff; border-color: #fff; }
+            100% { box-shadow: 0 0 20px var(--accent-gold); border-color: var(--accent-gold); }
+        }
+
+        .typing-cursor::after { content: '|'; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
+        
+        #flash-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 300;
+            display: none;
+        }
+        .flash-anim { display: block !important; animation: flashWin 1s ease-out; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">CHRONO SCROLL</div>
+        <button class="home-btn" onclick="app.goHome()">🏠 TOP</button>
+    </header>
+
+    <!-- 1. Start Screen -->
+    <div id="start-screen" class="overlay">
+        <h1 style="font-size: 2.2rem; color: var(--accent-gold); text-shadow: 0 0 20px var(--accent-gold); text-align:center;">クロノ・スクロール</h1>
+        <p style="color:#888; letter-spacing: 2px; font-size:0.9rem;"></p>
+        
+        <div style="margin-top: 40px; display:flex; gap:20px; flex-direction:column; align-items:center;">
+            <div style="text-align:center;">
+                <button class="btn btn-judge" style="width:220px;" onclick="app.startStory()">ゲームスタート</button>
+                <div class="start-desc">カードを交換し、偉人の正しい情報を揃える<br>思考型パズルゲーム</div>
+            </div>
+            
+            <div style="text-align:center;">
+                <button class="home-btn" style="color:#aaa; border:1px solid #555; width:220px; font-size:1rem;" onclick="app.showEncyclopedia()">アーカイブ（図鑑）</button>
+                <div class="start-desc">これまでに修復した偉人の記録を閲覧</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Story Screen -->
+    <div id="story-screen" class="overlay hidden">
+        <div style="text-align:left; font-family: 'DotGothic16', sans-serif; max-width:600px; padding:20px;">
+            <p id="story-text" style="line-height:2; font-size:1.1rem; color:#ddd;"></p>
+        </div>
+        <button id="story-next-btn" class="btn btn-judge hidden" style="margin-top:20px;" onclick="app.startGame()">いざ、歴史の修復へ</button>
+    </div>
+
+    <!-- 3. Analyzing Overlay -->
+    <div id="analyzing-screen" class="overlay hidden" style="background: radial-gradient(circle, transparent 0%, #000 90%); pointer-events: none; z-index: 150;">
+        <div style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; animation: heartbeat 1.2s infinite ease-in-out; background: radial-gradient(circle, rgba(200,50,50,0) 40%, rgba(200,50,50,0.1) 100%);"></div>
+        <h2 style="color:var(--accent-gold); font-family:'DotGothic16'; letter-spacing:3px; text-shadow:0 0 10px red; z-index:160;">時空同期中...</h2>
+    </div>
+    
+    <!-- Flash Overlay -->
+    <div id="flash-overlay"></div>
+
+    <!-- 4. Game Area -->
+    <div id="game-area">
+        <div class="hand-wrapper" id="hand-container">
+            <!-- Cards generated here -->
+        </div>
+
+        <div class="control-panel">
+            <div class="status-text" id="turn-status">残り再編回数: 3</div>
+            
+            <div class="btn-group">
+                <button id="btn-swap" class="btn btn-swap" onclick="app.handleSwap()">
+                    交換する
+                </button>
+                
+                <button id="btn-judge" class="btn btn-judge" onclick="app.handleJudge()">
+                    修復判定！
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. Result Screen -->
+    <div id="result-screen" class="overlay hidden">
+        <div class="result-box" id="result-box">
+            <div id="rank-display" class="rank-stamp">S</div>
+            <h3 id="result-title" style="margin:10px 0;">歴史修復完了</h3>
+            <p id="result-desc" style="font-size:0.9rem; line-height:1.6; color:#555; margin-bottom:10px;"></p>
+            
+            <!-- 答え合わせエリア -->
+            <div id="result-review" class="review-container"></div>
+
+            <div style="margin-top:10px; display:flex; flex-direction:column; gap:12px; align-items:center;">
+                <button class="btn btn-judge" style="width:240px; font-size:1.1rem;" onclick="app.startGame(false)">別の偉人で遊ぶ</button>
+                <button class="btn btn-sub" style="width:200px; color:#555; border-color:#888;" onclick="app.startGame(true)">同じメンバーで再戦</button>
+                <button class="home-btn" style="color:#888; border:none; text-decoration:underline;" onclick="app.goHome()">タイトル画面へ戻る</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. Encyclopedia Screen -->
+    <div id="encyclopedia-screen" class="overlay hidden" style="background:rgba(20,20,30,0.95);">
+        <h2 style="color:var(--accent-gold)">アーカイブ（図鑑）</h2>
+        <div id="encyclopedia-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; max-width:600px; width:95%; overflow-y:auto; max-height:60vh; padding:10px;"></div>
+        <button class="home-btn" style="margin-top:20px; font-size:1rem; padding:10px 30px;" onclick="document.getElementById('encyclopedia-screen').classList.add('hidden')">閉じる</button>
+    </div>
+
+    <script>
+        /**
+         * Sound Engine
+         */
+        const AudioEngine = {
+            ctx: null,
+            init: function() {
+                if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+            },
+            play: function(type) {
+                if (!this.ctx) return;
+                const t = this.ctx.currentTime;
+                
+                const createOsc = (freq, type, dur, vol = 0.1) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, t);
+                    gain.gain.setValueAtTime(vol, t);
+                    gain.gain.exponentialRampToValueAtTime(0.01, t + dur);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(t);
+                    osc.stop(t + dur);
+                };
+
+                if (type === 'select') createOsc(800, 'sine', 0.1);
+                else if (type === 'deal') {
+                    const o = this.ctx.createOscillator();
+                    const g = this.ctx.createGain();
+                    o.frequency.setValueAtTime(400, t);
+                    o.frequency.linearRampToValueAtTime(800, t + 0.1);
+                    g.gain.setValueAtTime(0.05, t);
+                    g.gain.linearRampToValueAtTime(0, t + 0.1);
+                    o.connect(g); g.connect(this.ctx.destination);
+                    o.start(t); o.stop(t+0.1);
+                } else if (type === 'swap') createOsc(300, 'triangle', 0.2);
+                else if (type === 'heartbeat') {
+                    createOsc(60, 'sine', 0.15, 0.3);
+                    setTimeout(() => createOsc(50, 'sine', 0.15, 0.2), 150);
+                } else if (type === 'win') {
+                    [0, 0.1, 0.2, 0.3, 0.4, 0.6].forEach((d, i) => {
+                        const freq = [440, 554, 659, 880, 440, 880][i];
+                        const o = this.ctx.createOscillator();
+                        const g = this.ctx.createGain();
+                        o.connect(g); g.connect(this.ctx.destination);
+                        o.type = 'triangle';
+                        o.frequency.setValueAtTime(freq, t + d);
+                        g.gain.setValueAtTime(0.1, t + d);
+                        g.gain.linearRampToValueAtTime(0, t + d + 0.5);
+                        o.start(t+d); o.stop(t+d+0.5);
+                    });
+                } else if (type === 'fail') {
+                    createOsc(100, 'sawtooth', 0.5, 0.2);
+                    createOsc(80, 'sawtooth', 0.5, 0.2);
+                } else if (type === 'type') createOsc(800, 'square', 0.03, 0.02);
+            }
+        };
+
+        /**
+         * Game Data
+         */
+        const HISTORY_DB = [
+            { id: "nobunaga", name: "織田信長", cards: [
+                { type: "name", label: "【人物】", text: "織田信長", icon: "👤" },
+                { type: "era", label: "【時代】", text: "戦国時代", icon: "⚔️" },
+                { type: "event", label: "【出来事】", text: "本能寺の変", icon: "🔥" },
+                { type: "desc", label: "【概要】", text: "天下布武を掲げた革命児", icon: "📜" },
+                { type: "quote", label: "【名言】", text: "是非に及ばず", icon: "💬" }
+            ]},
+            { id: "ryoma", name: "坂本龍馬", cards: [
+                { type: "name", label: "【人物】", text: "坂本龍馬", icon: "👤" },
+                { type: "era", label: "【時代】", text: "幕末", icon: "⚓" },
+                { type: "event", label: "【出来事】", text: "薩長同盟", icon: "🤝" },
+                { type: "desc", label: "【概要】", text: "日本の夜明けを導いた", icon: "🌅" },
+                { type: "quote", label: "【名言】", text: "日本を洗濯致し候", icon: "💬" }
+            ]},
+            { id: "shingen", name: "武田信玄", cards: [
+                { type: "name", label: "【人物】", text: "武田信玄", icon: "👤" },
+                { type: "era", label: "【時代】", text: "戦国時代", icon: "🐎" },
+                { type: "event", label: "【出来事】", text: "川中島の戦い", icon: "⚔️" },
+                { type: "desc", label: "【概要】", text: "甲斐の虎と呼ばれた智将", icon: "🐯" },
+                { type: "quote", label: "【名言】", text: "人は城、人は石垣...", icon: "🏰" }
+            ]},
+            { id: "himiko", name: "卑弥呼", cards: [
+                { type: "name", label: "【人物】", text: "卑弥呼", icon: "👤" },
+                { type: "era", label: "【時代】", text: "弥生時代", icon: "🏺" },
+                { type: "event", label: "【出来事】", text: "魏への使い", icon: "🇨🇳" },
+                { type: "desc", label: "【概要】", text: "邪馬台国を治めた女王", icon: "👑" },
+                { type: "quote", label: "【業績】", text: "鬼道を用いて人々を率いた", icon: "🔮" }
+            ]},
+            { id: "ieyasu", name: "徳川家康", cards: [
+                { type: "name", label: "【人物】", text: "徳川家康", icon: "👤" },
+                { type: "era", label: "【時代】", text: "安土桃山〜江戸", icon: "🏯" },
+                { type: "event", label: "【出来事】", text: "関ヶ原の戦い", icon: "⚔️" },
+                { type: "desc", label: "【概要】", text: "人質から天下人", icon: "📜" },
+                { type: "quote", label: "【業績】", text: "江戸幕府を開いた", icon: "💬" }
+            ]},
+            { id: "hideyoshi", name: "豊臣秀吉", cards: [
+                { type: "name", label: "【人物】", text: "豊臣秀吉", icon: "👤" },
+                { type: "era", label: "【時代】", text: "安土桃山時代", icon: "🏯" },
+                { type: "event", label: "【出来事】", text: "天下統一", icon: "🌏" },
+                { type: "desc", label: "【概要】", text: "農民から登り詰めた英雄", icon: "📜" },
+                { type: "quote", label: "【業績】", text: "天下統一をなしえた最初の人物", icon: "💬" }
+            ]},
+            { id: "yoshitsune", name: "源義経", cards: [
+                { type: "name", label: "【人物】", text: "源義経", icon: "👤" },
+                { type: "era", label: "【時代】", text: "平安時代末期", icon: "🎎" },
+                { type: "event", label: "【出来事】", text: "壇ノ浦の戦い", icon: "🌊" },
+                { type: "desc", label: "【概要】", text: "悲劇の天才武将", icon: "📜" },
+                { type: "quote", label: "【業績】", text: "八艘飛び（はっそうとび）、鵯越の逆落とし（ひよどりごえのさかおとし）", icon: "💬" }
+            ]},
+            { id: "yoritomo", name: "源頼朝", cards: [
+                { type: "name", label: "【人物】", text: "源頼朝", icon: "👤" },
+                { type: "era", label: "【時代】", text: "鎌倉時代", icon: "🏹" },
+                { type: "event", label: "【出来事】", text: "鎌倉幕府創設", icon: "🏯" },
+                { type: "desc", label: "【概要】", text: "初の武家政権を築いた", icon: "📜" },
+                { type: "quote", label: "【業績】", text: "平家を滅ぼす", icon: "💬" }
+            ]},
+            { id: "masamune", name: "伊達政宗", cards: [
+                { type: "name", label: "【人物】", text: "伊達政宗", icon: "👤" },
+                { type: "era", label: "【時代】", text: "戦国〜江戸時代", icon: "⚔️" },
+                { type: "event", label: "【出来事】", text: "慶長遣欧使節", icon: "🚢" },
+                { type: "desc", label: "【概要】", text: "独眼竜と称された名将", icon: "🐉" },
+                { type: "quote", label: "【業績】", text: "仙台藩藩主", icon: "💬" }
+            ]},
+            { id: "saigo", name: "西郷隆盛", cards: [
+                { type: "name", label: "【人物】", text: "西郷隆盛", icon: "👤" },
+                { type: "era", label: "【時代】", text: "幕末〜明治", icon: "🎌" },
+                { type: "event", label: "【出来事】", text: "西南戦争", icon: "🔥" },
+                { type: "desc", label: "【概要】", text: "最後の侍、維新の英雄", icon: "📜" },
+                { type: "quote", label: "【業績】", text: "薩長同盟の締結や江戸城無血開城の実現", icon: "💬" }
+            ]},
+            { id: "okita", name: "沖田総司", cards: [
+                { type: "name", label: "【人物】", text: "沖田総司", icon: "👤" },
+                { type: "era", label: "【時代】", text: "幕末", icon: "⚔️" },
+                { type: "event", label: "【出来事】", text: "新選組結成", icon: "🗡️" },
+                { type: "desc", label: "【概要】", text: "新選組最強の剣士", icon: "📜" },
+                { type: "quote", label: "【業績】", text: "新選組一番隊隊長", icon: "💬" }
+            ]},
+            { id: "shotoku", name: "聖徳太子", cards: [
+                { type: "name", label: "【人物】", text: "聖徳太子", icon: "👤" },
+                { type: "era", label: "【時代】", text: "飛鳥時代", icon: "⛩️" },
+                { type: "event", label: "【出来事】", text: "十七条の憲法を制定", icon: "📜" },
+                { type: "desc", label: "【概要】", text: "国家体制を整えた思想家", icon: "🧠" },
+                { type: "quote", label: "【業績】", text: "摂政となり推古天皇を支えた", icon: "💬" }
+            ]},
+{ id: "tenmu", name: "天武天皇", cards: [
+    { type: "name", label: "【人物】", text: "天武天皇", icon: "👤" },
+    { type: "era", label: "【時代】", text: "飛鳥時代", icon: "⛩️" },
+    { type: "event", label: "【出来事】", text: "壬申の乱", icon: "⚔️" },
+    { type: "desc", label: "【概要】", text: "中央集権国家を確立した天皇", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "律令国家体制の基礎構築", icon: "💬" }
+]},
+{ id: "nakatomi_kamatari", name: "中臣鎌足", cards: [
+    { type: "name", label: "【人物】", text: "中臣鎌足", icon: "👤" },
+    { type: "era", label: "【時代】", text: "飛鳥時代", icon: "⛩️" },
+    { type: "event", label: "【出来事】", text: "乙巳の変", icon: "⚔️" },
+    { type: "desc", label: "【概要】", text: "改革政治を主導した知略家", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "大化改新の中心人物の一人、藤原氏", icon: "💬" }
+]},
+{ id: "kanmu", name: "桓武天皇", cards: [
+    { type: "name", label: "【人物】", text: "桓武天皇", icon: "👤" },
+    { type: "era", label: "【時代】", text: "平安時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "平安京遷都", icon: "🏛️" },
+    { type: "desc", label: "【概要】", text: "新都建設で政治刷新を図った天皇", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "長岡京・平安京遷都", icon: "💬" }
+]},
+{ id: "sugawara", name: "菅原道真", cards: [
+    { type: "name", label: "【人物】", text: "菅原道真", icon: "👤" },
+    { type: "era", label: "【時代】", text: "平安時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "遣唐使廃止", icon: "📜" },
+    { type: "desc", label: "【概要】", text: "学問を重んじた忠臣", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "学問の神として信仰", icon: "💬" }
+]},
+{ id: "murasaki", name: "紫式部", cards: [
+    { type: "name", label: "【人物】", text: "紫式部", icon: "👤" },
+    { type: "era", label: "【時代】", text: "平安時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "源氏物語執筆", icon: "📖" },
+    { type: "desc", label: "【概要】", text: "世界最古の長編小説作家", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "源氏物語", icon: "💬" }
+]},
+{ id: "kiyomori", name: "平清盛", cards: [
+    { type: "name", label: "【人物】", text: "平清盛", icon: "👤" },
+    { type: "era", label: "【時代】", text: "平安時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "武士政権樹立", icon: "⚔️" },
+    { type: "desc", label: "【概要】", text: "初の武士出身太政大臣", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "日宋貿易推進", icon: "💬" }
+]},
+{ id: "yoritomo", name: "源頼朝", cards: [
+    { type: "name", label: "【人物】", text: "源頼朝", icon: "👤" },
+    { type: "era", label: "【時代】", text: "鎌倉時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "鎌倉幕府成立", icon: "⚔️" },
+    { type: "desc", label: "【概要】", text: "武家政権を確立した将軍", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "征夷大将軍就任", icon: "💬" }
+]},
+{ id: "yoshitsune", name: "源義経", cards: [
+    { type: "name", label: "【人物】", text: "源義経", icon: "👤" },
+    { type: "era", label: "【時代】", text: "平安末期", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "壇ノ浦の戦い", icon: "⚔️" },
+    { type: "desc", label: "【概要】", text: "悲劇の天才武将", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "平氏滅亡に貢献", icon: "💬" }
+]},
+{ id: "hojo_tokimune", name: "北条時宗", cards: [
+    { type: "name", label: "【人物】", text: "北条時宗", icon: "👤" },
+    { type: "era", label: "【時代】", text: "鎌倉時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "元寇", icon: "⚔️" },
+    { type: "desc", label: "【概要】", text: "国難に立ち向かった執権", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "蒙古襲来撃退", icon: "💬" }
+]},
+{ id: "ashikaga_takauji", name: "足利尊氏", cards: [
+    { type: "name", label: "【人物】", text: "足利尊氏", icon: "👤" },
+    { type: "era", label: "【時代】", text: "室町時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "室町幕府成立", icon: "⚔️" },
+    { type: "desc", label: "【概要】", text: "新幕府を開いた武将", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "征夷大将軍就任", icon: "💬" }
+]},
+{ id: "oda_nobunaga", name: "織田信長", cards: [
+    { type: "name", label: "【人物】", text: "織田信長", icon: "👤" },
+    { type: "era", label: "【時代】", text: "戦国時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "天下布武", icon: "⚔️" },
+    { type: "desc", label: "【概要】", text: "革新的な戦国武将", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "楽市楽座、比叡山焼討", icon: "💬" }
+]},
+{ id: "toyotomi_hideyoshi", name: "豊臣秀吉", cards: [
+    { type: "name", label: "【人物】", text: "豊臣秀吉", icon: "👤" },
+    { type: "era", label: "【時代】", text: "安土桃山時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "天下統一", icon: "⚔️" },
+    { type: "desc", label: "【概要】", text: "農民から天下人になった英雄", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "刀狩、太閤検地", icon: "💬" }
+]},
+{ id: "tokugawa_ieyasu", name: "徳川家康", cards: [
+    { type: "name", label: "【人物】", text: "徳川家康", icon: "👤" },
+    { type: "era", label: "【時代】", text: "江戸時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "江戸幕府成立", icon: "⚔️" },
+    { type: "desc", label: "【概要】", text: "長期政権を築いた将軍", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "関ヶ原の戦い勝利", icon: "💬" }
+]},
+{ id: "ryoma", name: "坂本龍馬", cards: [
+    { type: "name", label: "【人物】", text: "坂本龍馬", icon: "👤" },
+    { type: "era", label: "【時代】", text: "幕末", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "大政奉還", icon: "📜" },
+    { type: "desc", label: "【概要】", text: "時代を動かした風雲児", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "薩長同盟仲介", icon: "💬" }
+]},
+{ id: "saigo", name: "西郷隆盛", cards: [
+    { type: "name", label: "【人物】", text: "西郷隆盛", icon: "👤" },
+    { type: "era", label: "【時代】", text: "幕末・明治", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "明治維新", icon: "⚔️" },
+    { type: "desc", label: "【概要】", text: "維新を導いた武士", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "新政府樹立に貢献", icon: "💬" }
+]},
+{ id: "okubo", name: "大久保利通", cards: [
+    { type: "name", label: "【人物】", text: "大久保利通", icon: "👤" },
+    { type: "era", label: "【時代】", text: "明治時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "近代国家建設", icon: "🏛️" },
+    { type: "desc", label: "【概要】", text: "近代日本の設計者", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "廃藩置県推進", icon: "💬" }
+]},
+{ id: "fukuzawa", name: "福沢諭吉", cards: [
+    { type: "name", label: "【人物】", text: "福沢諭吉", icon: "👤" },
+    { type: "era", label: "【時代】", text: "明治時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "学問のすすめ刊行", icon: "📖" },
+    { type: "desc", label: "【概要】", text: "啓蒙思想家", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "慶應義塾創設", icon: "💬" }
+]},
+{ id: "itoshi", name: "伊藤博文", cards: [
+    { type: "name", label: "【人物】", text: "伊藤博文", icon: "👤" },
+    { type: "era", label: "【時代】", text: "明治時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "大日本帝国憲法制定", icon: "📜" },
+    { type: "desc", label: "【概要】", text: "初代内閣総理大臣", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "立憲国家確立", icon: "💬" }
+]},
+{ id: "yamagata", name: "山縣有朋", cards: [
+    { type: "name", label: "【人物】", text: "山縣有朋", icon: "👤" },
+    { type: "era", label: "【時代】", text: "明治時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "徴兵令制定", icon: "⚔️" },
+    { type: "desc", label: "【概要】", text: "日本陸軍の父", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "近代軍制確立", icon: "💬" }
+]},
+{ id: "nitobe", name: "新渡戸稲造", cards: [
+    { type: "name", label: "【人物】", text: "新渡戸稲造", icon: "👤" },
+    { type: "era", label: "【時代】", text: "明治・大正時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "武士道刊行", icon: "📖" },
+    { type: "desc", label: "【概要】", text: "日本文化を世界に伝えた思想家", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "国際連盟事務次長", icon: "💬" }
+]},
+{ id: "natsume", name: "夏目漱石", cards: [
+    { type: "name", label: "【人物】", text: "夏目漱石", icon: "👤" },
+    { type: "era", label: "【時代】", text: "明治時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "近代文学確立", icon: "📖" },
+    { type: "desc", label: "【概要】", text: "日本近代文学の巨匠", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "吾輩は猫である、こころ", icon: "💬" }
+]},
+{ id: "akiko", name: "与謝野晶子", cards: [
+    { type: "name", label: "【人物】", text: "与謝野晶子", icon: "👤" },
+    { type: "era", label: "【時代】", text: "明治・大正時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "新しい女性像の提示", icon: "📖" },
+    { type: "desc", label: "【概要】", text: "情熱的な歌人・思想家", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "みだれ髪", icon: "💬" }
+]},
+{ id: "yoshida", name: "吉田茂", cards: [
+    { type: "name", label: "【人物】", text: "吉田茂", icon: "👤" },
+    { type: "era", label: "【時代】", text: "昭和時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "戦後復興", icon: "🏛️" },
+    { type: "desc", label: "【概要】", text: "戦後日本外交の基礎を築いた首相", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "日米安全保障体制構築", icon: "💬" }
+]},
+{ id: "ozaki", name: "尾崎行雄", cards: [
+    { type: "name", label: "【人物】", text: "尾崎行雄", icon: "👤" },
+    { type: "era", label: "【時代】", text: "明治・大正・昭和", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "議会政治発展", icon: "🏛️" },
+    { type: "desc", label: "【概要】", text: "憲政の神様", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "立憲政治の確立", icon: "💬" }
+]},
+{ id: "shibusawa", name: "渋沢栄一", cards: [
+    { type: "name", label: "【人物】", text: "渋沢栄一", icon: "👤" },
+    { type: "era", label: "【時代】", text: "明治・大正時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "近代経済発展", icon: "💼" },
+    { type: "desc", label: "【概要】", text: "日本資本主義の父", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "第一国立銀行設立、一万円札", icon: "💬" }
+]},
+{ id: "hattori", name: "服部半蔵", cards: [
+    { type: "name", label: "【人物】", text: "服部半蔵", icon: "👤" },
+    { type: "era", label: "【時代】", text: "戦国時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "伊賀忍者活躍", icon: "⚔️" },
+    { type: "desc", label: "【概要】", text: "徳川家を支えた忍将", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "家康の命を救う", icon: "💬" }
+]},
+{ id: "date_masamune", name: "伊達政宗", cards: [
+    { type: "name", label: "【人物】", text: "伊達政宗", icon: "👤" },
+    { type: "era", label: "【時代】", text: "戦国・江戸時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "仙台藩成立", icon: "🏰" },
+    { type: "desc", label: "【概要】", text: "独眼竜と呼ばれた名将", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "支倉常長欧州派遣", icon: "💬" }
+]},
+{ id: "takeda_shingen", name: "武田信玄", cards: [
+    { type: "name", label: "【人物】", text: "武田信玄", icon: "👤" },
+    { type: "era", label: "【時代】", text: "戦国時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "川中島の戦い", icon: "⚔️" },
+    { type: "desc", label: "【概要】", text: "戦国最強と称された名将", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "風林火山の軍略", icon: "💬" }
+]},
+{ id: "uesugi_kenshin", name: "上杉謙信", cards: [
+    { type: "name", label: "【人物】", text: "上杉謙信", icon: "👤" },
+    { type: "era", label: "【時代】", text: "戦国時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "川中島の戦い", icon: "⚔️" },
+    { type: "desc", label: "【概要】", text: "義を重んじた軍神", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "越後統一、関東出兵", icon: "💬" }
+]},
+{ id: "hojo_soun", name: "北条早雲", cards: [
+    { type: "name", label: "【人物】", text: "北条早雲", icon: "👤" },
+    { type: "era", label: "【時代】", text: "戦国時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "下剋上成功", icon: "⚔️" },
+    { type: "desc", label: "【概要】", text: "戦国大名の先駆者", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "後北条氏の基礎築く", icon: "💬" }
+]},
+{ id: "emperor_showa", name: "昭和天皇", cards: [
+    { type: "name", label: "【人物】", text: "昭和天皇", icon: "👤" },
+    { type: "era", label: "【時代】", text: "昭和時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "終戦", icon: "📜" },
+    { type: "desc", label: "【概要】", text: "激動の時代を生きた天皇", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "玉音放送", icon: "💬" }
+]},
+{ id: "tezuka", name: "手塚治虫", cards: [
+    { type: "name", label: "【人物】", text: "手塚治虫", icon: "👤" },
+    { type: "era", label: "【時代】", text: "昭和時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "漫画文化発展", icon: "🎨" },
+    { type: "desc", label: "【概要】", text: "日本漫画の神様", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "鉄腕アトム、火の鳥", icon: "💬" }
+]},
+{ id: "kurosawa", name: "黒澤明", cards: [
+    { type: "name", label: "【人物】", text: "黒澤明", icon: "👤" },
+    { type: "era", label: "【時代】", text: "昭和時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "世界的映画評価", icon: "🎬" },
+    { type: "desc", label: "【概要】", text: "世界に影響を与えた映画監督", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "七人の侍、羅生門", icon: "💬" }
+]},
+{ id: "honda_soichiro", name: "本田宗一郎", cards: [
+    { type: "name", label: "【人物】", text: "本田宗一郎", icon: "👤" },
+    { type: "era", label: "【時代】", text: "昭和時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "自動車産業発展", icon: "🚗" },
+    { type: "desc", label: "【概要】", text: "世界企業を築いた技術者", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "本田技研工業創業", icon: "💬" }
+]},
+{ id: "matsushita", name: "松下幸之助", cards: [
+    { type: "name", label: "【人物】", text: "松下幸之助", icon: "👤" },
+    { type: "era", label: "【時代】", text: "昭和時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "家電産業成長", icon: "💡" },
+    { type: "desc", label: "【概要】", text: "経営の神様", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "パナソニック創業", icon: "💬" }
+]},
+{ id: "nande", name: "野口英世", cards: [
+    { type: "name", label: "【人物】", text: "野口英世", icon: "👤" },
+    { type: "era", label: "【時代】", text: "明治・大正時代", icon: "🏯" },
+    { type: "event", label: "【出来事】", text: "医学研究", icon: "🧪" },
+    { type: "desc", label: "【概要】", text: "世界で活躍した医学者", icon: "🧠" },
+    { type: "quote", label: "【業績】", text: "黄熱病研究", icon: "💬" }
+]}
+
+        ];
+
+        /**
+         * Main Application
+         */
+        const app = {
+            deck: [],
+            hand: [],
+            selected: new Set(),
+            turn: 0,
+            maxTurns: 3,
+            currentHeroes: [], 
+            isProcessing: false,
+            collection: JSON.parse(localStorage.getItem('chrono_data') || '{}'),
+
+            goHome: function() {
+                document.querySelectorAll('.overlay').forEach(el => el.classList.add('hidden'));
+                document.getElementById('start-screen').classList.remove('hidden');
+                AudioEngine.play('select');
+            },
+
+            startStory: function() {
+                AudioEngine.init();
+                AudioEngine.play('select');
+                document.getElementById('start-screen').classList.add('hidden');
+                const screen = document.getElementById('story-screen');
+                screen.classList.remove('hidden');
+                const btn = document.getElementById('story-next-btn');
+                btn.classList.add('hidden');
+                
+                const text = "西暦30XX年。\n歴史データが混線している。\n君は「時空の編纂者」。\n時空の狭間から【4人の英雄】の記録を\n選出し、正しく分類せよ。\n\n手掛かりはテキストのみ。\n運命を、選び取れ。";
+                const p = document.getElementById('story-text');
+                p.innerHTML = '';
+                p.classList.add('typing-cursor');
+
+                let i = 0;
+                const typeInterval = setInterval(() => {
+                    if (i < text.length) {
+                        p.textContent += text.charAt(i);
+                        if(text.charAt(i) !== '\n' && i%2===0) AudioEngine.play('type');
+                        i++;
+                    } else {
+                        clearInterval(typeInterval);
+                        p.classList.remove('typing-cursor');
+                        btn.classList.remove('hidden');
+                    }
+                }, 35);
+            },
+
+            startGame: function(sameHeroes = false) {
+                if (this.isProcessing) return;
+                AudioEngine.play('select');
+                document.querySelectorAll('.overlay').forEach(e => e.classList.add('hidden'));
+                document.getElementById('result-box').classList.remove('show');
+                
+                if (!sameHeroes || this.currentHeroes.length === 0) {
+                    this.currentHeroes = this.shuffle([...HISTORY_DB]).slice(0, 4);
+                }
+
+                const gameCards = [];
+                this.currentHeroes.forEach(h => {
+                    h.cards.forEach(c => gameCards.push({...c, heroId: h.id}));
+                });
+                
+                this.deck = this.shuffle([...gameCards]);
+                this.hand = [];
+                this.turn = this.maxTurns;
+                this.selected.clear();
+                
+                const container = document.getElementById('hand-container');
+                container.innerHTML = '';
+                this.updateControls();
+                
+                this.dealOneByOne();
+            },
+
+            dealOneByOne: async function() {
+                this.isProcessing = true;
+                for(let i=0; i<5; i++) {
+                    if(this.deck.length > 0) this.hand.push(this.deck.pop());
+                }
+
+                const container = document.getElementById('hand-container');
+                for(let i=0; i<this.hand.length; i++) {
+                    await new Promise(r => setTimeout(r, 120));
+                    AudioEngine.play('deal');
+                    this.renderCard(i, true);
+                }
+                this.isProcessing = false;
+                this.updateControls();
+            },
+
+            shuffle: function(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+                return array;
+            },
+
+            renderCard: function(index, isDealing = false) {
+                const container = document.getElementById('hand-container');
+                const card = this.hand[index];
+                if (!card) return;
+
+                const div = document.createElement('div');
+                div.className = `card ${this.selected.has(index) ? 'selected' : ''}`;
+                if(isDealing) div.classList.add('dealing');
+
+                const rot = (index - 2) * 5; 
+                const ty = Math.abs(index - 2) * 5;
+                if(!this.selected.has(index)) {
+                    div.style.transform = `rotate(${rot}deg) translateY(${ty}px)`;
+                }
+
+                div.onclick = () => this.toggleSelect(index);
+                div.innerHTML = `
+                    <div class="card-inner">
+                        <div style="font-size:0.65rem; color:#666; width:100%; border-bottom:1px solid #ddd; padding-bottom:3px;">${card.label}</div>
+                        <div class="c-icon">${card.icon}</div>
+                        <div class="c-text">${card.text}</div>
+                        <div class="c-footer">HISTORICAL DATA</div>
+                    </div>
+                `;
+                
+                if (container.children[index]) {
+                    container.replaceChild(div, container.children[index]);
+                } else {
+                    container.appendChild(div);
+                }
+            },
+
+            toggleSelect: function(index) {
+                if (this.isProcessing || this.turn <= 0) return;
+                AudioEngine.play('select');
+                if (this.selected.has(index)) {
+                    this.selected.delete(index);
+                } else {
+                    this.selected.add(index);
+                }
+                this.refreshHandView();
+                this.updateControls();
+            },
+
+            refreshHandView: function() {
+                const container = document.getElementById('hand-container');
+                Array.from(container.children).forEach((div, i) => {
+                    div.classList.remove('matched', 'dimmed');
+                    const rot = (i - 2) * 5;
+                    const ty = Math.abs(i - 2) * 5;
+                    
+                    if (this.selected.has(i)) {
+                        div.classList.add('selected');
+                        div.style.transform = 'translateY(-50px) rotate(0deg)';
+                    } else {
+                        div.classList.remove('selected');
+                        div.style.transform = `rotate(${rot}deg) translateY(${ty}px)`;
+                    }
+                });
+            },
+
+            handleSwap: async function() {
+                if (this.isProcessing || this.turn <= 0 || this.selected.size === 0) return;
+                if (this.deck.length < this.selected.size) {
+                    alert("これ以上カードを引けません！（山札切れ）");
+                    return;
+                }
+
+                this.isProcessing = true;
+                const container = document.getElementById('hand-container');
+                const selectedIndices = Array.from(this.selected).sort((a,b) => b-a);
+                
+                // 1. 捨てるカードのアニメーション
+                AudioEngine.play('swap');
+                selectedIndices.forEach(idx => {
+                    if(container.children[idx]) {
+                        container.children[idx].classList.add('discarding');
+                        container.children[idx].classList.remove('selected');
+                    }
+                });
+
+                // アニメーションを待つ
+                await new Promise(r => setTimeout(r, 600));
+
+                // 2. データ更新
+                const newHand = [...this.hand];
+                selectedIndices.forEach(idx => {
+                    newHand[idx] = this.deck.pop(); 
+                });
+                this.hand = newHand;
+                this.selected.clear();
+                this.turn--;
+
+                // 3. 新しいカードを「ドロー演出」で追加
+                // 先に空の要素にしてから、drawingクラス付きで再描画することで「落ちてくる」感を作る
+                selectedIndices.forEach(idx => {
+                    const card = this.hand[idx];
+                    const div = document.createElement('div');
+                    div.className = 'card drawing';
+                    
+                    const rot = (idx - 2) * 5;
+                    const ty = Math.abs(idx - 2) * 5;
+                    div.style.transform = `rotate(${rot}deg) translateY(${ty}px)`;
+
+                    div.onclick = () => this.toggleSelect(idx);
+                    div.innerHTML = `
+                        <div class="card-inner">
+                            <div style="font-size:0.65rem; color:#666; width:100%; border-bottom:1px solid #ddd; padding-bottom:3px;">${card.label}</div>
+                            <div class="c-icon">${card.icon}</div>
+                            <div class="c-text">${card.text}</div>
+                            <div class="c-footer">HISTORICAL DATA</div>
+                        </div>
+                    `;
+                    container.replaceChild(div, container.children[idx]);
+                });
+                
+                AudioEngine.play('deal');
+                this.isProcessing = false;
+                this.updateControls();
+            },
+
+            handleJudge: function() {
+                if (this.isProcessing) return;
+                this.isProcessing = true;
+                const analyzeScreen = document.getElementById('analyzing-screen');
+                analyzeScreen.classList.remove('hidden');
+                
+                let beats = 0;
+                const beatInterval = setInterval(() => {
+                    AudioEngine.play('heartbeat');
+                    beats++;
+                    if(beats >= 4) clearInterval(beatInterval);
+                }, 800);
+
+                setTimeout(() => {
+                    analyzeScreen.classList.add('hidden');
+                    this.calculateResult();
+                    this.isProcessing = false;
+                }, 3500);
+            },
+
+            // ★ 修正：テキスト内容一致判定ロジック ★
+            calculateResult: function() {
+                let bestHero = null;
+                let maxMatches = 0;
+
+                // 場の4人の偉人それぞれについて、手札との「テキスト一致数」を計算する
+                this.currentHeroes.forEach(hero => {
+                    let matches = 0;
+                    this.hand.forEach(handCard => {
+                        // 偉人のカードリストの中に、手札カードと同じテキスト・タイプのものがあるか？
+                        const isMatch = hero.cards.some(c => c.type === handCard.type && c.text === handCard.text);
+                        if (isMatch) matches++;
+                    });
+
+                    if (matches > maxMatches) {
+                        maxMatches = matches;
+                        bestHero = hero;
+                    }
+                });
+
+                // 3枚以上なら成功
+                const isSuccess = maxMatches >= 3;
+                
+                // 演出：テキストが一致するカードを光らせる（IDではなくテキスト判定）
+                const container = document.getElementById('hand-container');
+                Array.from(container.children).forEach((div, i) => {
+                    const handCard = this.hand[i];
+                    // ベストマッチした偉人にとって「正解」となるカードか判定
+                    const isCorrectCard = bestHero && bestHero.cards.some(c => c.type === handCard.type && c.text === handCard.text);
+
+                    if (isSuccess && isCorrectCard) {
+                        div.classList.add('matched'); 
+                    } else {
+                        div.classList.add('dimmed');
+                    }
+                });
+
+                // リザルト表示
+                setTimeout(() => {
+                    const resultBox = document.getElementById('result-box');
+                    const screen = document.getElementById('result-screen');
+                    const title = document.getElementById('result-title');
+                    const desc = document.getElementById('result-desc');
+                    const rank = document.getElementById('rank-display');
+                    const review = document.getElementById('result-review');
+                    
+                    // --- 答え合わせリスト生成（テキスト判定版） ---
+                    let reviewHTML = `<div style="font-weight:bold; margin-bottom:5px; color:#333; border-bottom:1px solid #ccc; padding-bottom:5px;">【手札の解析レポート】</div>`;
+                    reviewHTML += `<ul class="review-list">`;
+                    
+                    this.hand.forEach(card => {
+                        // このカードの本来の持ち主
+                        const trueOwner = HISTORY_DB.find(h => h.id === card.heroId);
+                        
+                        // ベスト偉人の正解データに含まれるか（テキスト一致）
+                        const isMatch = bestHero && bestHero.cards.some(c => c.type === card.type && c.text === card.text);
+                        
+                        // ID自体が一致しているか（注釈用）
+                        const isIdMatch = bestHero && (card.heroId === bestHero.id);
+
+                        const color = isMatch ? "var(--accent-blue)" : (isSuccess ? "#cc5555" : "#666");
+                        const mark = isMatch ? "⭕" : "❌";
+                        const weight = isMatch ? "bold" : "normal";
+                        
+                        let note = "";
+                        if (isMatch && !isIdMatch) {
+                            note = `<span style="font-size:0.7rem; color:#d66;">(※${trueOwner.name}の記録だが内容は一致)</span>`;
+                        } else if (!isMatch) {
+                            note = `<div style="font-size:0.75rem; color:#888; margin-left:24px;">→ 正解: ${trueOwner.name}</div>`;
+                        }
+
+                        reviewHTML += `<li class="review-item">
+                            <span style="color:${color}; font-weight:bold; font-size:1rem; margin-right:5px;">${mark}</span>
+                            <span style="font-weight:${weight};">${card.text}</span>
+                            ${note}
+                        </li>`;
+                    });
+                    reviewHTML += `</ul>`;
+                    review.innerHTML = reviewHTML;
+                    // -------------------------
+
+                    if (isSuccess) {
+                        document.getElementById('flash-overlay').classList.add('flash-anim');
+                        setTimeout(()=>document.getElementById('flash-overlay').classList.remove('flash-anim'), 1000);
+
+                        AudioEngine.play('win');
+                        // コレクション保存（IDが違っても、正解として扱われたらその偉人のカードとして保存する）
+                        // ※ただし図鑑の整合性を保つため、カード本来のIDで保存する
+                        this.hand.forEach(c => {
+                            // テキスト一致しているなら、ベスト偉人のコレクションとしてアンロック扱いにする
+                            // （ゲーム体験としては「この偉人の情報を知った」ことになるため）
+                            if (bestHero.cards.some(bhc => bhc.text === c.text)) {
+                                this.collection[`${bestHero.id}_${c.type}`] = true;
+                            }
+                        });
+                        localStorage.setItem('chrono_data', JSON.stringify(this.collection));
+                        
+                        rank.textContent = maxMatches === 5 ? "SS" : maxMatches === 4 ? "S" : "A";
+                        rank.style.borderColor = "var(--accent-red)";
+                        rank.style.color = "var(--accent-red)";
+                        title.textContent = "歴史修復完了！";
+                        desc.innerHTML = `お見事です。<br><strong>${bestHero.name}</strong>の記録(${maxMatches}枚)を特定しました。<br>時空の歪みが修正されました。`;
+                    } else {
+                        AudioEngine.play('fail');
+                        rank.textContent = "F";
+                        rank.style.borderColor = "#666";
+                        rank.style.color = "#666";
+                        title.textContent = "修復失敗...";
+                        desc.innerHTML = `データが混在しています。<br>最も近い反応は<strong>${bestHero ? bestHero.name : '不明'}</strong>(${maxMatches}枚)でした。<br>カードの所属をよく確認しましょう。`;
+                    }
+
+                    screen.classList.remove('hidden');
+                    setTimeout(() => resultBox.classList.add('show'), 100);
+
+                }, 1000); 
+            },
+
+            updateControls: function() {
+                const swapBtn = document.getElementById('btn-swap');
+                const judgeBtn = document.getElementById('btn-judge');
+                const status = document.getElementById('turn-status');
+
+                status.textContent = `残り再編回数: ${this.turn}`;
+
+                if (this.turn > 0 && !this.isProcessing) {
+                    swapBtn.style.display = 'block';
+                    swapBtn.disabled = this.selected.size === 0;
+                    if (this.selected.size > 0) swapBtn.classList.add('active');
+                    else swapBtn.classList.remove('active');
+                } else {
+                    swapBtn.style.display = 'none';
+                }
+
+                if (this.turn === 0 && !this.isProcessing) {
+                    status.textContent = "修復（判定）を実行してください";
+                    judgeBtn.classList.add('active'); 
+                    judgeBtn.style.width = "200px";
+                } else {
+                    judgeBtn.classList.remove('active');
+                    judgeBtn.style.width = "140px";
+                }
+            },
+
+            showEncyclopedia: function() {
+                AudioEngine.init();
+                const screen = document.getElementById('encyclopedia-screen');
+                const grid = document.getElementById('encyclopedia-grid');
+                grid.innerHTML = '';
+                
+                HISTORY_DB.forEach(h => {
+                    const div = document.createElement('div');
+                    div.style.background = '#222';
+                    div.style.padding = '10px';
+                    div.style.borderRadius = '8px';
+                    div.style.border = '1px solid #444';
+                    
+                    const unlockedCount = h.cards.filter(c => this.collection[`${h.id}_${c.type}`]).length;
+                    const nameColor = unlockedCount >= 3 ? '#eebb44' : '#666';
+
+                    let content = `<div style="color:${nameColor}; font-weight:bold; margin-bottom:5px;">${h.name} <span style="font-size:0.7rem">(${unlockedCount}/5)</span></div>`;
+                    h.cards.forEach(c => {
+                        const unlocked = this.collection[`${h.id}_${c.type}`];
+                        content += `<div style="font-size:0.8rem; color:${unlocked ? '#ddd' : '#444'}; padding:2px 0;">
+                            ${unlocked ? c.icon + ' ' + c.text : '🔒 ？？？'}
+                        </div>`;
+                    });
+                    div.innerHTML = content;
+                    grid.appendChild(div);
+                });
+                screen.classList.remove('hidden');
+            }
+        };
+    </script>
+</body>
+</html>
