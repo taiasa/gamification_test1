@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>どっちがどっち！？ ほうこうマスターTA</title>
+<style>
+    :root {
+        --bg-color: #E0F7FA;
+        --primary-color: #00BCD4;
+        --primary-dark: #0097A7;
+        --accent-color: #FF9800;
+        --text-color: #263238;
+        --danger-color: #FF5252;
+        --success-color: #4CAF50;
+        --ui-font: "Hiragino Kaku Gothic ProN", "Meiryo", "Yurugothic", sans-serif;
+    }
+
+    * { box-sizing: border-box; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+
+    body {
+        margin: 0; padding: 0;
+        background-color: var(--bg-color);
+        font-family: var(--ui-font);
+        color: var(--text-color);
+        display: flex; justify-content: center; align-items: center;
+        height: 100vh; overflow: hidden;
+    }
+
+    #game-container {
+        width: 100%; max-width: 500px; height: 100%;
+        background: #fff;
+        position: relative;
+        display: flex; flex-direction: column;
+        box-shadow: 0 0 30px rgba(0,0,0,0.15);
+        overflow: hidden;
+    }
+
+    /* --- Screens --- */
+    .screen {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        background: rgba(255,255,255,0.98);
+        z-index: 30; transition: opacity 0.3s;
+    }
+    .hidden { display: none !important; opacity: 0; pointer-events: none; }
+
+    h1 { font-size: 2rem; color: var(--primary-color); text-align: center; margin-bottom: 0.5rem; text-shadow: 2px 2px 0 #E0F7FA; line-height: 1.2; }
+    h2 { font-size: 1.5rem; margin-bottom: 1rem; color: #555; }
+    p { font-size: 1rem; margin-bottom: 1.5rem; text-align: center; line-height: 1.6; color: #666; }
+
+    .btn {
+        background: var(--accent-color); color: white; border: none;
+        padding: 15px 30px; font-size: 1.2rem; border-radius: 50px;
+        cursor: pointer; box-shadow: 0 5px 0 #E65100; margin: 8px;
+        font-weight: bold; transition: transform 0.1s, box-shadow 0.1s;
+        width: 80%; max-width: 280px; position: relative;
+    }
+    .btn:active { transform: translateY(5px); box-shadow: none; }
+    .btn-blue { background: var(--primary-color); box-shadow: 0 5px 0 #0097A7; }
+    .btn-green { background: var(--success-color); box-shadow: 0 5px 0 #2E7D32; }
+    .btn-outline { background: white; color: #555; border: 2px solid #ccc; box-shadow: 0 5px 0 #bbb; }
+
+    .high-score-label {
+        font-size: 0.9rem; color: var(--primary-dark); font-weight: bold;
+        background: #E0F7FA; padding: 5px 15px; border-radius: 15px;
+        margin-bottom: 20px;
+    }
+
+    /* --- Difficulty Select Modal --- */
+    #mode-select-modal { background: rgba(255,255,255,0.95); }
+
+    /* --- Header & HUD --- */
+    #game-header {
+        background: #fff; padding: 0; border-bottom: 1px solid #eee;
+        z-index: 10; height: 150px; display: flex; flex-direction: column; justify-content: flex-start;
+        position: relative;
+    }
+
+    /* Quit Button */
+    #quit-btn {
+        position: absolute; top: 15px; left: 10px; z-index: 50;
+        background: #eee; border: none; border-radius: 50%;
+        width: 36px; height: 36px; font-size: 1.2rem; cursor: pointer;
+        display: flex; justify-content: center; align-items: center;
+        box-shadow: 0 2px 0 #ccc; color: #555;
+    }
+    #quit-btn:active { transform: translateY(2px); box-shadow: none; }
+
+    #timer-container {
+        width: 100%; height: 10px; background: #eee; position: relative;
+    }
+    #timer-bar {
+        height: 100%; background: var(--success-color); width: 100%;
+        transition: width 0.1s linear, background 0.3s;
+    }
+
+    #hud {
+        padding: 5px 15px; display: flex; justify-content: space-between; align-items: center;
+        height: 40px; padding-left: 50px; /* Space for quit btn */
+    }
+    .stat-box { font-size: 1.2rem; font-weight: bold; display: flex; align-items: center; gap: 5px; }
+    #score { font-size: 1.5rem; color: var(--primary-color); }
+    #lives { letter-spacing: 2px; }
+    
+    #question-container {
+        flex: 1; display: flex; flex-direction: column;
+        justify-content: center; align-items: center;
+        background: #f9fcff; border-top: 1px solid #edf2f7; position: relative;
+    }
+    #question-text { font-size: 2rem; font-weight: 900; color: #333; margin: 0; text-align: center; }
+    #question-sub { font-size: 0.9rem; color: #666; margin-top: 5px; }
+
+    /* Combo Display */
+    #combo-display {
+        position: absolute; right: 20px; top: 10px;
+        font-size: 1.5rem; font-weight: 900; color: var(--accent-color);
+        transform: scale(0); transition: transform 0.2s; pointer-events: none; z-index: 5; text-shadow: 2px 2px 0px white;
+    }
+    
+    .practice-badge {
+        position: absolute; top: 5px; left: 50%; transform: translateX(-50%);
+        background: #81C784; color: white; font-size: 0.8rem;
+        padding: 2px 10px; border-radius: 10px; font-weight: bold;
+        z-index: 15; display: none;
+    }
+
+    /* --- Game Area --- */
+    #game-area {
+        flex: 1; position: relative;
+        display: flex; justify-content: center; align-items: center;
+        background-image: radial-gradient(#B2EBF2 3px, transparent 3px);
+        background-size: 40px 40px; overflow: hidden;
+    }
+
+    /* --- Countdown Overlay --- */
+    #countdown-overlay {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(255,255,255,0.8); z-index: 40;
+        display: flex; justify-content: center; align-items: center;
+        font-size: 8rem; font-weight: 900; color: var(--primary-color);
+        text-shadow: 4px 4px 0 #fff; pointer-events: none;
+    }
+    .count-anim { animation: countZoom 0.9s forwards; }
+    @keyframes countZoom {
+        0% { transform: scale(0.5); opacity: 0; }
+        50% { transform: scale(1.2); opacity: 1; }
+        100% { transform: scale(1.5); opacity: 0; }
+    }
+
+    /* --- Center Objects --- */
+    #center-stage { width: 240px; height: 240px; position: relative; display: flex; justify-content: center; align-items: center; }
+
+    /* Character (LR Mode) */
+    .character-container { width: 120px; height: 120px; position: relative; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    .character {
+        width: 100%; height: 100%; background: #FFCC80; border: 4px solid #F57C00;
+        border-radius: 50%; position: relative; box-shadow: 0 10px 20px rgba(0,0,0,0.15); z-index: 2;
+    }
+    .char-arrow {
+        position: absolute; top: -50px; left: 50%; transform: translateX(-50%); width: 0; height: 0;
+        border-left: 25px solid transparent; border-right: 25px solid transparent; border-bottom: 40px solid #F57C00; z-index: 1;
+    }
+    .face-detail { position: absolute; background: #333; border-radius: 50%; }
+    .eye-l { width: 12px; height: 12px; top: 30%; left: 25%; }
+    .eye-r { width: 12px; height: 12px; top: 30%; right: 25%; }
+    .nose { width: 16px; height: 16px; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #F57C00; opacity: 0.5;}
+
+    /* Compass Grid (NSEW Mode) */
+    .compass-grid { display: grid; grid-template-columns: 70px 70px 70px; grid-template-rows: 70px 70px 70px; gap: 8px; }
+    .grid-cell {
+        border-radius: 10px; border: 2px dashed #CFD8DC; display: flex; justify-content: center; align-items: center;
+        font-weight: 900; font-size: 1.8rem; color: #555; background: rgba(255,255,255,0.7); transition: transform 0.2s;
+    }
+    .cell-player { background: var(--primary-color); border: none; color: white; font-size: 0.9rem; box-shadow: 0 4px 10px rgba(0,188,212,0.4); z-index: 2; }
+    .cell-hint {
+        background: #FFF9C4; border: 2px solid #FBC02D; color: #F57F17; transform: scale(1.05);
+        z-index: 1; animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse { 0% {box-shadow: 0 0 0 0 rgba(251,192,45, 0.4);} 70% {box-shadow: 0 0 0 10px rgba(251,192,45, 0);} 100% {box-shadow: 0 0 0 0 rgba(251,192,45, 0);} }
+
+    /* --- Feedback & Effects --- */
+    .feedback-overlay {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        pointer-events: none; z-index: 25;
+        display: flex; justify-content: center; align-items: center;
+    }
+    .big-symbol { font-size: 10rem; opacity: 0; transform: scale(0); font-weight: 900; text-shadow: 0 0 20px rgba(255,255,255,0.8); }
+    .anim-correct { animation: popIn 0.5s forwards; color: var(--success-color); }
+    .anim-wrong { animation: shakeIn 0.5s forwards; color: var(--danger-color); }
+
+    .guide-arrow {
+        position: absolute; z-index: 24; color: var(--success-color); opacity: 0; font-size: 4rem; font-weight: bold;
+        text-shadow: 2px 2px 0 #fff; pointer-events: none;
+    }
+    .guide-show { animation: flashGuide 1s infinite; opacity: 1; }
+
+    @keyframes popIn { 0% { transform: scale(0); opacity: 0; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
+    @keyframes shakeIn {
+        0% { transform: scale(0.5) rotate(0deg); opacity: 0; } 40% { transform: scale(1) rotate(0deg); opacity: 1; }
+        50% { transform: scale(1) rotate(-15deg); } 60% { transform: scale(1) rotate(15deg); }
+        70% { transform: scale(1) rotate(-15deg); } 100% { transform: scale(1) rotate(0deg); opacity: 0; }
+    }
+    @keyframes flashGuide { 50% { opacity: 0.3; transform: scale(0.9); } }
+
+    .particle { position: absolute; width: 10px; height: 10px; border-radius: 50%; pointer-events: none; z-index: 24; }
+
+    /* --- Controls --- */
+    #controls {
+        background: #f9f9f9; padding: 15px; display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr;
+        gap: 10px; height: 200px; border-top: 2px solid #eee;
+    }
+    .ctrl-btn {
+        background: white; border: 1px solid #ddd; border-radius: 12px; display: flex; justify-content: center; align-items: center;
+        font-size: 2.2rem; color: #888; cursor: pointer; box-shadow: 0 4px 0 #ddd; transition: all 0.1s; position: relative;
+    }
+    .ctrl-btn:active, .ctrl-btn.pressed { transform: translateY(4px); box-shadow: none; background: #eee; }
+    .btn-up { grid-column: 2; grid-row: 1; color: var(--primary-color); }
+    .btn-left { grid-column: 1; grid-row: 2; color: var(--primary-color); }
+    .btn-down { grid-column: 2; grid-row: 2; color: var(--primary-color); }
+    .btn-right { grid-column: 3; grid-row: 2; color: var(--primary-color); }
+    .highlight-btn { border-color: var(--success-color); background: #E8F5E9; color: var(--success-color); box-shadow: 0 0 15px var(--success-color); }
+</style>
+</head>
+<body>
+
+<div id="game-container">
+    <!-- Title Screen -->
+    <div id="title-screen" class="screen">
+        <h1>どっちがどっち！？<br>ほうこうマスターTA</h1>
+        <div class="high-score-label" id="title-highscore">最高記録(30秒): --</div>
+        <p>30秒で何問とけるかな？<br>3回まちがえると記録なし！</p>
+        <button class="btn btn-blue" onclick="ui.showModeSelect('LR')">左右モード</button>
+        <button class="btn" onclick="ui.showModeSelect('NSEW')">東西南北モード</button>
+        <div style="margin-top:20px; font-size:0.8rem; color:#999;">★音が出ます</div>
+    </div>
+
+    <!-- Mode Select Modal -->
+    <div id="mode-select-modal" class="screen hidden">
+        <h2 id="modal-title">モード選択</h2>
+        <button class="btn btn-green" onclick="game.init('practice')">れんしゅう</button>
+        <p style="font-size:0.9rem; margin:0;">向きが固定。時間制限なし。</p>
+        <br>
+        <button class="btn btn-blue" onclick="game.init('challenge')">ほんばん (30秒)</button>
+        <p style="font-size:0.9rem; margin:0;">30秒勝負！3ミスで終了。</p>
+        <br><br>
+        <button class="btn btn-outline" onclick="ui.hideModeSelect()">もどる</button>
+    </div>
+
+    <!-- Result Screen -->
+    <div id="result-screen" class="screen hidden">
+        <h1 id="result-title">タイムアップ！</h1>
+        <h2 style="font-size:3rem; color:var(--primary-color);">正解数: <span id="final-score">0</span></h2>
+        <div id="new-record-msg" style="color:var(--accent-color); font-weight:bold; font-size:1.2rem; display:none; margin-bottom:10px;">🎉 自己ベスト更新！ 🎉</div>
+        <p id="result-message" style="font-weight:bold; color:#d32f2f; min-height:1.5em;"></p>
+        <button class="btn btn-blue" onclick="game.retry()">もういちど</button>
+        <button class="btn btn-outline" onclick="game.quit()">タイトルへ</button>
+    </div>
+
+    <!-- Gameplay -->
+    <div id="game-header">
+        <div id="timer-container"><div id="timer-bar"></div></div>
+        <!-- Quit Button -->
+        <button id="quit-btn" onclick="game.quit()">🏠</button>
+        <div id="hud">
+            <div class="stat-box">⭐ <span id="score">0</span></div>
+            <div class="practice-badge" id="practice-badge">れんしゅう</div>
+            <div class="stat-box" style="color:var(--danger-color); font-size:1.5rem;" id="lives">❤️❤️❤️</div>
+        </div>
+        <div id="question-container">
+            <div id="combo-display"></div>
+            <div id="question-text">右</div>
+            <div id="question-sub"></div>
+        </div>
+    </div>
+
+    <div id="game-area">
+        <div id="countdown-overlay" class="hidden"></div>
+        
+        <div id="center-stage">
+            <!-- Dynamic Content -->
+        </div>
+
+        <div class="feedback-overlay">
+            <div id="feedback-symbol" class="big-symbol">○</div>
+        </div>
+        
+        <div id="guide-up" class="guide-arrow" style="top:10px;">▲</div>
+        <div id="guide-down" class="guide-arrow" style="bottom:10px;">▼</div>
+        <div id="guide-left" class="guide-arrow" style="left:10px;">◀</div>
+        <div id="guide-right" class="guide-arrow" style="right:10px;">▶</div>
+    </div>
+
+    <div id="controls">
+        <div class="ctrl-btn btn-up" id="btn-up" onpointerdown="game.input('up')">▲</div>
+        <div class="ctrl-btn btn-left" id="btn-left" onpointerdown="game.input('left')">◀</div>
+        <div class="ctrl-btn btn-down" id="btn-down" onpointerdown="game.input('down')">▼</div>
+        <div class="ctrl-btn btn-right" id="btn-right" onpointerdown="game.input('right')">▶</div>
+    </div>
+</div>
+
+<script>
+/**
+ * UI & LocalStorage
+ */
+const ui = {
+    selectedMode: '',
+    
+    showModeSelect: function(mode) {
+        this.selectedMode = mode;
+        const title = mode === 'LR' ? '左右モード' : '東西南北モード';
+        document.getElementById('modal-title').innerText = title;
+        document.getElementById('mode-select-modal').classList.remove('hidden');
+    },
+    hideModeSelect: function() {
+        document.getElementById('mode-select-modal').classList.add('hidden');
+    },
+    updateHighScoreDisplay: function() {
+        const lr = localStorage.getItem('houkou_ta_lr') || 0;
+        const nsew = localStorage.getItem('houkou_ta_nsew') || 0;
+        document.getElementById('title-highscore').innerText = `最高記録(30秒): 左右 ${lr}問 / 方位 ${nsew}問`;
+    },
+    saveScore: function(mode, score) {
+        if (!mode) return false;
+        const key = mode === 'LR' ? 'houkou_ta_lr' : 'houkou_ta_nsew';
+        const currentHigh = parseInt(localStorage.getItem(key) || 0);
+        if (score > currentHigh) {
+            localStorage.setItem(key, score);
+            return true;
+        }
+        return false;
+    }
+};
+
+/**
+ * Sound Manager
+ */
+const sound = {
+    ctx: new (window.AudioContext || window.webkitAudioContext)(),
+    
+    playTone: function(freq, type, duration, vol=0.1) {
+        if(this.ctx.state === 'suspended') this.ctx.resume();
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+    },
+    playCorrect: function(combo) {
+        const base = 523.25; // C5
+        const pitch = base + (Math.min(combo, 10) * 50);
+        this.playTone(pitch, 'sine', 0.1, 0.1);
+        setTimeout(()=>this.playTone(pitch * 1.5, 'sine', 0.1, 0.1), 50);
+    },
+    playWrong: function() {
+        this.playTone(150, 'sawtooth', 0.3, 0.3);
+        setTimeout(() => this.playTone(120, 'sawtooth', 0.3, 0.3), 100);
+    },
+    playCount: function(isStart) {
+        if(isStart) this.playTone(880, 'square', 0.4, 0.2); // Start
+        else this.playTone(440, 'sine', 0.1, 0.2); // 3, 2, 1
+    },
+    playTimeUp: function() {
+        [880, 600, 400].forEach((f, i) => setTimeout(() => this.playTone(f, 'square', 0.3, 0.2), i * 200));
+    }
+};
+
+/**
+ * Effects
+ */
+const effects = {
+    spawnConfetti: function(x, y) {
+        const colors = ['#FF5252', '#FF4081', '#E040FB', '#7C4DFF', '#536DFE', '#448AFF', '#40C4FF', '#18FFFF', '#64FFDA', '#69F0AE', '#B2FF59', '#EEFF41', '#FFFF00', '#FFD740', '#FFAB40', '#FF6E40'];
+        const container = document.getElementById('game-area');
+        for (let i = 0; i < 15; i++) {
+            const p = document.createElement('div');
+            p.className = 'particle';
+            p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+            p.style.left = x + 'px';
+            p.style.top = y + 'px';
+            const angle = Math.random() * Math.PI * 2;
+            const velocity = Math.random() * 80 + 40;
+            p.animate([
+                { transform: `translate(0,0) scale(1)`, opacity: 1 },
+                { transform: `translate(${Math.cos(angle)*velocity}px, ${Math.sin(angle)*velocity}px) scale(0)`, opacity: 0 }
+            ], { duration: 500 + Math.random() * 300, fill: 'forwards' });
+            container.appendChild(p);
+            setTimeout(() => p.remove(), 1000);
+        }
+    },
+    showCombo: function(count) {
+        const el = document.getElementById('combo-display');
+        el.innerText = `${count} Combo!`;
+        el.style.transform = 'scale(0)';
+        void el.offsetWidth;
+        el.animate([
+            { transform: 'scale(1.5)', opacity: 1 },
+            { transform: 'scale(1)', opacity: 1 }
+        ], { duration: 200, fill: 'forwards' });
+    }
+};
+
+/**
+ * Game Logic
+ */
+class Game {
+    constructor() {
+        this.mode = ''; // 'LR' or 'NSEW'
+        this.type = ''; // 'practice' or 'challenge'
+        this.score = 0;
+        this.lives = 3;
+        this.combo = 0;
+        this.state = 'menu'; // menu, countdown, playing, feedback, gameover
+        this.answer = '';
+        
+        this.gameDuration = 30000;
+        this.timeLeft = 0;
+        this.lastFrame = 0;
+        this.animReq = null;
+        this.countdownTimer = null; // For clearing timeouts
+        
+        this.elements = {
+            stage: document.getElementById('center-stage'),
+            qText: document.getElementById('question-text'),
+            qSub: document.getElementById('question-sub'),
+            feedback: document.getElementById('feedback-symbol'),
+            score: document.getElementById('score'),
+            lives: document.getElementById('lives'),
+            timerBar: document.getElementById('timer-bar'),
+            combo: document.getElementById('combo-display'),
+            countdown: document.getElementById('countdown-overlay')
+        };
+    }
+
+    // Initialize game session
+    init(type) {
+        this.type = type;
+        this.mode = ui.selectedMode;
+        
+        // Hide Screens
+        document.getElementById('title-screen').classList.add('hidden');
+        document.getElementById('mode-select-modal').classList.add('hidden');
+        document.getElementById('result-screen').classList.add('hidden');
+        this.elements.countdown.classList.add('hidden');
+        
+        this.score = 0;
+        this.combo = 0;
+        this.lives = 3;
+        this.timeLeft = this.gameDuration;
+        this.elements.combo.innerText = '';
+        
+        const isPractice = (type === 'practice');
+        document.getElementById('lives').style.visibility = isPractice ? 'hidden' : 'visible';
+        document.getElementById('practice-badge').style.display = isPractice ? 'block' : 'none';
+        
+        this.updateHUD();
+        this.resetGuides();
+        
+        // Logic for start
+        if (this.type === 'challenge') {
+            this.runCountdown();
+        } else {
+            this.startPlaying();
+        }
+    }
+
+    // 3-second countdown
+    runCountdown() {
+        this.state = 'countdown';
+        this.elements.timerBar.style.width = '100%';
+        this.elements.timerBar.style.background = '#4CAF50';
+        
+        const overlay = this.elements.countdown;
+        overlay.classList.remove('hidden');
+        overlay.innerText = '';
+        
+        let count = 3;
+        
+        const tick = () => {
+            if (this.state !== 'countdown') return; // Cancel if quit
+            
+            if (count > 0) {
+                overlay.innerText = count;
+                overlay.classList.remove('count-anim');
+                void overlay.offsetWidth;
+                overlay.classList.add('count-anim');
+                sound.playCount(false);
+                count--;
+                this.countdownTimer = setTimeout(tick, 1000);
+            } else {
+                overlay.innerText = 'START!';
+                overlay.classList.remove('count-anim');
+                void overlay.offsetWidth;
+                overlay.classList.add('count-anim');
+                sound.playCount(true);
+                
+                this.countdownTimer = setTimeout(() => {
+                    overlay.classList.add('hidden');
+                    this.startPlaying();
+                }, 800);
+            }
+        };
+        tick();
+    }
+
+    startPlaying() {
+        this.state = 'playing';
+        this.nextRound();
+        
+        if (this.animReq) cancelAnimationFrame(this.animReq);
+        this.lastFrame = performance.now();
+        this.loop(this.lastFrame);
+    }
+
+    quit() {
+        this.state = 'menu';
+        clearTimeout(this.countdownTimer);
+        cancelAnimationFrame(this.animReq);
+        
+        // Hide all game overlays
+        document.getElementById('mode-select-modal').classList.add('hidden');
+        document.getElementById('result-screen').classList.add('hidden');
+        this.elements.countdown.classList.add('hidden');
+        
+        // Reset effects
+        this.resetGuides();
+        this.elements.feedback.className = 'big-symbol';
+        
+        // Show Title
+        document.getElementById('title-screen').classList.remove('hidden');
+        ui.updateHighScoreDisplay();
+    }
+
+    retry() {
+        this.init(this.type);
+    }
+
+    loop(now) {
+        this.animReq = requestAnimationFrame((t) => this.loop(t));
+        
+        if (this.state !== 'playing') {
+            this.lastFrame = now; 
+            return;
+        }
+        
+        const dt = now - this.lastFrame;
+        this.lastFrame = now;
+        
+        if (this.type === 'practice') {
+            this.elements.timerBar.style.width = '100%';
+            this.elements.timerBar.style.background = '#81C784';
+            return;
+        }
+
+        // Time Limit Logic
+        if (this.timeLeft > 0) {
+            this.timeLeft -= dt;
+            const pct = Math.max(0, (this.timeLeft / this.gameDuration) * 100);
+            this.elements.timerBar.style.width = pct + '%';
+            
+            if(pct < 20) this.elements.timerBar.style.background = '#FF5252';
+            else if(pct < 50) this.elements.timerBar.style.background = '#FFD740';
+            else this.elements.timerBar.style.background = '#4CAF50';
+            
+            if (this.timeLeft <= 0) {
+                this.finishGame('timeup');
+            }
+        }
+    }
+
+    nextRound() {
+        this.resetGuides();
+        if (this.mode === 'LR') this.generateLR();
+        else this.generateNSEW();
+    }
+
+    generateLR() {
+        this.elements.stage.innerHTML = `
+            <div class="character-container">
+                <div class="character">
+                    <div class="char-arrow"></div>
+                    <div class="nose"></div>
+                    <div class="face-detail eye-l"></div>
+                    <div class="face-detail eye-r"></div>
+                </div>
+            </div>`;
+        const charContainer = this.elements.stage.querySelector('.character-container');
+        
+        let dirIdx = (this.type === 'practice') ? 0 : Math.floor(Math.random() * 4);
+        charContainer.style.transform = `rotate(${dirIdx * 90}deg)`;
+        
+        const isRightHand = Math.random() < 0.5;
+        this.elements.qText.innerText = isRightHand ? "右手は どっち？" : "左手は どっち？";
+        this.elements.qText.style.color = isRightHand ? "#E65100" : "#006064";
+        this.elements.qSub.innerText = this.type === 'practice' ? "れんしゅう" : "30秒アタック！";
+
+        const handOffset = isRightHand ? 1 : -1;
+        const correctIdx = (dirIdx + handOffset + 4) % 4;
+        const dirMap = ['up', 'right', 'down', 'left'];
+        this.answer = dirMap[correctIdx];
+    }
+
+    generateNSEW() {
+        let html = `<div class="compass-grid">`;
+        for(let r=0; r<3; r++) {
+            for(let c=0; c<3; c++) {
+                let id = `cell-${r}-${c}`;
+                let content = (r===1 && c===1) ? '君' : '';
+                let extraClass = (r===1 && c===1) ? 'cell-player' : '';
+                html += `<div id="${id}" class="grid-cell ${extraClass}">${content}</div>`;
+            }
+        }
+        html += `</div>`;
+        this.elements.stage.innerHTML = html;
+
+        const dirs = ['北', '東', '南', '西'];
+        const posMap = [{r:0, c:1, dir:'up'}, {r:1, c:2, dir:'right'}, {r:2, c:1, dir:'down'}, {r:1, c:0, dir:'left'}];
+
+        let hintPosIdx = 0, hintDirValue = 0;
+        if (this.type === 'challenge') {
+            hintPosIdx = Math.floor(Math.random() * 4);
+            hintDirValue = Math.floor(Math.random() * 4);
+        }
+
+        const hintCellObj = posMap[hintPosIdx];
+        const hintEl = document.getElementById(`cell-${hintCellObj.r}-${hintCellObj.c}`);
+        hintEl.innerText = dirs[hintDirValue];
+        hintEl.classList.add('cell-hint');
+
+        let targetDirValue = Math.floor(Math.random() * 4);
+        while(targetDirValue === hintDirValue) targetDirValue = Math.floor(Math.random() * 4);
+
+        this.elements.qText.innerText = `${dirs[targetDirValue]}は どっち？`;
+        this.elements.qText.style.color = "#333";
+        this.elements.qSub.innerText = this.type === 'practice' ? "れんしゅう" : "30秒アタック！";
+
+        const stepDiff = (targetDirValue - hintDirValue + 4) % 4;
+        const correctPosIdx = (hintPosIdx + stepDiff) % 4;
+        this.answer = posMap[correctPosIdx].dir;
+    }
+
+    input(dir) {
+        if (this.state !== 'playing') return;
+
+        const btn = document.getElementById(`btn-${dir}`);
+        btn.classList.add('pressed');
+        setTimeout(() => btn.classList.remove('pressed'), 100);
+
+        if (dir === this.answer) {
+            this.handleCorrect();
+        } else {
+            this.handleMiss();
+        }
+    }
+
+    handleCorrect() {
+        this.score++;
+        this.combo++;
+        if (this.combo > 1) effects.showCombo(this.combo);
+        sound.playCorrect(this.combo);
+        this.showSymbol('⭕', 'anim-correct');
+        const rect = document.getElementById('game-area').getBoundingClientRect();
+        effects.spawnConfetti(rect.width/2, rect.height/2);
+        this.updateHUD();
+        this.nextRound();
+    }
+
+    handleMiss() {
+        this.combo = 0;
+        this.elements.combo.innerText = '';
+        
+        if (this.type === 'practice') {
+            sound.playWrong();
+            this.showSymbol('❌', 'anim-wrong');
+            this.showGuide(this.answer);
+            this.state = 'feedback';
+            setTimeout(() => { if(this.state==='feedback') { this.state='playing'; this.nextRound(); } }, 1000);
+            return;
+        }
+
+        this.lives--;
+        this.updateHUD();
+        sound.playWrong();
+        document.getElementById('game-container').animate([
+            { transform: 'translateX(0)' }, { transform: 'translateX(-10px)' }, 
+            { transform: 'translateX(10px)' }, { transform: 'translateX(0)' }
+        ], { duration: 300 });
+
+        this.showSymbol('❌', 'anim-wrong');
+        this.showGuide(this.answer);
+        this.state = 'feedback';
+
+        setTimeout(() => {
+            if (this.state !== 'feedback') return; // Quit happened
+            if (this.lives <= 0) {
+                this.finishGame('gameover');
+            } else {
+                this.state = 'playing';
+                this.nextRound();
+            }
+        }, 1200);
+    }
+
+    finishGame(reason) {
+        this.state = 'gameover';
+        document.getElementById('final-score').innerText = this.score + '問';
+        
+        let title = "", msg = "", isRecord = false;
+        if (reason === 'gameover') {
+            title = "ゲームオーバー";
+            msg = "3回まちがえてしまった...<br>記録は残りません";
+            document.getElementById('result-title').style.color = 'var(--danger-color)';
+        } else {
+            title = "タイムアップ！";
+            sound.playTimeUp();
+            document.getElementById('result-title').style.color = 'var(--success-color)';
+            isRecord = ui.saveScore(this.mode, this.score);
+            if(this.score < 5) msg = "もう少しできるはず！";
+            else if(this.score < 15) msg = "いいペース！";
+            else if(this.score < 30) msg = "すごい！ほうこうマスター！";
+            else msg = "神レベルの速さ...！";
+        }
+
+        document.getElementById('result-title').innerText = title;
+        document.getElementById('result-message').innerHTML = msg;
+        document.getElementById('new-record-msg').style.display = isRecord ? 'block' : 'none';
+        document.getElementById('result-screen').classList.remove('hidden');
+    }
+
+    showSymbol(char, animClass) {
+        this.elements.feedback.innerText = char;
+        this.elements.feedback.className = `big-symbol ${animClass}`;
+        void this.elements.feedback.offsetWidth;
+    }
+
+    showGuide(dir) {
+        document.getElementById(`guide-${dir}`).classList.add('guide-show');
+        document.getElementById(`btn-${dir}`).classList.add('highlight-btn');
+    }
+
+    resetGuides() {
+        document.querySelectorAll('.guide-arrow').forEach(el => el.classList.remove('guide-show'));
+        document.querySelectorAll('.ctrl-btn').forEach(el => el.classList.remove('highlight-btn'));
+        this.elements.feedback.className = 'big-symbol';
+    }
+
+    updateHUD() {
+        this.elements.score.innerText = this.score;
+        this.elements.lives.innerText = '❤️'.repeat(this.lives);
+    }
+}
+
+const game = new Game();
+ui.updateHighScoreDisplay();
+
+// Input Listeners
+document.addEventListener('keydown', (e) => {
+    const keyMap = { 'ArrowUp': 'up', 'ArrowDown': 'down', 'ArrowLeft': 'left', 'ArrowRight': 'right' };
+    if (keyMap[e.key]) game.input(keyMap[e.key]);
+});
+
+let touchX = 0, touchY = 0;
+const area = document.getElementById('game-area');
+area.addEventListener('touchstart', e => { touchX = e.changedTouches[0].screenX; touchY = e.changedTouches[0].screenY; }, {passive:false});
+area.addEventListener('touchend', e => {
+    if(game.state !== 'playing') return;
+    const dx = e.changedTouches[0].screenX - touchX;
+    const dy = e.changedTouches[0].screenY - touchY;
+    if(Math.abs(dx) > Math.abs(dy)) {
+        if(Math.abs(dx)>30) game.input(dx>0?'right':'left');
+    } else {
+        if(Math.abs(dy)>30) game.input(dy>0?'down':'up');
+    }
+}, {passive:false});
+
+</script>
+</body>
+</html>
