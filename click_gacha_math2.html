@@ -1,0 +1,1355 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GALAXY GEM HUNTER 6.1: Refined Edition</title>
+    <style>
+        /* --- 変数定義 --- */
+        :root {
+            --bg-dark: #050510;
+            --bg-mid: #1a1a40;
+            --bg-light: #2a2a60;
+            --accent-cyan: #00f2ff;
+            --accent-magenta: #ff0055;
+            --accent-gold: #ffd700;
+            --accent-green: #00ff88;
+            --glass-bg: rgba(20, 20, 40, 0.9);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --text-main: #ffffff;
+            --font-main: 'Helvetica Neue', Arial, sans-serif;
+            --app-margin: 15px; /* 画面端の余白 */
+            --app-radius: 20px; /* 角丸 */
+        }
+
+        /* --- 基本設定 --- */
+        * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; outline: none; }
+        html, body {
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
+            overflow: hidden;
+            background: #000; /* 外側の背景 */
+        }
+        body {
+            font-family: var(--font-main);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            touch-action: manipulation;
+        }
+
+        /* アプリ全体を包むラッパー（画面を縮める演出） */
+        #app-wrapper {
+            width: calc(100% - var(--app-margin) * 2);
+            height: calc(100% - var(--app-margin) * 2);
+            max-width: 600px; /* PCで見やすく */
+            max-height: 900px;
+            position: relative;
+            background: radial-gradient(circle at center, var(--bg-mid), var(--bg-dark));
+            border: 1px solid var(--glass-border);
+            border-radius: var(--app-radius);
+            box-shadow: 0 0 40px rgba(0, 242, 255, 0.1);
+            overflow: hidden; /* コンテンツのはみ出し防止 */
+            display: flex; flex-direction: column;
+        }
+
+        /* 画面揺れ用コンテナ */
+        #game-shaker {
+            flex: 1;
+            width: 100%; height: 100%;
+            display: flex; flex-direction: column;
+            align-items: center;
+            transition: transform 0.05s;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* 背景エフェクト (ラッパー内に閉じ込める) */
+        .stars-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1; pointer-events: none; border-radius: var(--app-radius);
+        }
+        .star {
+            position: absolute; background: white; border-radius: 50%;
+            animation: twinkle 3s infinite ease-in-out;
+        }
+        @keyframes twinkle { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
+
+        /* パーティクル用Canvas */
+        #particle-canvas {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 90;
+        }
+
+        /* --- スタート画面 --- */
+        #start-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 5, 20, 0.98);
+            z-index: 9999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            text-align: center; padding: 20px; transition: opacity 0.8s;
+            border-radius: var(--app-radius);
+        }
+        .title-logo {
+            font-size: 2rem; font-weight: 900;
+            background: linear-gradient(to right, var(--accent-cyan), var(--accent-gold));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px;
+            filter: drop-shadow(0 0 15px rgba(0,242,255,0.3));
+        }
+        .start-btn {
+            padding: 15px 60px; font-size: 1.4rem; font-weight: bold;
+            color: #fff; background: linear-gradient(45deg, var(--accent-cyan), #00aaff);
+            border: none; border-radius: 50px; cursor: pointer;
+            box-shadow: 0 0 25px rgba(0, 242, 255, 0.4);
+            transition: transform 0.1s, box-shadow 0.2s; margin-top: 30px;
+        }
+        .start-btn:active { transform: scale(0.95); box-shadow: 0 0 10px rgba(0,242,255,0.4); }
+        .instructions { max-width: 90%; line-height: 1.6; color: #ccc; margin-top: 20px; font-size: 0.9rem; }
+
+        /* --- ヘッダー --- */
+        header {
+            width: 100%; padding: 15px 20px; z-index: 10;
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--glass-border);
+        }
+        .game-title-sm { font-size: 0.9rem; color: var(--accent-cyan); font-weight: bold; }
+        .score-board { text-align: right; }
+        .coin-display {
+            font-size: 1.6rem; font-weight: 800; color: var(--accent-gold);
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); font-variant-numeric: tabular-nums;
+        }
+        .sps-display { font-size: 0.8rem; color: #aaa; margin-top: -3px; }
+
+        /* --- メインステージ --- */
+        .main-stage {
+            flex: 1; width: 100%; position: relative;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            overflow: hidden;
+        }
+        
+        /* 宝石 */
+        .gem-wrapper { 
+            position: relative; z-index: 10; cursor: pointer; 
+            width: 200px; height: 200px; display: flex; align-items: center; justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .main-gem {
+            font-size: 140px; filter: drop-shadow(0 0 30px rgba(0, 242, 255, 0.4));
+            transition: transform 0.05s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            animation: float 4s ease-in-out infinite;
+            pointer-events: none;
+        }
+        .main-gem.clicked { transform: scale(0.9) rotate(3deg); }
+        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-15px); } }
+
+        /* ロボット表示領域 */
+        .robots-visual { position: absolute; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: hidden; }
+        .robot-sprite {
+            position: absolute; font-size: 24px; transition: all 0.5s;
+            filter: drop-shadow(0 0 5px var(--accent-cyan));
+            animation: hoverRobot 3s infinite ease-in-out alternate;
+        }
+        @keyframes hoverRobot { from { transform: translateY(0); } to { transform: translateY(-10px); } }
+
+        /* フィーバーゲージ */
+        .fever-container {
+            width: 80%; max-width: 300px; height: 10px; background: rgba(0,0,0,0.6);
+            border-radius: 6px; margin-top: 40px; position: relative;
+            border: 1px solid #555; overflow: hidden; z-index: 10;
+        }
+        .fever-bar {
+            width: 0%; height: 100%;
+            background: linear-gradient(90deg, #ff00cc, #333399, #00f2ff);
+            background-size: 200% 100%;
+            animation: gradientMove 1s linear infinite; transition: width 0.2s;
+        }
+        .fever-label {
+            position: absolute; top: -20px; left: 0; width: 100%; text-align: center;
+            font-size: 0.65rem; color: var(--accent-magenta); font-weight: bold; letter-spacing: 2px;
+        }
+        @keyframes gradientMove { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+
+        /* --- コントロールエリア --- */
+        .control-area {
+            width: 100%; height: 45%; /* 少し高さを抑える */
+            background: var(--glass-bg); border-top: 1px solid var(--glass-border);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            display: flex; flex-direction: column; z-index: 80;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
+        }
+        .tabs { display: flex; width: 100%; border-bottom: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; }
+        .tab {
+            flex: 1; padding: 12px; text-align: center; cursor: pointer;
+            background: rgba(255,255,255,0.02); color: #888; font-weight: bold; transition: 0.3s;
+            font-size: 0.9rem;
+        }
+        .tab.active { background: rgba(255,255,255,0.1); color: var(--accent-cyan); border-bottom: 3px solid var(--accent-cyan); }
+
+        .panel-content { flex: 1; overflow-y: auto; padding: 15px; display: none; -webkit-overflow-scrolling: touch; }
+        .panel-content.active { display: block; }
+
+        /* ショップアイテム */
+        .shop-item {
+            display: flex; align-items: center; justify-content: space-between;
+            background: rgba(255,255,255,0.05); margin-bottom: 8px; padding: 12px;
+            border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);
+        }
+        .shop-item.disabled { opacity: 0.5; pointer-events: none; }
+        .item-info { display: flex; align-items: center; gap: 12px; }
+        .item-icon { font-size: 1.8rem; width: 40px; text-align: center; }
+        .item-details h4 { margin: 0; font-size: 0.95rem; color: #fff; }
+        .item-details p { margin: 2px 0 0; font-size: 0.75rem; color: #aaa; }
+        .buy-btn {
+            background: transparent; border: 1px solid var(--accent-cyan); color: var(--accent-cyan);
+            padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; min-width: 90px;
+            font-size: 0.85rem;
+        }
+        .buy-btn:hover { background: var(--accent-cyan); color: #000; }
+        .buy-btn:active { transform: scale(0.95); }
+
+        /* ガチャパネル */
+        .gacha-panel { text-align: center; padding: 20px 0; }
+        .btn-gacha-lg {
+            width: 100%; max-width: 350px; padding: 25px;
+            background: linear-gradient(45deg, #6a11cb, #2575fc);
+            border: none; border-radius: 15px;
+            color: white; font-size: 1.2rem; font-weight: bold;
+            box-shadow: 0 0 25px rgba(37, 117, 252, 0.4);
+            cursor: pointer; position: relative; overflow: hidden; transition: transform 0.1s;
+        }
+        .btn-gacha-lg:active { transform: scale(0.98); }
+        .btn-gacha-lg::after {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: linear-gradient(to right, transparent, rgba(255,255,255,0.3), transparent);
+            transform: rotate(45deg); animation: shine 3s infinite;
+        }
+        @keyframes shine { 0% { left: -100%; } 20% { left: 100%; } 100% { left: 100%; } }
+        .gacha-key-hint { font-size:0.75rem; color:rgba(255,255,255,0.5); margin-top:5px; }
+
+        /* コレクショングリッド */
+        .collection-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(55px, 1fr));
+            gap: 6px; padding-bottom: 40px;
+        }
+        .col-slot {
+            aspect-ratio: 1; background: rgba(0,0,0,0.3); border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; position: relative; border: 1px solid rgba(255,255,255,0.1);
+            transition: transform 0.2s;
+        }
+        .col-slot:active { transform: scale(0.95); }
+        .col-slot.unlocked:hover { background: rgba(255,255,255,0.15); }
+        .col-slot.locked { font-size: 1rem; opacity: 0.2; filter: grayscale(1); }
+        .col-slot .badge {
+            position: absolute; bottom: 0; right: 0; font-size: 0.5rem;
+            background: #222; padding: 1px 3px; border-radius: 4px 0 4px 0; color: #fff;
+            border-top: 1px solid #555; border-left: 1px solid #555;
+        }
+
+        /* --- モーダル共通 --- */
+        .modal {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 100;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+            backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+            border-radius: var(--app-radius);
+        }
+        .modal.active { opacity: 1; pointer-events: auto; }
+        
+        .modal-content {
+            background: rgba(15, 15, 30, 0.95);
+            border: 2px solid var(--accent-cyan);
+            border-radius: 16px; padding: 30px; width: 90%; max-width: 450px;
+            text-align: center; box-shadow: 0 0 60px rgba(0, 242, 255, 0.15);
+            transform: scale(0.9); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .modal.active .modal-content { transform: scale(1); }
+
+        /* 算数モーダル固有 */
+        .math-rank-badge {
+            display: inline-block; padding: 4px 12px; border-radius: 20px;
+            font-weight: 900; font-size: 1rem; margin-bottom: 20px;
+            text-shadow: 0 0 5px rgba(0,0,0,0.5); letter-spacing: 1px;
+        }
+        .math-question { font-size: 1.4rem; margin-bottom: 20px; line-height: 1.5; font-weight: bold; color: #fff;}
+        .math-input {
+            font-size: 1.5rem; padding: 12px; width: 220px; text-align: center;
+            border-radius: 8px; border: 2px solid #555; background: #080810; color: #fff;
+            margin-bottom: 10px; transition: border 0.2s;
+        }
+        .math-input:focus { border-color: var(--accent-cyan); }
+        .math-submit {
+            margin-top: 20px; width: 100%; padding: 16px;
+            background: var(--accent-green); color: #004d00; font-weight: bold; font-size: 1.1rem;
+            border: none; border-radius: 8px; cursor: pointer;
+            box-shadow: 0 4px 0 #008040; transition: transform 0.1s;
+        }
+        .math-submit:active { transform: translateY(4px); box-shadow: 0 0 0 #008040; }
+        .math-hint { font-size: 0.8rem; color: #888; margin-top: 5px; }
+
+        /* 判定画面 */
+        .judge-val { font-size: 1.5rem; color: #fff; margin: 10px 0; font-weight: bold; }
+        .judge-res { font-size: 2.5rem; font-weight: 900; margin: 20px 0; }
+        .judge-res.ok { color: var(--accent-green); text-shadow: 0 0 10px #00ff88; }
+        .judge-res.ng { color: var(--accent-magenta); text-shadow: 0 0 10px #ff0055; }
+
+        /* 宝箱・結果 */
+        .chest-box { text-align: center; perspective: 1000px; }
+        .chest-icon { font-size: 8rem; cursor: pointer; display: inline-block; filter: drop-shadow(0 0 20px rgba(255,215,0,0.3)); user-select: none; }
+        
+        .result-box { text-align: center; display: none; animation: popIn 0.5s ease-out; }
+        .result-rank { font-size: 2.5rem; font-weight: 900; letter-spacing: 3px; margin-bottom: 10px; }
+        .result-gem { font-size: 8rem; margin: 15px 0; filter: drop-shadow(0 0 30px currentColor); animation: float 3s infinite ease-in-out; }
+        .result-name { font-size: 1.5rem; color: #fff; margin-bottom: 20px; font-weight: bold; text-shadow: 0 0 10px currentColor; font-family: serif; }
+
+        @keyframes popIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        /* エンディング */
+        #ending-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 200; opacity: 0; pointer-events: none;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: opacity 2s; color: #fff;
+            border-radius: var(--app-radius); overflow: hidden;
+        }
+        #ending-overlay.active { opacity: 1; pointer-events: auto; }
+        #ending-overlay.rainbow-bg {
+            background: linear-gradient(124deg, #ff2400, #e81d1d, #e8b71d, #e3e81d, #1de840, #1ddde8, #2b1de8, #dd00f3, #dd00f3);
+            background-size: 1800% 1800%;
+            animation: rainbow 18s ease infinite;
+        }
+        @keyframes rainbow { 0%{background-position:0% 82%} 50%{background-position:100% 19%} 100%{background-position:0% 82%} }
+        
+        .end-text { text-align: center; animation: slideUp 60s linear forwards; margin-top: 100vh; width: 90%; max-width: 600px; text-shadow: 0 0 5px rgba(0,0,0,0.8); }
+        .end-title { font-size: 3rem; color: var(--accent-gold); margin-bottom: 20px; }
+        .end-msg { font-size: 1.2rem; line-height: 2; color: #fff; font-weight: bold; }
+        @keyframes slideUp { 0% { transform: translateY(0); } 100% { transform: translateY(-200vh); } }
+
+        /* エフェクト */
+        .fever-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, rgba(255,0,204,0.15) 0%, transparent 80%);
+            mix-blend-mode: screen; pointer-events: none; opacity: 0; z-index: 2;
+            border-radius: var(--app-radius);
+        }
+        body.fever-mode .fever-overlay { animation: pulseFever 0.4s infinite alternate; opacity: 1; }
+        @keyframes pulseFever { from { opacity: 0.5; } to { opacity: 0.9; } }
+
+        /* ランク色設定 */
+        .rank-C { color: #b0c4de; } .rank-B { color: #00bfff; } 
+        .rank-A { color: #da70d6; text-shadow: 0 0 10px #da70d6; } 
+        .rank-S { color: #ff4500; text-shadow: 0 0 15px #ff4500; } 
+        .rank-SS { color: #ffd700; text-shadow: 0 0 20px #ffd700; } 
+        .rank-SSS { 
+            background: linear-gradient(to right, #ff00cc, #333399, #00f2ff); 
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 25px rgba(255,255,255,0.8);
+        }
+
+    </style>
+</head>
+<body>
+    <div id="app-wrapper">
+        <div class="stars-container" id="stars-bg"></div>
+        <div class="fever-overlay"></div>
+        <canvas id="particle-canvas"></canvas>
+
+        <!-- スタート画面 -->
+        <div id="start-screen">
+            <div class="title-logo">GALAXY GEM HUNTER<br>FINAL COLLECTION</div>
+            <div class="instructions">
+                <p>宝石が輝く不思議な宇宙へようこそ。</p>
+                <p>100種類の「伝説のGEM」があなたを待っています。<br>
+                工場を建て、コインを集め、算数の鍵で宝箱を開けましょう。</p>
+                <p>さあ、コンプリートの旅へ。<br><small>※音が出ます (ボリュームON推奨)</small></p>
+            </div>
+            <button id="btn-start" class="start-btn">冒険を始める</button>
+        </div>
+
+        <!-- ゲームエリア -->
+        <div id="game-shaker">
+            <header>
+                <div class="header-left">
+                    <div class="game-title-sm">GGH 6.1</div>
+                    <div style="font-size:0.7rem; color:#888;">Refined Edition</div>
+                </div>
+                <div class="score-board">
+                    <div class="coin-display">
+                        <span style="font-size:1rem; vertical-align:middle;">🪙</span>
+                        <span id="coin-val">0</span>
+                    </div>
+                    <div class="sps-display" id="sps-val">0 /sec</div>
+                </div>
+            </header>
+
+            <div class="main-stage">
+                <div class="robots-visual" id="robots-container"></div>
+                
+                <div class="gem-wrapper" id="main-gem-wrapper">
+                    <div class="main-gem" id="main-gem">💎</div>
+                </div>
+
+                <div class="fever-container">
+                    <div class="fever-label">FEVER GAUGE</div>
+                    <div class="fever-bar" id="fever-bar"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- コントロールパネル -->
+        <div class="control-area">
+            <div class="tabs" id="tabs-container">
+                <div class="tab active" data-target="shop">工場 (Factory)</div>
+                <div class="tab" data-target="gacha">召喚 (Gacha)</div>
+                <div class="tab" data-target="collection">図鑑 (List) <span id="col-count">(0/100)</span></div>
+            </div>
+
+            <div id="tab-shop" class="panel-content active">
+                <!-- クリック強化 -->
+                <div class="shop-item" id="item-click-upgrade">
+                    <div class="item-info">
+                        <div class="item-icon">⚡</div>
+                        <div class="item-details">
+                            <h4>パワードリル</h4>
+                            <p>タップ効率UP (+1)</p>
+                        </div>
+                    </div>
+                    <button class="buy-btn" id="btn-buy-click">
+                        <span class="cost-val" id="cost-click">20</span>
+                    </button>
+                </div>
+                <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin:10px 0;">
+                <div id="robot-list"></div>
+            </div>
+
+            <div id="tab-gacha" class="panel-content">
+                <div class="gacha-panel">
+                    <p style="color:#ccc; font-size:0.9rem; margin-bottom:20px;">
+                        古代の宝箱には<span style="color:var(--accent-cyan)">数理コード</span>がかかっています。<br>
+                        問題を解いてGEMを解放してください。
+                    </p>
+                    <button class="btn-gacha-lg" id="btn-gacha">
+                        宝箱を解析する<br>
+                        <span style="font-size:0.9rem; color:var(--accent-gold);" id="gacha-cost-disp">Cost: 500</span>
+                    </button>
+                    <div class="gacha-key-hint">[Enter]キーでも実行可能</div>
+                    <div style="margin-top:20px; font-size:0.75rem; color:#888;">
+                        Rare:15% / Epic:10% / Legend:5% / Mythic:1%
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-collection" class="panel-content">
+                <div class="collection-grid" id="collection-grid"></div>
+            </div>
+        </div>
+
+        <!-- モーダル類 -->
+        <div class="modal" id="math-modal">
+            <div class="modal-content">
+                <div id="math-rank-badge" class="math-rank-badge">RANK A</div>
+                <div id="math-question" class="math-question">Loading...</div>
+                <input type="number" id="math-input" class="math-input" placeholder="答えを入力" inputmode="decimal">
+                <div class="math-hint">Enterキーでも送信可</div>
+                <button class="math-submit" id="btn-math-submit">解除コード送信</button>
+            </div>
+        </div>
+
+        <!-- 判定確認モーダル -->
+        <div class="modal" id="judge-modal">
+            <div class="modal-content">
+                <h3>SECURITY CHECK</h3>
+                <div style="font-size:0.9rem; color:#aaa; margin-top:15px;">あなたの入力</div>
+                <div class="judge-val" id="judge-input-val">--</div>
+                <div class="judge-res" id="judge-result-text">CORRECT!</div>
+                <button class="buy-btn" id="btn-judge-next" style="margin-top:20px; width:100%; padding:15px;">次へ進む</button>
+                <div class="math-hint" style="margin-top:10px;">[Enter] 次へ</div>
+            </div>
+        </div>
+
+        <div class="modal" id="gacha-modal">
+            <div class="chest-box" id="scene-chest">
+                <div class="chest-icon" id="chest-obj">🎁</div>
+                <p style="color:#fff; margin-top:20px; font-weight:bold; letter-spacing:2px; animation:blink 1s infinite;">TAP or [SPACE] TO OPEN!</p>
+            </div>
+            <div class="result-box" id="scene-result">
+                <div class="result-rank" id="res-rank">RARE</div>
+                <div class="result-gem" id="res-img">💎</div>
+                <div class="result-name" id="res-name">Blue Diamond</div>
+                <button class="buy-btn" id="btn-close-result">閉じる</button>
+                <div class="math-hint" style="margin-top:10px;">[Enter] 閉じる</div>
+            </div>
+        </div>
+
+        <div class="modal" id="fail-modal">
+            <div class="modal-content">
+                <div style="font-size:5rem;">😱</div>
+                <h2 style="color:var(--accent-magenta); font-size:1.5rem; margin:20px 0;">計算ミス...！</h2>
+                <p style="font-size:1rem;">セキュリティ解除に失敗しました。</p>
+                <p style="color:#aaa; font-size:0.8rem;">コストは返却されません。</p>
+                <button class="buy-btn" id="btn-close-fail" style="margin-top:30px;">やり直す</button>
+            </div>
+        </div>
+
+        <div id="ending-overlay">
+            <div class="end-text">
+                <div class="end-title">CONGRATULATIONS</div>
+                <div style="font-size:5rem; margin:20px 0;">👑</div>
+                <div class="end-msg">
+                    ついに全てのGEMが集まりました。<br>
+                    宇宙の神秘、古の記憶、未来への希望。<br>
+                    それら全てがあなたの手の中にあります。<br><br>
+                    永きにわたる探索、お疲れ様でした。<br>
+                    あなたの計算力と忍耐力は<br>
+                    この宇宙で最も美しい輝きです。<br><br>
+                    Thank you for playing.<br><br>
+                    Galaxy Gem Hunter<br>
+                    Refined Edition
+                </div>
+                <button class="buy-btn" id="btn-reload" style="margin-top:50px; padding:20px 40px; font-size:1.5rem;">最初から遊ぶ</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+(function() {
+    'use strict';
+
+    /* =========================================
+       定数・データ定義
+       ========================================= */
+    const CONFIG = {
+        bgStars: 80,
+        feverCost: 0.4,
+        feverDecay: 0.5,
+        clickBaseCost: 20
+    };
+
+    const ROBOTS = [
+        { id: 'b1', name: '自動ドローン', icon: '🚁', sps: 1, cost: 50 },
+        { id: 'b2', name: '採掘ロボット', icon: '🤖', sps: 5, cost: 300 },
+        { id: 'b3', name: '重機ドリル', icon: '🚜', sps: 20, cost: 1500 },
+        { id: 'b4', name: 'レーザー発掘機', icon: '🔫', sps: 80, cost: 6000 },
+        { id: 'b5', name: 'プラズマ抽出機', icon: '⚗️', sps: 250, cost: 20000 },
+        { id: 'b6', name: '量子コンピューター', icon: '💻', sps: 800, cost: 80000 },
+        { id: 'b7', name: '軌道エレベーター', icon: '🗼', sps: 2500, cost: 300000 },
+        { id: 'b8', name: '月面基地', icon: '🌑', sps: 8000, cost: 1200000 },
+        { id: 'b9', name: 'ダイソン球', icon: '🌞', sps: 25000, cost: 5000000 },
+        { id: 'b10', name: '反物質生成炉', icon: '⚛️', sps: 80000, cost: 20000000 },
+        { id: 'b11', name: '亜空間ゲート', icon: '🌀', sps: 300000, cost: 100000000 },
+        { id: 'b12', name: '現実改変装置', icon: '👁️', sps: 1000000, cost: 500000000 }
+    ];
+
+    const RANKS = ['C', 'B', 'A', 'S', 'SS', 'SSS'];
+    const RANK_PROBS = [40, 25, 15, 10, 7, 3];
+    const RANK_INFO = {
+        C: { color: 'rank-C', label: 'COMMON' },
+        B: { color: 'rank-B', label: 'UNCOMMON' },
+        A: { color: 'rank-A', label: 'RARE' },
+        S: { color: 'rank-S', label: 'EPIC' },
+        SS: { color: 'rank-SS', label: 'LEGEND' },
+        SSS: { color: 'rank-SSS', label: 'MYTHIC' }
+    };
+
+    const GEM_NAMES = [
+        // Rank C
+        {n:"路傍の小石", i:"🪨"}, {n:"名もなき化石", i:"🐚"}, {n:"ひび割れた水晶", i:"🧊"}, {n:"ゴブリンの涙", i:"💧"}, {n:"焦げた木片", i:"🪵"},
+        {n:"錆びた歯車", i:"⚙️"}, {n:"訓練生のバッジ", i:"🔰"}, {n:"スライムの核", i:"🟢"}, {n:"蝙蝠の牙", i:"🦷"}, {n:"毒キノコの胞子", i:"🍄"},
+        {n:"古びた硬貨", i:"🪙"}, {n:"忘れられた手紙", i:"✉️"}, {n:"蜘蛛の糸玉", i:"🕸️"}, {n:"カラスの濡れ羽", i:"🪶"}, {n:"乾いた骨", i:"🦴"},
+        {n:"割れた眼鏡", i:"👓"}, {n:"空っぽの薬瓶", i:"🧴"}, {n:"壊れた羅針盤", i:"🧭"}, {n:"ただの石ころ", i:"🌑"}, {n:"雑草の魂", i:"🌿"},
+        {n:"消えかけの火種", i:"🔥"}, {n:"雨上がりの滴", i:"💧"}, {n:"ネズミの宝物", i:"🧀"}, {n:"サボテンの棘", i:"🌵"}, {n:"魚のウロコ", i:"🐟"},
+        {n:"虫の抜け殻", i:"🪲"}, {n:"折れた剣先", i:"🗡️"}, {n:"煤けたランプ", i:"🪔"}, {n:"呪いの藁人形", i:"🎎"}, {n:"封印された箱", i:"📦"},
+        // Rank B
+        {n:"深緑の翡翠", i:"🟩"}, {n:"騎士の誓い", i:"🛡️"}, {n:"魔術師の指輪", i:"💍"}, {n:"雷鳴の電池", i:"🔋"}, {n:"灼熱のルビー", i:"🔴"},
+        {n:"氷狼の牙", i:"🐺"}, {n:"魅惑の香水", i:"⚗️"}, {n:"賢者のペン", i:"✒️"}, {n:"蒼き月の雫", i:"🌙"}, {n:"太陽の欠片", i:"☀️"},
+        {n:"森の精霊石", i:"🍃"}, {n:"深海の真珠", i:"🦪"}, {n:"夜明けの琥珀", i:"🔸"}, {n:"吸血鬼のマント", i:"🧛"}, {n:"人魚の鱗", i:"🧜"},
+        {n:"鋼鉄の心臓", i:"🫀"}, {n:"黒猫の瞳", i:"🐈‍⬛"}, {n:"王家の紋章", i:"⚜️"}, {n:"旅人の地図", i:"🗺️"}, {n:"黄金の鍵", i:"🔑"},
+        // Rank A
+        {n:"天使の羽根", i:"🪽"}, {n:"悪魔の契約書", i:"📜"}, {n:"真実の鏡", i:"🪞"}, {n:"時を刻む砂時計", i:"⏳"}, {n:"精霊のランタン", i:"🏮"},
+        {n:"竜の鱗", i:"🐉"}, {n:"禁断の果実", i:"🍎"}, {n:"ユニコーンの角", i:"🦄"}, {n:"古代の壺", i:"🏺"}, {n:"ファラオの仮面", i:"🗿"},
+        {n:"霊魂の水晶玉", i:"🔮"}, {n:"天狗の団扇", i:"👺"}, {n:"妖精の粉", i:"✨"}, {n:"不死鳥の灰", i:"🔥"}, {n:"雷神の太鼓", i:"🥁"},
+        {n:"海神のトライデント", i:"🔱"}, {n:"冥界の鎖", i:"⛓️"}, {n:"運命のダイス", i:"🎲"}, {n:"黄金のスカラベ", i:"🪲"}, {n:"愛の秘薬", i:"🧪"},
+        // Rank S
+        {n:"鳳凰の尾羽", i:"🦚"}, {n:"破壊の鉄球", i:"💣"}, {n:"聖なる聖杯", i:"🏆"}, {n:"幻影の仮面", i:"🎭"}, {n:"銀河の羅針盤", i:"🌌"},
+        {n:"虚無のブラックホール", i:"⚫"}, {n:"太陽のフレア", i:"🌞"}, {n:"絶対零度の結晶", i:"❄️"}, {n:"森羅万象の種", i:"🌱"}, {n:"英雄の王冠", i:"👑"},
+        {n:"ドラゴンハート", i:"❤️‍🔥"}, {n:"メデューサの瞳", i:"👁️"}, {n:"エクスカリバー", i:"⚔️"}, {n:"賢者の石", i:"🟥"}, {n:"パンドラの箱", i:"🎁"},
+        // Rank SS
+        {n:"神殺しの魔剣", i:"🗡️"}, {n:"終焉の黙示録", i:"📕"}, {n:"無限のウロボロス", i:"♾️"}, {n:"カオス・エメラルド", i:"💎"}, {n:"アトランティスの遺産", i:"🏛️"},
+        {n:"ホーリー・グレイル", i:"🍷"}, {n:"次元の鍵", i:"🗝️"}, {n:"クロノスの懐中時計", i:"⏱️"}, {n:"ガイアの涙", i:"🌍"}, {n:"ゼウスの雷霆", i:"⚡"},
+        // Rank SSS
+        {n:"アカシック・レコード", i:"📚"}, {n:"ビッグバンの残滓", i:"💥"}, {n:"全知全能の瞳", i:"🧿"}, {n:"創世の光", i:"🌟"}, {n:"ジ・エンド", i:"🏁"}
+    ];
+
+    let ITEMS = [];
+    let globalCounter = 0;
+    const ranksDist = [30, 20, 20, 15, 10, 5];
+    ranksDist.forEach((count, rIdx) => {
+        const r = RANKS[rIdx];
+        for(let i=0; i<count; i++) {
+            if (globalCounter < GEM_NAMES.length) {
+                ITEMS.push({
+                    id: globalCounter,
+                    rank: r,
+                    name: GEM_NAMES[globalCounter].n,
+                    icon: GEM_NAMES[globalCounter].i
+                });
+                globalCounter++;
+            }
+        }
+    });
+
+    /* =========================================
+       ゲーム状態クラス
+       ========================================= */
+    const State = {
+        coins: 0,
+        clickPower: 1,
+        clickCost: CONFIG.clickBaseCost,
+        robots: ROBOTS.map(r => ({ ...r, count: 0, currentCost: r.cost })),
+        inventory: new Array(ITEMS.length).fill(0),
+        gachaCount: 0,
+        gachaBaseCost: 500,
+        fever: 0,
+        isFever: false,
+        cleared: false,
+        pendingRank: null,
+        pendingItem: null,
+        pendingAnswer: null,
+        lastIsCorrect: false, // 判定結果保持用
+        activeTab: 'shop'
+    };
+
+    /* =========================================
+       ユーティリティ
+       ========================================= */
+    const El = (id) => document.getElementById(id);
+    const fmt = (n) => {
+        if (n >= 1e12) return (n/1e12).toFixed(2) + 'T';
+        if (n >= 1e9) return (n/1e9).toFixed(2) + 'B';
+        if (n >= 1e6) return (n/1e6).toFixed(2) + 'M';
+        if (n >= 1e3) return (n/1e3).toFixed(1) + 'k';
+        return Math.floor(n).toLocaleString();
+    };
+
+    /* =========================================
+       サウンドマネージャー
+       ========================================= */
+    const AudioSys = {
+        ctx: null,
+        init: function() {
+            if (!this.ctx) {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                if (AC) this.ctx = new AC();
+            }
+        },
+        resume: function() {
+            if (this.ctx && this.ctx.state === 'suspended') {
+                this.ctx.resume().catch(e => console.log(e));
+            }
+        },
+        playTone: function(freq, type, duration, vol=0.1, slide=0) {
+            if (!this.ctx) return;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+            if (slide !== 0) {
+                osc.frequency.exponentialRampToValueAtTime(freq + slide, this.ctx.currentTime + duration);
+            }
+            gain.gain.setValueAtTime(0, this.ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(vol, this.ctx.currentTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+            
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + duration);
+        },
+        playNoise: function(duration, vol=0.1) {
+            if (!this.ctx) return;
+            const size = this.ctx.sampleRate * duration;
+            const buf = this.ctx.createBuffer(1, size, this.ctx.sampleRate);
+            const data = buf.getChannelData(0);
+            for (let i = 0; i < size; i++) data[i] = Math.random() * 2 - 1;
+            
+            const src = this.ctx.createBufferSource();
+            src.buffer = buf;
+            const gain = this.ctx.createGain();
+            gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+            
+            src.connect(gain); gain.connect(this.ctx.destination);
+            src.start();
+        },
+        sfxClick: function() { this.playTone(800, 'sine', 0.1, 0.1, 400); },
+        sfxBuy: function() { this.playTone(400, 'square', 0.1, 0.1); setTimeout(()=>this.playTone(600, 'square', 0.15, 0.1), 80); },
+        sfxCoin: function() { this.playTone(1500 + Math.random()*300, 'sine', 0.1, 0.05); },
+        sfxFeverStart: function() { this.playTone(500, 'sawtooth', 0.5, 0.2, 500); },
+        sfxCorrect: function() { this.playTone(660, 'sine', 0.15, 0.2); setTimeout(()=>this.playTone(1320, 'sine', 0.4, 0.2), 150); },
+        sfxWrong: function() { this.playTone(150, 'sawtooth', 0.3, 0.2, -50); setTimeout(()=>this.playTone(100, 'sawtooth', 0.3, 0.2, -50), 150); },
+        sfxGachaShake: function(pow) { this.playNoise(0.15, 0.05 + pow*0.01); },
+        sfxGachaOpen: function(rank) {
+            const type = (rank === 'SSS' || rank === 'SS') ? 'sawtooth' : 'triangle';
+            [0, 100, 200, 300].forEach((t, i) => setTimeout(() => this.playTone(440 * (i * 0.5 + 1), type, 0.5, 0.1), t));
+        },
+        playEndingMusic: function() {
+            if (!this.ctx) return;
+            let t = 0;
+            const notes = [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88];
+            const play = () => {
+                const n = notes[Math.floor(Math.random() * notes.length)];
+                this.playTone(n, 'sine', 1.5, 0.03);
+                t = setTimeout(play, 400);
+            };
+            play();
+        }
+    };
+
+    /* =========================================
+       パーティクルシステム (Canvas)
+       ========================================= */
+    const Particles = {
+        cvs: null,
+        ctx: null,
+        items: [],
+        width: 0,
+        height: 0,
+        init: function() {
+            this.cvs = El('particle-canvas');
+            this.ctx = this.cvs.getContext('2d');
+            this.resize();
+            // 親要素のサイズに合わせる
+            window.addEventListener('resize', () => this.resize());
+            this.loop();
+        },
+        resize: function() {
+            const rect = El('app-wrapper').getBoundingClientRect();
+            this.width = rect.width;
+            this.height = rect.height;
+            this.cvs.width = this.width;
+            this.cvs.height = this.height;
+        },
+        spawn: function(x, y, count, isExplosion=false, colorOverride=null) {
+            // 座標修正: イベント座標(page)からcanvas内座標へ
+            const rect = El('app-wrapper').getBoundingClientRect();
+            const relX = x - rect.left;
+            const relY = y - rect.top;
+
+            for(let i=0; i<count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * (isExplosion ? 10 : 5) + 2;
+                this.items.push({
+                    x: relX, y: relY,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    life: 1.0,
+                    decay: Math.random() * 0.02 + 0.01,
+                    size: Math.random() * 5 + 2,
+                    color: colorOverride || `hsl(${Math.random()*360}, 100%, 70%)`
+                });
+            }
+        },
+        loop: function() {
+            const { ctx } = this;
+            ctx.clearRect(0, 0, this.width, this.height);
+            
+            for (let i = this.items.length - 1; i >= 0; i--) {
+                const p = this.items[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.2; // Gravity
+                p.life -= p.decay;
+                p.size *= 0.95;
+
+                if (p.life <= 0) {
+                    this.items.splice(i, 1);
+                } else {
+                    ctx.globalAlpha = p.life;
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+            requestAnimationFrame(() => this.loop());
+        }
+    };
+
+    /* =========================================
+       算数生成ロジック
+       ========================================= */
+    const MathQuest = {
+        rand: (min, max) => Math.floor(Math.random() * (max - min + 1)) + min,
+        generate: function(rank) {
+            const r = this.rand;
+            const type = r(1, 6);
+            let q = "", a = 0;
+
+            switch(rank) {
+                case 'C':
+                    if(type===1){const n1=r(10,50),n2=r(10,50); q=`${n1} + ${n2} = ?`; a=n1+n2;}
+                    else if(type===2){const n1=r(20,60),n2=r(5,15); q=`${n1} - ${n2} = ?`; a=n1-n2;}
+                    else if(type===3){const n1=r(3,9),n2=r(3,9); q=`${n1} × ${n2} = ?`; a=n1*n2;}
+                    else if(type===4){const p=r(5,10)*10,c=r(2,5); q=`${p}円×${c}個の代金は？`; a=p*c;}
+                    else if(type===5){const t=r(30,100),u=r(10,20); q=`${t}ページ中${u}ページ読んだ残りは？`; a=t-u;}
+                    else{const n=r(10,20); q=`${n} + ${n} + ${n} = ?`; a=n*3;}
+                    break;
+                case 'B':
+                    if(type===1){const n1=r(12,30),n2=r(3,9); q=`${n1} × ${n2} = ?`; a=n1*n2;}
+                    else if(type===2){const ans=r(4,15),d=r(3,8); q=`${ans*d} ÷ ${d} = ?`; a=ans;}
+                    else if(type===3){const m=1000,c=r(15,85)*10; q=`1000円 - ${c}円 = ?`; a=m-c;}
+                    else if(type===4){const h=r(1,3),m=r(10,50); q=`${h}時間${m}分は何分？`; a=h*60+m;}
+                    else if(type===5){const cm=r(120,350); q=`${cm}cmは何m？(小数)`; a=cm/100;}
+                    else{const n1=r(20,50),n2=r(10,40); q=`? - ${n2} = ${n1}`; a=n1+n2;}
+                    break;
+                case 'A':
+                    if(type===1){const w=r(5,15),h=r(5,15); q=`縦${h}cm横${w}cmの面積は？`; a=w*h;}
+                    else if(type===2){const t=r(100,500),p=r(4,10); q=`${t}÷${p}=?`; a=t/p;}
+                    else if(type===3){const n1=r(5,12),n2=r(3,9),n3=r(10,50); q=`${n1}×${n2}+${n3}=?`; a=n1*n2+n3;}
+                    else if(type===4){const s=r(5,20); q=`一辺${s}cmの正方形の周長は？`; a=s*4;}
+                    else if(type===5){const n1=r(5,10),n2=r(2,5); q=`(${n1}+5)×${n2}=?`; a=(n1+5)*n2;}
+                    else{const l=r(2,9); q=`${l}Lは何dL？`; a=l*10;}
+                    break;
+                case 'S':
+                    if(type===1){const n1=r(70,90),n2=r(70,90),n3=r(70,90);const s=n1+n2+n3; q=`3教科計${s}点の平均は？`; a=s/3;}
+                    else if(type===2){const v=r(40,80),t=r(2,5); q=`時速${v}kmで${t}時間進むと何km？`; a=v*t;}
+                    else if(type===3){const b=r(10,20),h=r(5,15); q=`底辺${b}高さ${h}の三角形の面積は？`; a=b*h/2;}
+                    else if(type===4){const a1=r(40,80),a2=r(40,80); q=`三角形の残りの角は？(既知:${a1}°,${a2}°)`; a=180-(a1+a2);}
+                    else if(type===5){const n1=r(1,9),n2=r(1,9); q=`0.${n1} + 0.${n2} = ?`; a=(n1+n2)/10;}
+                    else{const m=r(10,30),v=r(50,100); q=`分速${v}mで${m}分歩くと何m？`; a=v*m;}
+                    break;
+                case 'SS':
+                    if(type===1){const p=r(2,8)*1000,rt=r(1,4)*10; q=`${p}円の${rt}%引きは？`; a=p*(1-rt/100);}
+                    else if(type===2){const n=r(5,15); q=`10 - (${n} + 3) = ?`; a=10-(n+3);}
+                    else if(type===3){const x=r(3,8),y=r(3,8),z=r(3,8); q=`${x}×${y}×${z}の直方体の体積は？`; a=x*y*z;}
+                    else if(type===4){q=`1時間の 3/4 は何分？`; a=45;}
+                    else if(type===5){const w=95,s=5; q=`水${w}g塩${s}gの食塩水濃度(%)は？`; a=5;}
+                    else{const v=r(10,30)*3; q=`A:B=2:3。Bが${v}ならAは？`; a=(v/3)*2;}
+                    break;
+                case 'SSS':
+                    if(type===1){const x=r(2,9),c=r(5,20); q=`3x + ${c} = ${3*x+c}。xは？`; a=x;}
+                    else if(type===2){const n=r(11,19); q=`${n}の2乗は？`; a=n*n;}
+                    else if(type===3){const n1=r(2,9),n2=r(2,9); q=`(-${n1}) × (-${n2}) - 10 = ?`; a=n1*n2-10;}
+                    else if(type===4){q=`正五角形の内角の和は？`; a=540;}
+                    else if(type===5){const p=[2,3,5,7,11,13,17];const i=r(0,5); q=`${p[i]}の次の素数は？`; a=p[i+1];}
+                    else{q=`2の8乗(2⁸)は？`; a=256;}
+                    break;
+            }
+            return {q, a};
+        }
+    };
+
+    /* =========================================
+       ゲームロジック
+       ========================================= */
+    function initGame() {
+        AudioSys.init();
+        Particles.init();
+        createStars();
+        
+        // イベント設定
+        El('btn-start').addEventListener('click', startGame);
+        
+        // タブ切り替え
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => switchTab(tab.dataset.target));
+        });
+
+        // ショップ購入
+        El('btn-buy-click').addEventListener('click', buyClickUpgrade);
+
+        // ガチャ & モーダル制御
+        El('btn-gacha').addEventListener('click', tryGacha);
+        El('chest-obj').addEventListener('click', openChest);
+        El('btn-close-result').addEventListener('click', closeModal);
+        El('btn-close-fail').addEventListener('click', () => El('fail-modal').classList.remove('active'));
+        
+        // 算数 & 判定
+        El('btn-math-submit').addEventListener('click', submitMathAnswer);
+        El('math-input').addEventListener('keydown', (e) => { 
+            if(e.key==='Enter') submitMathAnswer(); 
+        });
+        
+        // 判定画面の「次へ」
+        El('btn-judge-next').addEventListener('click', proceedAfterJudge);
+
+        // エンディングリロード
+        El('btn-reload').addEventListener('click', () => location.reload());
+
+        // メインGemタップ
+        const gemArea = El('main-gem-wrapper');
+        gemArea.addEventListener('mousedown', handleGemTap);
+        gemArea.addEventListener('touchstart', (e) => {
+            e.preventDefault(); 
+            handleGemTap(e.touches[0]);
+        }, {passive: false});
+
+        // キーボード操作追加
+        document.addEventListener('keydown', handleGlobalKey);
+
+        // メインループ開始
+        setInterval(gameLoop, 100);
+        
+        renderShopList();
+        renderCollection();
+        updateUI();
+    }
+
+    function createStars() {
+        const con = El('stars-bg');
+        for(let i=0; i<CONFIG.bgStars; i++) {
+            const s = document.createElement('div');
+            s.className = 'star';
+            const size = Math.random()*3;
+            s.style.width = size + 'px'; s.style.height = size + 'px';
+            s.style.left = Math.random()*100 + '%'; s.style.top = Math.random()*100 + '%';
+            s.style.animationDelay = Math.random()*5 + 's';
+            con.appendChild(s);
+        }
+    }
+
+    function handleGlobalKey(e) {
+        if(!State.coins) return; // 初期化前ガード
+
+        // ガチャボタンをEnterで
+        if(e.key === 'Enter') {
+            // モーダルがアクティブなら、そのモーダル内のボタンを優先
+            if(El('math-modal').classList.contains('active')) return; // inputイベントで処理
+            if(El('judge-modal').classList.contains('active')) {
+                proceedAfterJudge();
+                return;
+            }
+            if(El('gacha-modal').classList.contains('active')) {
+                // 結果表示中なら閉じる
+                if(El('scene-result').style.display === 'block') closeModal();
+                return;
+            }
+            if(El('fail-modal').classList.contains('active')) {
+                El('fail-modal').classList.remove('active');
+                return;
+            }
+
+            // タブがガチャなら引く
+            if(State.activeTab === 'gacha' && !El('gacha-modal').classList.contains('active')) {
+                tryGacha();
+            }
+        }
+        
+        // スペースキーで宝箱を開ける
+        if((e.key === ' ' || e.key === 'Spacebar') && El('gacha-modal').classList.contains('active') && El('scene-chest').style.display === 'block') {
+            e.preventDefault();
+            openChest();
+        }
+    }
+
+    function startGame() {
+        AudioSys.resume();
+        AudioSys.playTone(440, 'sine', 1);
+        El('start-screen').style.opacity = 0;
+        setTimeout(() => El('start-screen').style.display = 'none', 800);
+    }
+
+    function gameLoop() {
+        let totalSPS = 0;
+        State.robots.forEach(r => totalSPS += r.count * r.sps);
+        
+        if (State.isFever) totalSPS *= 5;
+        
+        // 100msごとなので1/10を加算
+        if (totalSPS > 0) addCoins(totalSPS / 10, false);
+        El('sps-val').textContent = fmt(totalSPS) + " /sec";
+
+        if (State.isFever) {
+            State.fever -= CONFIG.feverDecay;
+            if (State.fever <= 0) {
+                State.isFever = false;
+                document.body.classList.remove('fever-mode');
+            }
+            updateFeverBar();
+        }
+    }
+
+    function addCoins(amount, sound=true) {
+        State.coins += amount;
+        if(sound) AudioSys.sfxCoin();
+        updateUI();
+    }
+
+    function handleGemTap(e) {
+        AudioSys.resume();
+        
+        let power = State.clickPower;
+        if (State.isFever) power *= 5;
+        
+        addCoins(power, true);
+        AudioSys.sfxClick();
+
+        const cx = e.clientX || e.pageX;
+        const cy = e.clientY || e.pageY;
+        
+        // Canvas用は相対座標計算が必要だが、この関数はDOM用なのでそのまま
+        Particles.spawn(cx, cy, 12);
+        showFloatingText(cx, cy, `+${fmt(power)}`);
+
+        const gem = El('main-gem');
+        gem.classList.remove('clicked');
+        void gem.offsetWidth;
+        gem.classList.add('clicked');
+
+        const shaker = El('game-shaker');
+        shaker.style.transform = `translate(${Math.random()*4-2}px, ${Math.random()*4-2}px)`;
+        setTimeout(() => shaker.style.transform = 'none', 50);
+
+        if (!State.isFever) {
+            State.fever = Math.min(State.fever + CONFIG.feverCost, 100);
+            updateFeverBar();
+            if (State.fever >= 100) {
+                State.isFever = true;
+                document.body.classList.add('fever-mode');
+                AudioSys.sfxFeverStart();
+                // 画面中央で爆発
+                const rect = El('app-wrapper').getBoundingClientRect();
+                Particles.spawn(rect.left + rect.width/2, rect.top + rect.height/2, 50, true);
+            }
+        }
+    }
+
+    function updateFeverBar() {
+        El('fever-bar').style.width = State.fever + '%';
+    }
+
+    function showFloatingText(x, y, text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        Object.assign(div.style, {
+            position: 'absolute', left: (x - 20) + 'px', top: (y - 20) + 'px',
+            color: State.isFever ? '#f0f' : '#fff', fontWeight: '900', fontSize: '1.5rem',
+            pointerEvents: 'none', zIndex: '100', textShadow: '0 0 5px #000',
+            transition: 'transform 0.6s ease-out, opacity 0.6s ease-out'
+        });
+        document.body.appendChild(div);
+        
+        requestAnimationFrame(() => {
+            div.style.transform = `translateY(-80px) scale(1.2)`;
+            div.style.opacity = '0';
+        });
+        setTimeout(() => div.remove(), 600);
+    }
+
+    function updateUI() {
+        El('coin-val').textContent = fmt(State.coins);
+        
+        const btnClick = El('item-click-upgrade');
+        if(State.coins < State.clickCost) btnClick.classList.add('disabled');
+        else btnClick.classList.remove('disabled');
+        El('cost-click').textContent = fmt(State.clickCost);
+
+        State.robots.forEach((r, i) => {
+            const row = El(`robot-row-${i}`);
+            if(row) {
+                if(State.coins < r.currentCost) row.classList.add('disabled');
+                else row.classList.remove('disabled');
+                row.querySelector('.cost').textContent = fmt(r.currentCost);
+                row.querySelector('.count').textContent = r.count;
+            }
+        });
+
+        const gCost = getGachaCost();
+        El('gacha-cost-disp').textContent = `Cost: ${fmt(gCost)}`;
+        const gBtn = El('btn-gacha');
+        if(State.coins < gCost) {
+            gBtn.disabled = true; gBtn.style.opacity = 0.5;
+        } else {
+            gBtn.disabled = false; gBtn.style.opacity = 1;
+        }
+    }
+
+    function renderShopList() {
+        const list = El('robot-list');
+        list.innerHTML = '';
+        State.robots.forEach((r, idx) => {
+            const div = document.createElement('div');
+            div.className = 'shop-item';
+            div.id = `robot-row-${idx}`;
+            
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'item-info';
+            
+            const iconDiv = document.createElement('div');
+            iconDiv.className = 'item-icon';
+            iconDiv.textContent = r.icon;
+            
+            const detailsDiv = document.createElement('div');
+            detailsDiv.className = 'item-details';
+            
+            const h4 = document.createElement('h4');
+            h4.textContent = r.name;
+            
+            const p = document.createElement('p');
+            p.innerHTML = `+${fmt(r.sps)}/秒 <span style="margin-left:10px; color:#fff;">所持:<span class="count">${r.count}</span></span>`;
+            
+            detailsDiv.appendChild(h4);
+            detailsDiv.appendChild(p);
+            infoDiv.appendChild(iconDiv);
+            infoDiv.appendChild(detailsDiv);
+            
+            const btn = document.createElement('button');
+            btn.className = 'buy-btn';
+            btn.innerHTML = `<span class="cost">${fmt(r.currentCost)}</span>`;
+            btn.addEventListener('click', () => buyRobot(idx));
+            
+            div.appendChild(infoDiv);
+            div.appendChild(btn);
+            list.appendChild(div);
+        });
+    }
+
+    function buyClickUpgrade() {
+        if(State.coins >= State.clickCost) {
+            State.coins -= State.clickCost;
+            State.clickPower++;
+            State.clickCost = Math.floor(State.clickCost * 1.6);
+            AudioSys.sfxBuy();
+            updateUI();
+        }
+    }
+
+    function buyRobot(idx) {
+        const r = State.robots[idx];
+        if(State.coins >= r.currentCost) {
+            State.coins -= r.currentCost;
+            r.count++;
+            r.currentCost = Math.floor(r.currentCost * 1.25);
+            AudioSys.sfxBuy();
+            spawnRobotVisual(r.icon);
+            updateUI();
+        }
+    }
+
+    function spawnRobotVisual(icon) {
+        const c = El('robots-container');
+        const d = document.createElement('div');
+        d.className = 'robot-sprite';
+        d.textContent = icon;
+        d.style.left = Math.random() * 90 + '%';
+        d.style.top = Math.random() * 90 + '%';
+        d.style.animationDelay = Math.random() + 's';
+        c.appendChild(d);
+        if(c.children.length > 40) c.removeChild(c.firstChild);
+    }
+
+    function switchTab(targetId) {
+        State.activeTab = targetId;
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel-content').forEach(p => p.classList.remove('active'));
+        
+        const targetTab = document.querySelector(`.tab[data-target="${targetId}"]`);
+        if(targetTab) targetTab.classList.add('active');
+        
+        const targetPanel = El(`tab-${targetId}`);
+        if(targetPanel) targetPanel.classList.add('active');
+    }
+
+    /* --- ガチャ関連 --- */
+    function getGachaCost() {
+        return Math.floor(State.gachaBaseCost * Math.pow(1.08, State.gachaCount));
+    }
+
+    function tryGacha() {
+        AudioSys.resume();
+        const cost = getGachaCost();
+        if(State.coins >= cost) {
+            State.coins -= cost;
+            State.gachaCount++;
+            updateUI();
+
+            // ランク抽選
+            let r = Math.random() * 100, cur = 0, sRank = 'C';
+            for(let i=0; i<RANK_PROBS.length; i++) {
+                cur += RANK_PROBS[i];
+                if(r < cur) { sRank = RANKS[i]; break; }
+            }
+
+            const pool = ITEMS.filter(i => i.rank === sRank);
+            State.pendingItem = pool[Math.floor(Math.random() * pool.length)];
+            State.pendingRank = sRank;
+
+            const q = MathQuest.generate(sRank);
+            State.pendingAnswer = q.a;
+
+            // モーダル設定
+            const m = El('math-modal');
+            m.classList.add('active');
+            
+            const info = RANK_INFO[sRank];
+            const badge = El('math-rank-badge');
+            badge.textContent = info.label;
+            badge.className = 'math-rank-badge ' + info.color;
+            
+            El('math-question').textContent = q.q;
+            El('math-input').value = '';
+            setTimeout(() => El('math-input').focus(), 100);
+        }
+    }
+
+    function submitMathAnswer() {
+        const inputVal = El('math-input').value;
+        const val = parseFloat(inputVal);
+        if(inputVal === '' || isNaN(val)) return;
+
+        // まず判定画面へ
+        El('math-modal').classList.remove('active');
+        El('judge-modal').classList.add('active');
+        
+        El('judge-input-val').textContent = val;
+        
+        const isCorrect = Math.abs(val - State.pendingAnswer) < 0.01;
+        State.lastIsCorrect = isCorrect;
+        
+        const resText = El('judge-result-text');
+        if(isCorrect) {
+            resText.textContent = "CORRECT!";
+            resText.className = "judge-res ok";
+            AudioSys.sfxCorrect();
+        } else {
+            resText.textContent = "WRONG...";
+            resText.className = "judge-res ng";
+            AudioSys.sfxWrong();
+        }
+        
+        // フォーカスをボタンへ
+        setTimeout(() => El('btn-judge-next').focus(), 50);
+    }
+
+    function proceedAfterJudge() {
+        El('judge-modal').classList.remove('active');
+        if(State.lastIsCorrect) {
+            openChestScene();
+        } else {
+            El('fail-modal').classList.add('active');
+        }
+    }
+
+    function openChestScene() {
+        El('gacha-modal').classList.add('active');
+        El('scene-chest').style.display = 'block';
+        El('scene-result').style.display = 'none';
+        
+        const chest = El('chest-obj');
+        chest.style.transform = 'scale(1)';
+        chest.className = 'chest-icon';
+    }
+
+    function openChest() {
+        // 連打防止
+        if(El('scene-chest').style.display === 'none') return;
+        
+        const rank = State.pendingRank;
+        let power = 2;
+        if(rank === 'A') power = 5;
+        if(rank === 'S' || rank === 'SS') power = 10;
+        if(rank === 'SSS') power = 20;
+
+        AudioSys.sfxGachaShake(power);
+        const rect = El('chest-obj').getBoundingClientRect();
+        
+        // 画面上での中心座標
+        Particles.spawn(rect.left + rect.width/2, rect.top + rect.height/2, power * 3, true);
+
+        El('chest-obj').style.transform = `scale(${0.9 + power/50})`;
+
+        setTimeout(() => {
+            State.inventory[State.pendingItem.id]++;
+            renderCollection();
+            showGachaResult(State.pendingItem);
+        }, 500);
+    }
+
+    function showGachaResult(item) {
+        El('scene-chest').style.display = 'none';
+        El('scene-result').style.display = 'block';
+        
+        const info = RANK_INFO[item.rank];
+        const rEl = El('res-rank');
+        rEl.textContent = info.label;
+        rEl.className = `result-rank ${info.color}`;
+        
+        const iEl = El('res-img');
+        iEl.textContent = item.icon;
+        iEl.className = `result-gem ${info.color}`;
+        
+        El('res-name').textContent = item.name;
+        AudioSys.sfxGachaOpen(item.rank);
+        
+        checkClear();
+    }
+
+    function closeModal() {
+        El('gacha-modal').classList.remove('active');
+    }
+
+    function renderCollection() {
+        const grid = El('collection-grid');
+        grid.innerHTML = '';
+        let cnt = 0;
+        
+        ITEMS.forEach((it, idx) => {
+            const has = State.inventory[idx] > 0;
+            if(has) cnt++;
+            
+            const div = document.createElement('div');
+            div.className = `col-slot ${has ? 'unlocked' : 'locked'}`;
+            div.textContent = has ? it.icon : '❔';
+            
+            if(has) {
+                div.title = it.name;
+                const badge = document.createElement('div');
+                badge.className = 'badge';
+                badge.textContent = State.inventory[idx];
+                div.appendChild(badge);
+                div.classList.add(RANK_INFO[it.rank].color);
+            }
+            grid.appendChild(div);
+        });
+        El('col-count').textContent = `(${cnt}/100)`;
+    }
+
+    function checkClear() {
+        const found = State.inventory.filter(n => n > 0).length;
+        if(found === ITEMS.length && !State.cleared) {
+            State.cleared = true;
+            setTimeout(() => {
+                const overlay = El('ending-overlay');
+                overlay.classList.add('active');
+                overlay.classList.add('rainbow-bg'); // 虹色背景
+                AudioSys.playEndingMusic();
+                
+                // 感動的な花火ループ
+                launchFireWorks();
+            }, 1500);
+        }
+    }
+
+    function launchFireWorks() {
+        const rect = El('app-wrapper').getBoundingClientRect();
+        
+        setInterval(() => {
+            const x = Math.random() * rect.width + rect.left;
+            const y = Math.random() * rect.height * 0.7 + rect.top;
+            const color = `hsl(${Math.random()*360}, 100%, 60%)`;
+            Particles.spawn(x, y, 40, true, color);
+            // 音は控えめに
+            AudioSys.playNoise(0.05, 0.02);
+        }, 800);
+    }
+
+    // 初期化実行
+    window.addEventListener('DOMContentLoaded', initGame);
+
+})();
+</script>
+</body>
+</html>
