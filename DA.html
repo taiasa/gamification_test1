@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>データ整理・分析アプリ v2</title>
+    <!-- グラフ描画用ライブラリ Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: #4A90E2;
+            --accent-color: #F5A623;
+            --bg-color: #F0F4F8;
+            --card-bg: #FFFFFF;
+            --text-color: #333333;
+            --font-main: "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            text-align: center;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: var(--card-bg);
+            border-radius: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* 入力エリア */
+        .input-section {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        input[type="number"] {
+            padding: 10px;
+            font-size: 18px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            width: 150px;
+            outline: none;
+        }
+
+        input[type="number"]:focus {
+            border-color: var(--primary-color);
+        }
+
+        button {
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        .btn-add { background-color: var(--primary-color); color: white; }
+        .btn-clear { background-color: #E74C3C; color: white; }
+        .btn-sort { background-color: #2ECC71; color: white; margin: 0 5px; }
+        
+        /* ダウンロードボタンのデザイン */
+        .btn-download {
+            background-color: #607D8B;
+            color: white;
+            margin-left: 10px;
+            font-size: 14px;
+            padding: 8px 15px;
+        }
+
+        .btn-analyze { 
+            background-color: var(--accent-color); 
+            color: white; 
+            font-size: 20px; 
+            padding: 15px 40px; 
+            display: block; 
+            margin: 20px auto;
+            width: 100%;
+            max-width: 300px;
+            box-shadow: 0 4px 0 #d38d1b;
+        }
+        .btn-analyze:active { box-shadow: 0 2px 0 #d38d1b; transform: translateY(2px); }
+
+        /* データ表示エリア */
+        .data-display {
+            background-color: #f9f9f9;
+            border: 2px dashed #ccc;
+            border-radius: 15px;
+            padding: 15px;
+            min-height: 80px;
+            margin-bottom: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: flex-start;
+            align-items: center;
+        }
+
+        .data-chip {
+            background-color: white;
+            border: 2px solid var(--primary-color);
+            color: var(--primary-color);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 18px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            animation: popIn 0.3s ease;
+        }
+
+        /* データの番号表示スタイル */
+        .data-index {
+            background-color: var(--primary-color);
+            color: white;
+            font-size: 12px;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 5px;
+        }
+
+        .delete-chip {
+            background: #eee;
+            color: #666;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+        .delete-chip:hover {
+            background: #ffcccc;
+            color: red;
+        }
+
+        .empty-msg {
+            color: #999;
+            width: 100%;
+            text-align: center;
+        }
+
+        /* ツールバー */
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        /* 分析結果エリア */
+        #result-section {
+            display: none; /* 最初は隠す */
+            border-top: 3px solid #eee;
+            margin-top: 30px;
+            padding-top: 30px;
+            animation: slideDown 0.5s ease;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: #EAF4FF;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+        }
+
+        .stat-label { font-size: 14px; color: #666; margin-bottom: 5px; }
+        .stat-value { font-size: 28px; font-weight: bold; color: var(--primary-color); }
+
+        /* ヒストグラム設定 */
+        .histogram-controls {
+            background: #fff8e1;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            text-align: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .histogram-controls label {
+            font-weight: bold;
+        }
+
+        .chart-wrapper {
+            background: white; /* 保存時に背景が黒くならないように白を指定 */
+            padding: 10px;
+            border-radius: 10px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0); }
+            to { transform: scale(1); }
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>📊 データ整理・分析アプリ</h1>
+
+    <div class="container">
+        <!-- 入力セクション -->
+        <div class="input-section">
+            <input type="number" id="dataInput" placeholder="数字を入力" onkeydown="if(event.key==='Enter') addData()">
+            <button class="btn-add" onclick="addData()">追加</button>
+            <button class="btn-clear" onclick="clearData()">すべて消す</button>
+        </div>
+
+        <div class="toolbar">
+            <span>データ数: <b id="count">0</b> 個</span>
+            <div>
+                <button class="btn-sort" onclick="sortData('asc')">小さい順</button>
+                <button class="btn-sort" onclick="sortData('desc')">大きい順</button>
+            </div>
+        </div>
+
+        <!-- データ表示エリア -->
+        <div class="data-display" id="dataDisplay">
+            <div class="empty-msg">まだデータがありません。「追加」ボタンで数字をいれてね！</div>
+        </div>
+
+        <button class="btn-analyze" onclick="analyzeData()">分析する！</button>
+
+        <!-- 分析結果セクション -->
+        <div id="result-section">
+            <h2>結果はっぴょう</h2>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">平均値 (へいきん)</div>
+                    <div class="stat-value" id="res-mean">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">中央値 (真ん中の値)</div>
+                    <div class="stat-value" id="res-median">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">最頻値 (一番多い値)</div>
+                    <div class="stat-value" id="res-mode">-</div>
+                </div>
+            </div>
+
+            <div class="histogram-controls">
+                <div>
+                    <label for="binWidth">階級の幅（グラフの区切り）:</label>
+                    <input type="number" id="binWidth" value="10" min="1" style="width: 80px;" onchange="updateHistogram()">
+                    <span>ずつ区切る</span>
+                </div>
+                <button class="btn-download" onclick="downloadChart()">📷 グラフを画像で保存</button>
+            </div>
+
+            <div class="chart-wrapper">
+                <div class="chart-container">
+                    <canvas id="histogramChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // データの保存場所
+        let dataList = [];
+        let myChart = null;
+
+        // データを追加する関数
+        function addData() {
+            const input = document.getElementById('dataInput');
+            const value = parseFloat(input.value);
+
+            if (isNaN(value)) {
+                alert("数字を入力してください！");
+                return;
+            }
+
+            dataList.push(value);
+            input.value = ""; // 入力欄を空にする
+            input.focus(); // 続けて入力できるようにする
+            renderData();
+        }
+
+        // データを表示する関数（番号表示を追加）
+        function renderData() {
+            const display = document.getElementById('dataDisplay');
+            const countSpan = document.getElementById('count');
+            
+            display.innerHTML = "";
+            countSpan.innerText = dataList.length;
+
+            if (dataList.length === 0) {
+                display.innerHTML = '<div class="empty-msg">まだデータがありません。「追加」ボタンで数字をいれてね！</div>';
+                document.getElementById('result-section').style.display = 'none';
+                return;
+            }
+
+            // データをチップとして表示
+            dataList.forEach((num, index) => {
+                const chip = document.createElement('div');
+                chip.className = 'data-chip';
+                // 番号 + データ + 削除ボタン
+                chip.innerHTML = `
+                    <span class="data-index">${index + 1}</span>
+                    <span>${num}</span>
+                    <div class="delete-chip" onclick="removeData(${index})">×</div>
+                `;
+                display.appendChild(chip);
+            });
+        }
+
+        // データを削除する関数
+        function removeData(index) {
+            dataList.splice(index, 1);
+            renderData();
+        }
+
+        // すべて削除
+        function clearData() {
+            if(confirm("本当にデータをすべて消しますか？")) {
+                dataList = [];
+                renderData();
+            }
+        }
+
+        // データを並び替える関数
+        function sortData(order) {
+            if (dataList.length === 0) return;
+
+            if (order === 'asc') {
+                dataList.sort((a, b) => a - b);
+            } else {
+                dataList.sort((a, b) => b - a);
+            }
+            renderData();
+        }
+
+        // メインの分析関数
+        function analyzeData() {
+            if (dataList.length === 0) {
+                alert("データがありません！数字を追加してください。");
+                return;
+            }
+
+            document.getElementById('result-section').style.display = 'block';
+            
+            // 画面の下へスクロール
+            setTimeout(() => {
+                document.getElementById('result-section').scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+
+            // 1. 平均値
+            const sum = dataList.reduce((a, b) => a + b, 0);
+            const mean = sum / dataList.length;
+            document.getElementById('res-mean').innerText = Math.round(mean * 10) / 10;
+
+            // 2. 中央値
+            const sorted = [...dataList].sort((a, b) => a - b);
+            const mid = Math.floor(sorted.length / 2);
+            let median;
+            if (sorted.length % 2 === 0) {
+                median = (sorted[mid - 1] + sorted[mid]) / 2;
+            } else {
+                median = sorted[mid];
+            }
+            document.getElementById('res-median').innerText = median;
+
+            // 3. 最頻値
+            const frequency = {};
+            let maxFreq = 0;
+            sorted.forEach(val => {
+                frequency[val] = (frequency[val] || 0) + 1;
+                if (frequency[val] > maxFreq) maxFreq = frequency[val];
+            });
+
+            let modes = [];
+            for (const key in frequency) {
+                if (frequency[key] === maxFreq) {
+                    modes.push(key);
+                }
+            }
+
+            if (maxFreq === 1 && dataList.length > 1) {
+                document.getElementById('res-mode').innerText = "なし";
+            } else {
+                document.getElementById('res-mode').innerText = modes.join(', ');
+            }
+
+            // 4. ヒストグラムの描画（初期設定）
+            const maxVal = Math.max(...dataList);
+            const minVal = Math.min(...dataList);
+            let suggestedWidth = Math.ceil((maxVal - minVal) / 5);
+            if (suggestedWidth === 0) suggestedWidth = 10;
+            if (suggestedWidth > 5 && suggestedWidth < 10) suggestedWidth = 5;
+            
+            const widthInput = document.getElementById('binWidth');
+            if (!myChart) { 
+                widthInput.value = suggestedWidth;
+            }
+            
+            updateHistogram();
+        }
+
+        // ヒストグラム更新・描画関数
+        function updateHistogram() {
+            const width = parseFloat(document.getElementById('binWidth').value);
+            if (!width || width <= 0) return;
+
+            const minData = Math.min(...dataList);
+            const maxData = Math.max(...dataList);
+
+            let start = Math.floor(minData / width) * width;
+            let end = Math.ceil((maxData + 0.1) / width) * width; 
+            
+            const labels = [];
+            const dataCounts = [];
+
+            for (let i = start; i < end; i += width) {
+                let currentStart = Math.round(i * 100) / 100;
+                let currentEnd = Math.round((i + width) * 100) / 100;
+                
+                labels.push(`${currentStart} 〜 ${currentEnd}`);
+                
+                let count = dataList.filter(d => d >= currentStart && d < currentEnd).length;
+                dataCounts.push(count);
+            }
+
+            drawChart(labels, dataCounts, "度数（個数）");
+        }
+
+        function drawChart(labels, data, labelName) {
+            const ctx = document.getElementById('histogramChart').getContext('2d');
+
+            if (myChart) {
+                myChart.destroy();
+            }
+
+            // 白背景プラグイン（保存時に背景が透過しないようにする）
+            const whiteBackgroundPlugin = {
+                id: 'customCanvasBackgroundColor',
+                beforeDraw: (chart) => {
+                    const ctx = chart.canvas.getContext('2d');
+                    ctx.save();
+                    ctx.globalCompositeOperation = 'destination-over';
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, chart.width, chart.height);
+                    ctx.restore();
+                }
+            };
+
+            myChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: labelName,
+                        data: data,
+                        backgroundColor: 'rgba(74, 144, 226, 0.6)',
+                        borderColor: 'rgba(74, 144, 226, 1)',
+                        borderWidth: 1,
+                        barPercentage: 1.0,
+                        categoryPercentage: 1.0
+                    }]
+                },
+                plugins: [whiteBackgroundPlugin], // プラグインを適用
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1 },
+                            title: { display: true, text: '度数（人数や個数）' }
+                        },
+                        x: {
+                            title: { display: true, text: '階級（範囲）' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                title: (tooltipItems) => tooltipItems[0].label + ' の範囲'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // グラフ画像をダウンロードする関数
+        function downloadChart() {
+            if (!myChart) {
+                alert("まずは「分析する！」ボタンを押してグラフを作ってね。");
+                return;
+            }
+            const link = document.createElement('a');
+            link.download = 'ヒストグラム.png';
+            link.href = document.getElementById('histogramChart').toDataURL('image/png');
+            link.click();
+        }
+
+    </script>
+</body>
+</html>
