@@ -3,17 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PI Memory Challenge - Challenge Mode</title>
+    <title>PI Memory Challenge 150</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&family=Noto+Sans+JP:wght@400;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&family=Noto+Sans+JP:wght@400;700;900&display=swap');
         
         body {
             font-family: 'Noto Sans JP', sans-serif;
-            background-color: #0f172a;
+            background-color: #020617; /* より深いネイビー */
             color: #f8fafc;
             overflow: hidden;
             touch-action: manipulation;
+            user-select: none;
         }
 
         .mono { font-family: 'JetBrains Mono', monospace; }
@@ -21,9 +22,13 @@
         .glow-text {
             text-shadow: 0 0 10px rgba(56, 189, 248, 0.8), 0 0 20px rgba(56, 189, 248, 0.4);
         }
+        
+        .glow-text-yellow {
+            text-shadow: 0 0 10px rgba(250, 204, 21, 0.8), 0 0 20px rgba(250, 204, 21, 0.4);
+        }
 
         .shake {
-            animation: shake 0.2s cubic-bezier(.36,.07,.19,.97) both;
+            animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both;
         }
 
         @keyframes shake {
@@ -34,7 +39,7 @@
         }
 
         .digit-pop {
-            animation: pop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            animation: pop 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
         @keyframes pop {
@@ -43,24 +48,21 @@
         }
 
         .level-up-anim {
-            animation: level-up 1.2s ease-out forwards;
+            animation: level-up 1.5s ease-out forwards;
         }
 
         @keyframes level-up {
-            0% { transform: scale(0.5); opacity: 0; filter: blur(10px); }
-            30% { transform: scale(1.1); opacity: 1; filter: blur(0); }
-            70% { transform: scale(1); opacity: 1; }
-            100% { transform: scale(0.9); opacity: 0; }
-        }
-
-        .timer-bar {
-            transition: width 1s linear;
+            0% { transform: scale(0.5) translateY(20px); opacity: 0; filter: blur(10px); }
+            20% { transform: scale(1.1) translateY(0); opacity: 1; filter: blur(0); }
+            80% { transform: scale(1) translateY(0); opacity: 1; filter: blur(0); }
+            100% { transform: scale(0.9) translateY(-20px); opacity: 0; filter: blur(5px); }
         }
 
         .confetti {
             position: absolute;
             width: 8px;
             height: 8px;
+            border-radius: 2px;
             animation: fall 2.5s linear forwards;
             z-index: 100;
         }
@@ -90,157 +92,220 @@
             transform: scale(0.8);
             filter: grayscale(1);
         }
+
+        /* カスタムスクロールバー */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
     </style>
 </head>
-<body class="h-screen flex items-center justify-center bg-slate-950">
+<body class="h-screen flex items-center justify-center">
 
-    <div id="game-container" class="w-full max-w-xl p-4 relative">
+    <div id="game-container" class="w-full max-w-xl p-5 relative">
         
-        <!-- Start Screen -->
-        <div id="start-screen" class="text-center space-y-4">
-            <h1 class="text-5xl font-black italic tracking-tighter text-sky-400 glow-text">PI CHALLENGE</h1>
-            <p class="text-slate-400 text-sm">少しずつ、着実に記憶するトレーニング</p>
-            
-            <div class="space-y-2">
-                <p class="text-white text-xs font-bold uppercase tracking-widest">暗記時間を選択</p>
-                <div class="flex justify-center gap-2">
-                    <button onclick="setTime(3, this)" class="time-btn bg-slate-800 border border-slate-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all hover:bg-slate-700">3秒</button>
-                    <button onclick="setTime(5, this)" class="time-btn bg-slate-800 border border-slate-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all hover:bg-slate-700">5秒</button>
-                    <button onclick="setTime(10, this)" class="time-btn active bg-slate-800 border border-slate-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all hover:bg-slate-700">10秒</button>
+        <!-- スタート画面 -->
+        <div id="start-screen" class="text-center space-y-6">
+            <div>
+                <h1 class="text-5xl md:text-6xl font-black italic tracking-tighter text-sky-400 glow-text mb-2">PI CHALLENGE</h1>
+                <p class="text-slate-400 text-sm font-bold">円周率150桁 限界記憶トレーニング</p>
+            </div>
+
+            <div id="highscore-container" class="hidden">
+                <div class="inline-block bg-yellow-500/10 border border-yellow-500/30 rounded-full px-6 py-1.5">
+                    <span class="text-yellow-500/80 text-xs font-bold mr-2 uppercase">Best Record</span>
+                    <span id="highscore-value" class="text-yellow-400 text-xl font-black mono glow-text-yellow">0</span>
+                    <span class="text-yellow-500/80 text-xs ml-1">桁</span>
                 </div>
             </div>
+            
+            <div class="space-y-3 bg-slate-900/50 p-4 rounded-2xl border border-slate-800">
+                <p class="text-sky-300 text-xs font-bold uppercase tracking-widest">基準の暗記時間</p>
+                <div class="flex justify-center gap-3">
+                    <button onclick="setTime(3, this)" class="time-btn bg-slate-800 border border-slate-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all hover:bg-slate-700 active:scale-95">3秒</button>
+                    <button onclick="setTime(5, this)" class="time-btn bg-slate-800 border border-slate-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all hover:bg-slate-700 active:scale-95">5秒</button>
+                    <button onclick="setTime(10, this)" class="time-btn active bg-slate-800 border border-slate-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all hover:bg-slate-700 active:scale-95">10秒</button>
+                </div>
+                <p class="text-slate-500 text-[10px]">※桁数が増えると自動で時間が延長されます</p>
+            </div>
 
-            <div class="flex flex-col gap-3 pt-2">
-                <button onclick="startGame(false)" class="bg-sky-600 hover:bg-sky-500 text-white px-10 py-3 rounded-full font-bold text-xl transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-sky-900/40">
-                    NORMAL MODE
+            <div class="flex flex-col gap-4 pt-2">
+                <button onclick="startGame(false)" class="bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white px-8 py-4 rounded-full font-black text-xl transition-all transform hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(2,132,199,0.4)]">
+                    ノーマルモード
                 </button>
-                <button onclick="startGame(true)" class="bg-purple-600 hover:bg-purple-500 text-white px-10 py-3 rounded-full font-bold text-xl transition-all transform hover:scale-105 active:scale-95 shadow-lg shadow-purple-900/40">
-                    100 DIGIT CHALLENGE
+                <button onclick="startGame(true)" class="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white px-8 py-4 rounded-full font-black text-xl transition-all transform hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(147,51,234,0.4)]">
+                    150桁チャレンジ
                 </button>
             </div>
 
-            <div class="bg-slate-800/50 p-3 rounded-xl text-[10px] text-center inline-block border border-slate-700 text-slate-400">
-                NORMAL: 3 → 6 → 10 ... (徐々に増加)<br>
-                CHALLENGE: いきなり100桁 (3回ミスで終了)
+            <div class="bg-slate-900/80 p-3 rounded-xl text-xs text-center inline-block border border-slate-800 text-slate-400 leading-relaxed">
+                <span class="text-sky-400 font-bold">ノーマル</span> : 3桁から徐々に桁数が増加します<br>
+                <span class="text-purple-400 font-bold">チャレンジ</span> : いきなり150桁 (3回ミスで終了)
             </div>
-            <p class="text-slate-500 text-[10px]">物理キーボード・画面タップ両対応</p>
+            <p class="text-slate-600 text-[10px]">物理キーボード・画面タップ両対応</p>
         </div>
 
-        <!-- Memorize Phase -->
+        <!-- 暗記フェーズ画面 -->
         <div id="memorize-screen" class="hidden space-y-4">
             <div class="flex justify-between items-end">
                 <div>
-                    <span id="level-label" class="text-sky-500 font-bold uppercase tracking-widest text-xs">Level 1</span>
-                    <h2 id="level-target" class="text-xl font-bold text-white">3桁に挑戦</h2>
+                    <span id="level-label" class="text-sky-400 font-bold uppercase tracking-widest text-sm">Level 1</span>
+                    <h2 id="level-target" class="text-2xl font-black text-white">小数点以下 3桁</h2>
                 </div>
-                <div id="countdown-text" class="text-4xl font-black mono text-white">10</div>
+                <div class="text-right">
+                    <span class="text-slate-500 text-xs font-bold uppercase">TIME</span>
+                    <div id="countdown-text" class="text-4xl font-black mono text-white leading-none">10</div>
+                </div>
             </div>
-            <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                <div id="timer-bar" class="timer-bar h-full bg-sky-500 w-full"></div>
+            <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden shadow-inner">
+                <div id="timer-bar" class="h-full bg-sky-500 w-full shadow-[0_0_10px_rgba(56,189,248,0.8)]"></div>
             </div>
-            <div id="pi-display" class="bg-slate-900/80 p-5 rounded-xl border border-slate-700 text-xl mono break-all leading-relaxed tracking-widest min-h-[120px] max-h-[200px] overflow-y-auto flex items-center justify-center text-center">
-                <!-- PI string goes here -->
+            <div id="pi-display" class="bg-slate-900/90 p-5 rounded-xl border border-slate-700 text-2xl mono break-all leading-relaxed tracking-[0.2em] min-h-[140px] max-h-[240px] overflow-y-auto flex items-center justify-center text-center shadow-lg">
+                <!-- 円周率がここに表示されます -->
             </div>
-            <p class="text-center text-slate-500 text-xs animate-pulse">暗記してください...</p>
+            <p class="text-center text-slate-400 text-sm font-bold animate-pulse">全集中で暗記してください...</p>
         </div>
 
-        <!-- Input Phase -->
-        <div id="input-screen" class="hidden flex flex-col items-center space-y-4">
-            <div id="life-container" class="hidden flex gap-2 mb-1">
-                <span class="heart text-2xl">❤️</span>
-                <span class="heart text-2xl">❤️</span>
-                <span class="heart text-2xl">❤️</span>
+        <!-- 入力フェーズ画面 -->
+        <div id="input-screen" class="hidden flex flex-col items-center space-y-3">
+            <div id="life-container" class="hidden flex gap-2 mb-1 bg-slate-900/80 px-4 py-2 rounded-full border border-slate-800">
+                <span class="heart text-2xl drop-shadow-md">❤️</span>
+                <span class="heart text-2xl drop-shadow-md">❤️</span>
+                <span class="heart text-2xl drop-shadow-md">❤️</span>
             </div>
-            <div class="text-center">
-                <div id="progress-info" class="text-slate-500 text-xs uppercase tracking-widest mb-1">0 / 3</div>
-                <div id="score-display" class="text-6xl font-black mono text-white glow-text">0</div>
-            </div>
-
-            <div class="relative w-full flex justify-center items-center h-20">
-                <div id="last-digit" class="text-8xl font-black mono text-sky-400 digit-pop absolute"></div>
-            </div>
-
-            <div class="w-full max-w-[280px] grid grid-cols-3 gap-2" id="numpad">
-                <!-- Numpad buttons -->
-            </div>
-        </div>
-
-        <!-- Level Up Overlay -->
-        <div id="level-up-overlay" class="fixed inset-0 pointer-events-none flex flex-col items-center justify-center hidden z-50 bg-slate-950/40 backdrop-blur-sm">
-            <h2 id="level-up-text" class="text-6xl font-black text-yellow-400 italic glow-text level-up-anim text-center">LEVEL CLEAR!</h2>
-            <p id="level-up-msg" class="text-xl font-bold text-white mt-4 opacity-0 transition-opacity">素晴らしい記憶力！</p>
-        </div>
-
-        <!-- Result Screen -->
-        <div id="result-screen" class="hidden text-center space-y-4 overflow-y-auto py-4">
-            <h2 id="result-title" class="text-4xl font-bold text-red-500">GAME OVER</h2>
             
-            <div id="game-over-review" class="bg-slate-900/80 p-4 rounded-xl border border-slate-700 space-y-3">
-                <div class="flex justify-center gap-6 text-sm">
-                    <div class="text-center">
-                        <div class="text-slate-500 uppercase text-[10px]">あなたの入力</div>
-                        <div id="wrong-input" class="text-3xl font-black text-red-500 mono">?</div>
-                    </div>
-                    <div class="text-center">
-                        <div class="text-slate-500 uppercase text-[10px]">正解</div>
-                        <div id="correct-answer" class="text-3xl font-black text-green-500 mono">?</div>
+            <div class="text-center w-full relative">
+                <div class="flex justify-between items-center absolute w-full top-2 px-4">
+                    <div class="text-left">
+                        <div class="text-slate-500 text-[10px] uppercase font-bold tracking-widest">Progress</div>
+                        <div id="progress-info" class="text-sky-400 text-sm font-bold mono">0 / 3</div>
                     </div>
                 </div>
-                <div class="border-t border-slate-800 pt-2">
-                    <div class="text-slate-500 uppercase text-[10px] mb-1">今回の正解リスト</div>
-                    <div id="full-pi-review" class="text-sm mono text-slate-300 break-all leading-relaxed tracking-wider"></div>
-                </div>
+                <div class="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-[-5px]">Score</div>
+                <div id="score-display" class="text-7xl font-black mono text-white glow-text">0</div>
             </div>
 
+            <!-- 入力履歴と現在入力表示エリア -->
+            <div class="relative w-full flex flex-col justify-center items-center h-28 bg-slate-900/30 rounded-2xl border border-slate-800/50 mb-2 overflow-hidden">
+                <div class="flex items-center text-slate-500 text-2xl mono tracking-[0.3em] opacity-50 mb-1" id="input-history"></div>
+                <div id="last-digit" class="text-8xl font-black mono text-sky-400 digit-pop leading-none h-[80px] flex items-center justify-center"></div>
+            </div>
+
+            <!-- テンキー (0を中央下に配置するカスタムグリッド) -->
+            <div class="w-full max-w-[300px] grid grid-cols-3 gap-3" id="numpad">
+                <!-- JavaScriptで生成 -->
+            </div>
+        </div>
+
+        <!-- レベルアップ演出 -->
+        <div id="level-up-overlay" class="fixed inset-0 pointer-events-none flex flex-col items-center justify-center hidden z-50 bg-slate-950/60 backdrop-blur-sm">
+            <h2 id="level-up-text" class="text-6xl md:text-7xl font-black text-yellow-400 italic glow-text-yellow level-up-anim text-center">CLEAR!</h2>
+            <p id="level-up-msg" class="text-2xl font-bold text-white mt-4 opacity-0 transition-opacity drop-shadow-lg">素晴らしい記憶力！</p>
+        </div>
+
+        <!-- リザルト画面 -->
+        <div id="result-screen" class="hidden text-center space-y-5 overflow-y-auto max-h-[90vh] py-4 px-2 w-full">
+            <h2 id="result-title" class="text-5xl font-black text-red-500 tracking-tight">GAME OVER</h2>
+            
             <div>
-                <div class="text-slate-400 text-[10px] uppercase tracking-widest">Final Record</div>
-                <div id="final-score" class="text-6xl font-black mono text-white">0</div>
-                <div class="text-sky-400 font-bold text-xs tracking-widest">DIGITS</div>
+                <div class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">あなたの到達記録</div>
+                <div class="flex items-baseline justify-center gap-2">
+                    <div id="final-score" class="text-7xl font-black mono text-white glow-text">0</div>
+                    <div class="text-sky-400 font-bold text-lg tracking-widest">桁</div>
+                </div>
+            </div>
+
+            <div id="game-over-review" class="bg-slate-900 p-5 rounded-2xl border border-slate-700 shadow-xl space-y-4">
+                <div class="flex justify-center gap-10">
+                    <div class="text-center">
+                        <div class="text-slate-400 font-bold text-[11px] mb-1">あなたの入力</div>
+                        <div id="wrong-input" class="text-4xl font-black text-red-500 mono bg-red-500/10 w-16 h-16 rounded-xl flex items-center justify-center border border-red-500/30">?</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-slate-400 font-bold text-[11px] mb-1">正解</div>
+                        <div id="correct-answer" class="text-4xl font-black text-green-400 mono bg-green-500/10 w-16 h-16 rounded-xl flex items-center justify-center border border-green-500/30">?</div>
+                    </div>
+                </div>
+                <div class="border-t border-slate-800 pt-3 text-left">
+                    <div class="text-slate-400 font-bold text-[11px] mb-2 text-center">正解の軌跡 (赤がミスした箇所)</div>
+                    <div id="full-pi-review" class="text-[15px] mono text-slate-300 break-all leading-relaxed tracking-widest max-h-[150px] overflow-y-auto p-2 bg-slate-950 rounded-lg border border-slate-800"></div>
+                </div>
             </div>
             
-            <button onclick="location.reload()" class="bg-slate-700 hover:bg-slate-600 text-white px-8 py-3 rounded-full font-bold transition-all text-sm">
-                RETRY FROM START
+            <button onclick="location.reload()" class="bg-slate-700 hover:bg-slate-600 text-white px-10 py-4 rounded-full font-bold transition-all text-lg shadow-lg active:scale-95 w-full max-w-sm mt-4">
+                タイトルに戻る
             </button>
         </div>
     </div>
 
-    <!-- Feedback Flash -->
+    <!-- フィードバック用フラッシュ（画面全体） -->
     <div id="flash" class="fixed inset-0 pointer-events-none opacity-0 transition-opacity duration-100 z-[60]"></div>
 
     <script>
-        const PI_STR = "3141592653589793238462643383279502884197169399375105820974944592307816406286208998628034825342117067";
+        // 小数点以下150桁を正確に定義 (「3.」は含まない)
+        const PI_STR = "141592653589793238462643383279502884197169399375105820974944592307816406286208998628034825342117067982148086513282306647093844609550582231725359408128481";
         
-        // Generate levels: 3, 6, 10, 14, 18, 22... up to 100
+        // レベル生成: 3, 6, 10 から始まり、5刻みで150まで
         const LEVELS = [3, 6, 10];
-        for (let next = 14; next <= 100; next += 4) {
+        for (let next = 15; next <= 150; next += 5) {
             LEVELS.push(next);
         }
-        if (LEVELS[LEVELS.length - 1] !== 100) LEVELS.push(100);
+        if (LEVELS[LEVELS.length - 1] !== 150) LEVELS.push(150);
 
-        const MESSAGES = ["ナイス！", "その調子！", "すごい！", "天才的！", "信じられない！", "脳がフル回転！", "プロ級暗記！", "円周率の化身", "神の領域...", "伝説級！", "究極の暗記王", "円周率マスター！"];
+        const MESSAGES = ["ナイス！", "その調子！", "すごい！", "天才的！", "信じられない！", "脳がフル回転！", "プロ級暗記！", "円周率の化身", "神の領域...", "伝説級！", "究極の暗記王", "人間コンピュータ！", "円周率マスター！"];
         
         let currentLevelIndex = 0;
         let currentInputIndex = 0;
         let timer;
         let audioCtx;
         let isInputEnabled = false;
-        let memorizationTime = 10; // Default
+        let baseMemorizeTime = 10;
         let isChallengeMode = false;
         let lives = 3;
 
+        // 初期化処理：ハイスコアの読み込み
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                const bestScore = localStorage.getItem('piHighScore') || 0;
+                if (bestScore > 0) {
+                    document.getElementById('highscore-container').classList.remove('hidden');
+                    document.getElementById('highscore-value').innerText = bestScore;
+                }
+            } catch (e) {
+                console.warn('Local storage is not available.');
+            }
+        });
+
+        function saveHighScore(score) {
+            try {
+                const currentBest = localStorage.getItem('piHighScore') || 0;
+                if (score > currentBest) {
+                    localStorage.setItem('piHighScore', score);
+                }
+            } catch (e) {
+                // Ignore if private browsing etc.
+            }
+        }
+
         function setTime(seconds, btn) {
-            memorizationTime = seconds;
+            initAudio(); // ユーザーアクション時にAudio初期化
+            baseMemorizeTime = seconds;
             document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             playTone(440, 'sine', 0.05, 0.1);
         }
 
         function initAudio() {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
         }
 
         function playTone(freq, type = 'sine', duration = 0.1, volume = 0.15) {
-            initAudio();
+            if (!audioCtx) return;
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.type = type;
@@ -254,6 +319,7 @@
         }
 
         function playLevelUpSound() {
+            if (!audioCtx) return;
             const now = audioCtx.currentTime;
             [440, 554.37, 659.25, 880].forEach((f, i) => {
                 const osc = audioCtx.createOscillator();
@@ -270,12 +336,14 @@
         }
 
         function createConfetti() {
-            for(let i=0; i<40; i++) {
+            for(let i=0; i<50; i++) {
                 const c = document.createElement('div');
                 c.className = 'confetti';
                 c.style.left = Math.random() * 100 + 'vw';
-                c.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 60%)`;
-                c.style.animationDuration = (Math.random() * 1.5 + 1) + 's';
+                // 鮮やかな色に限定
+                const colors = ['#38bdf8', '#facc15', '#a855f7', '#fb7185', '#4ade80'];
+                c.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                c.style.animationDuration = (Math.random() * 1.5 + 1.2) + 's';
                 c.style.top = '-10px';
                 document.body.appendChild(c);
                 setTimeout(() => c.remove(), 2500);
@@ -290,9 +358,12 @@
         }
 
         function startGame(challenge) {
+            initAudio();
+            playTone(880, 'sine', 0.1, 0.1);
             isChallengeMode = challenge;
+            
             if (isChallengeMode) {
-                currentLevelIndex = LEVELS.indexOf(100);
+                currentLevelIndex = LEVELS.indexOf(150);
                 lives = 3;
                 document.getElementById('life-container').classList.remove('hidden');
                 updateHearts();
@@ -312,27 +383,31 @@
         }
 
         function startNextLevel() {
-            initAudio();
             isInputEnabled = false;
             const targetDigits = LEVELS[currentLevelIndex];
             showScreen('memorize-screen');
             
-            document.getElementById('level-label').innerText = isChallengeMode ? "Challenge Mode" : `Level ${currentLevelIndex + 1}`;
-            document.getElementById('level-target').innerText = `${targetDigits}桁に挑戦`;
+            document.getElementById('level-label').innerText = isChallengeMode ? "CHALLENGE MODE" : `LEVEL ${currentLevelIndex + 1}`;
+            document.getElementById('level-target').innerText = `小数点以下 ${targetDigits}桁`;
             
+            // 表示構築：「3.」＋ 指定桁数分の円周率
             const display = document.getElementById('pi-display');
             const piPart = PI_STR.substring(0, targetDigits);
-            display.innerHTML = `<span class="text-sky-400 font-bold">3.</span>` + piPart.substring(1);
+            display.innerHTML = `<span class="text-sky-400 font-bold mr-1">3.</span>` + piPart;
             
-            let timeLeft = memorizationTime;
+            // 暗記時間の計算: チャレンジは60秒固定、ノーマルは基準時間＋(桁数×0.5)秒
+            let timeLeft = isChallengeMode ? 60 : Math.floor(baseMemorizeTime + (targetDigits * 0.5));
+            
             const timerBar = document.getElementById('timer-bar');
             const countdownText = document.getElementById('countdown-text');
             countdownText.innerText = timeLeft;
             countdownText.classList.remove('text-red-500', 'scale-110');
-            timerBar.style.width = "100%";
-            timerBar.style.transition = `width ${memorizationTime}s linear`;
             
-            void timerBar.offsetWidth;
+            // タイマーバーのアニメーションリセットと開始
+            timerBar.style.transition = 'none';
+            timerBar.style.width = "100%";
+            void timerBar.offsetWidth; // リフロー強制
+            timerBar.style.transition = `width ${timeLeft}s linear`;
             timerBar.style.width = "0%";
             
             clearInterval(timer);
@@ -358,6 +433,7 @@
             isInputEnabled = true;
             document.getElementById('score-display').innerText = "0";
             document.getElementById('last-digit').innerText = "";
+            updateHistoryDisplay();
             updateProgressInfo();
             renderNumpad();
         }
@@ -367,6 +443,13 @@
             document.getElementById('progress-info').innerText = `${currentInputIndex} / ${target}`;
         }
 
+        function updateHistoryDisplay() {
+            // 直近7文字程度を表示して、ゲシュタルト崩壊を防ぐ
+            const historyStr = PI_STR.substring(Math.max(0, currentInputIndex - 7), currentInputIndex);
+            document.getElementById('input-history').innerText = historyStr || " ";
+        }
+
+        // キーボード入力対応
         window.addEventListener('keydown', (e) => {
             if (!isInputEnabled) return;
             if (e.key >= '0' && e.key <= '9') {
@@ -376,37 +459,50 @@
 
         function checkInput(num) {
             if (!isInputEnabled) return;
+            initAudio(); // スマホ等の操作時に必要になる対応
 
             const expected = PI_STR[currentInputIndex];
             const targetDigits = LEVELS[currentLevelIndex];
 
             if (num === expected) {
+                // 正解の処理
                 currentInputIndex++;
                 document.getElementById('score-display').innerText = currentInputIndex;
                 updateProgressInfo();
+                updateHistoryDisplay();
                 
+                // 入力文字のポップアニメーション
                 const lastDigitEl = document.getElementById('last-digit');
                 lastDigitEl.innerText = num;
                 lastDigitEl.classList.remove('digit-pop');
                 void lastDigitEl.offsetWidth;
                 lastDigitEl.classList.add('digit-pop');
 
+                // 音階を上げる演出
                 playTone(440 * Math.pow(2, (currentInputIndex % 12) / 12), 'triangle', 0.12);
 
                 if (currentInputIndex === targetDigits) {
+                    saveHighScore(currentInputIndex);
                     handleLevelClear();
                 }
             } else {
+                // 不正解の処理
+                saveHighScore(currentInputIndex); // ゲームオーバー時にもセーブ
+
                 if (isChallengeMode) {
                     lives--;
                     updateHearts();
                     if (lives > 0) {
-                        playTone(220, 'sawtooth', 0.2, 0.1);
-                        // Briefly show error flash but keep playing
+                        // ライフが残っている場合はエラー音とフラッシュのみ
+                        playTone(220, 'sawtooth', 0.2, 0.2);
                         const flash = document.getElementById('flash');
-                        flash.style.backgroundColor = 'rgba(239, 68, 68, 0.2)';
+                        flash.style.backgroundColor = 'rgba(239, 68, 68, 0.3)';
                         flash.style.opacity = '1';
-                        setTimeout(() => flash.style.opacity = '0', 200);
+                        document.getElementById('game-container').classList.add('shake');
+                        setTimeout(() => {
+                            flash.style.opacity = '0';
+                            document.getElementById('game-container').classList.remove('shake');
+                        }, 300);
                     } else {
                         handleGameOver(num, expected);
                     }
@@ -416,6 +512,29 @@
             }
         }
 
+        function renderNumpad() {
+            const numpad = document.getElementById('numpad');
+            numpad.innerHTML = '';
+            
+            // 1〜9のボタン生成
+            [1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(num => {
+                numpad.appendChild(createBtn(num));
+            });
+            
+            // 0のボタンを下部中央（2列目）に配置
+            const zeroBtn = createBtn(0);
+            zeroBtn.classList.add('col-start-2');
+            numpad.appendChild(zeroBtn);
+        }
+
+        function createBtn(num) {
+            const btn = document.createElement('button');
+            btn.className = "bg-slate-800 hover:bg-slate-700 text-white font-black py-4 rounded-2xl text-3xl mono transition-all active:scale-90 select-none shadow-sm border-b-4 border-slate-900 active:border-b-0 touch-manipulation";
+            btn.innerText = num;
+            btn.onclick = () => checkInput(num.toString());
+            return btn;
+        }
+
         function handleLevelClear() {
             isInputEnabled = false;
             playLevelUpSound();
@@ -423,11 +542,15 @@
 
             const overlay = document.getElementById('level-up-overlay');
             const msg = document.getElementById('level-up-msg');
-            msg.innerText = MESSAGES[Math.min(currentLevelIndex, MESSAGES.length - 1)];
+            
+            // レベルに応じたメッセージを表示
+            const msgIndex = Math.min(Math.floor(currentLevelIndex / 2), MESSAGES.length - 1);
+            msg.innerText = MESSAGES[msgIndex];
             
             overlay.classList.remove('hidden');
             msg.classList.remove('opacity-0');
             
+            // Web Speech API で読み上げ（日本語）
             if ('speechSynthesis' in window) {
                 const utterance = new SpeechSynthesisUtterance(`${LEVELS[currentLevelIndex]}桁クリア！`);
                 utterance.lang = 'ja-JP';
@@ -448,29 +571,33 @@
                         showResult(true);
                     }
                 }
-            }, 2000);
+            }, 2500); // 演出の余韻を少し長く
         }
 
         function handleGameOver(typedNum, correctNum) {
             isInputEnabled = false;
-            playTone(110, 'sawtooth', 0.4, 0.2);
+            playTone(110, 'sawtooth', 0.5, 0.3);
             
             const flash = document.getElementById('flash');
-            flash.style.backgroundColor = 'rgba(239, 68, 68, 0.4)';
+            flash.style.backgroundColor = 'rgba(239, 68, 68, 0.6)';
             flash.style.opacity = '1';
             document.getElementById('game-container').classList.add('shake');
             
-            // Setup review UI
+            // レビュー画面の生成
             document.getElementById('wrong-input').innerText = typedNum;
             document.getElementById('correct-answer').innerText = correctNum;
             
             const targetDigits = LEVELS[currentLevelIndex];
             const fullPiPart = PI_STR.substring(0, targetDigits);
-            let reviewHtml = '';
+            
+            // 「3.」を固定で付与し、間違えた箇所をハイライト
+            let reviewHtml = '<span class="text-sky-400 font-bold mr-1">3.</span>';
             for(let i=0; i<fullPiPart.length; i++) {
-                if(i === 0) reviewHtml += '<span class="text-sky-400 font-bold">3.</span>';
-                else if(i === currentInputIndex) reviewHtml += `<span class="bg-red-500/50 text-white px-0.5 rounded">${fullPiPart[i]}</span>`;
-                else reviewHtml += fullPiPart[i];
+                if(i === currentInputIndex) {
+                    reviewHtml += `<span class="bg-red-500 text-white font-bold px-0.5 rounded shadow-[0_0_10px_rgba(239,68,68,0.8)]">${fullPiPart[i]}</span>`;
+                } else {
+                    reviewHtml += fullPiPart[i];
+                }
             }
             document.getElementById('full-pi-review').innerHTML = reviewHtml;
             document.getElementById('game-over-review').classList.remove('hidden');
@@ -479,33 +606,21 @@
                 flash.style.opacity = '0';
                 document.getElementById('game-container').classList.remove('shake');
                 showResult(false);
-            }, 500);
+            }, 600);
         }
 
         function showResult(allClear) {
             showScreen('result-screen');
             const title = document.getElementById('result-title');
             if (allClear) {
-                title.innerText = isChallengeMode ? "CHALLENGE CLEAR!" : "ALL CLEAR!";
-                title.className = "text-5xl font-black text-yellow-400 glow-text";
+                title.innerText = "完全制覇！";
+                title.className = "text-5xl font-black text-yellow-400 glow-text-yellow tracking-tighter";
                 document.getElementById('game-over-review').classList.add('hidden');
             } else {
-                title.innerText = "GAME OVER";
-                title.className = "text-4xl font-bold text-red-500";
+                title.innerText = "ゲームオーバー";
+                title.className = "text-4xl font-black text-red-500 tracking-tighter";
             }
             document.getElementById('final-score').innerText = currentInputIndex;
-        }
-
-        function renderNumpad() {
-            const numpad = document.getElementById('numpad');
-            numpad.innerHTML = '';
-            [1, 2, 3, 4, 5, 6, 7, 8, 9, 0].forEach(num => {
-                const btn = document.createElement('button');
-                btn.className = "bg-slate-800 hover:bg-slate-700 text-white font-bold py-3.5 rounded-xl text-2xl mono transition-all active:scale-90 select-none shadow-sm border-b-4 border-slate-900 active:border-b-0";
-                btn.innerText = num;
-                btn.onclick = () => checkInput(num.toString());
-                numpad.appendChild(btn);
-            });
         }
     </script>
 </body>
